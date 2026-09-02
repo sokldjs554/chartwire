@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chartwire"
+version = "0.1.0"
+description = "정신과 진료실 실시간 음성차팅의 밑바닥 — 무손실 WebSocket 스트리밍, RLS 테넌시, 파기 영수증, 근거 검증형 SOAP 초안"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "websockets>=12",
+  "sqlalchemy[asyncio]>=2.0.30",
+  "asyncpg>=0.29",
+  "psycopg[binary]>=3.1",
+  "alembic>=1.13",
+  "redis>=5.0",
+  "pydantic>=2.7",
+  "pydantic-settings>=2.3",
+  "structlog>=24.1",
+  "prometheus-client>=0.20",
+  "cryptography>=42",
+  "typer>=0.12",
+  "orjson>=3.10",
+  "psutil>=5.9",
+  "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+aws = ["boto3>=1.34", "amazon-transcribe>=0.6"]
+llm = ["anthropic>=0.40"]
+infra = ["aws-cdk-lib>=2.150", "constructs>=10.3", "cdk-nag>=2.28"]
+dev = [
+  "pytest>=8.2",
+  "pytest-asyncio>=0.23",
+  "hypothesis>=6.100",
+  "ruff>=0.5",
+  "mypy>=1.10",
+  "pip-audit>=2.7",
+  "types-psutil",
+  "types-redis",
+]
+
+[project.scripts]
+chartwire = "chartwire.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+chartwire = ["redis/scripts/*.lua", "eval/data/*", "migrations/*.ini", "py.typed"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "ASYNC"]
+ignore = ["E501", "RUF001", "RUF002", "RUF003", "B008", "SIM108"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/chartwire/migrations/versions/*" = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = ["chartwire.ws.core", "chartwire.ws.codec", "chartwire.notes.verifier", "chartwire.crypto.*", "chartwire.outbox.*"]
+strict = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+  "integration: needs PostgreSQL + Redis",
+  "chaos: kills processes",
+  "slow: long-running",
+]
+filterwarnings = ["ignore::DeprecationWarning"]
