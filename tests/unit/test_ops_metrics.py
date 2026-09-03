@@ -45,7 +45,7 @@ SPEC_NAMES = {
 
 def test_all_names_cover_the_spec_exactly_plus_partition_gauge() -> None:
     assert set(metrics.ALL_NAMES) - SPEC_NAMES == {"segments_default_partition_rows"}
-    assert SPEC_NAMES <= set(metrics.ALL_NAMES)
+    assert set(metrics.ALL_NAMES) >= SPEC_NAMES
     assert len(metrics.ALL_NAMES) == len(set(metrics.ALL_NAMES))
 
 
@@ -55,8 +55,26 @@ def test_every_name_is_registered_and_rendered() -> None:
     text = body.decode()
     assert content_type.startswith("text/plain")
     for name in metrics.ALL_NAMES:
-        family = name.removesuffix("_total")
-        assert re.search(rf"^# TYPE {family} (counter|gauge|histogram)$", text, re.M), name
+        # The text exposition names counters with their ``_total`` suffix (``# TYPE x_total counter``).
+        assert re.search(rf"^# TYPE {name} (counter|gauge|histogram)$", text, re.M), name
+    assert "_created" not in text, "``*_created`` companion series are disabled"
+
+
+def test_known_label_sets_exist_at_zero_before_any_observation() -> None:
+    text = metrics.render()[0].decode()
+    for collector, values in metrics.KNOWN_LABEL_VALUES:
+        name = collector._name
+        label = collector._labelnames[0]
+        for value in values:
+            if collector._type == "counter":
+                assert f'{name}_total{{{label}="{value}"}} 0.0' in text, (name, value)
+            elif collector._type == "gauge":
+                assert f'{name}{{{label}="{value}"}} 0.0' in text, (name, value)
+            else:
+                assert f'{name}_count{{{label}="{value}"}} 0.0' in text, (name, value)
+    assert "risk_hits_total{" not in text, "open label cube is not pre-created"
+    metrics.init_known_labels()  # idempotent: re-running does not reset or duplicate series
+    assert text.count("# TYPE ws_chunks_total counter") == 1
 
 
 def test_label_sets_match_spec() -> None:

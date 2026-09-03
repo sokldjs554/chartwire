@@ -1,0 +1,12 @@
+{
+  "script_ref": "t03",
+  "seed": 3,
+  "template": "불면",
+  "chunk_ms": 100,
+  "total_ms": 1600,
+  "utterances": [
+    {"idx": 0, "speaker": "patient", "text": "새벽 4시에 깨서 다시 못 자요", "t_start_ms": 0, "t_end_ms": 600,
+     "gold": {"section_label": "S", "facts": [{"type": "early_awakening", "hour": 4}], "risk": null, "pii": []}}
+  ],
+  "meta": {"generator": "chartwire.tests", "version": "1"}
+}

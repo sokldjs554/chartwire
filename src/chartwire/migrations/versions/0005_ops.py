@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from chartwire.migrations.helpers import grant
+from chartwire.migrations.helpers import grant, grant_sequence
 
 revision = "0005"
 down_revision = "0004"
@@ -58,6 +58,9 @@ CREATE TABLE purge_jobs (
     for table in ("outbox_events", "processed_events", "dead_letters", "purge_jobs"):
         grant(table, "SELECT, INSERT, UPDATE, DELETE")
     grant("audit_events", "SELECT, INSERT")
+    grant_sequence(
+        "audit_events_id_seq"
+    )  # currval() after INSERT: RETURNING is blocked by the read gate (0006)
 
 
 def downgrade() -> None:

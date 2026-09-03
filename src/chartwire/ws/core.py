@@ -35,10 +35,9 @@ class IngestCore:
         self._last_ack_ms = self._last_nack_ms = now_ms
         self._last_nack: list[Range] = []
         self._zero_since: int | None = None
-        self._paused = False
         self._end_deadline: int | None = None
         self._drain_deadline: int | None = None
-        self._hb = credit_rules.Heartbeat(now_ms)
+        self._paused, self._hb = False, credit_rules.Heartbeat(now_ms)
 
     @property
     def outstanding(self) -> int:
@@ -46,11 +45,8 @@ class IngestCore:
 
     @property
     def missing(self) -> list[Range]:
-        top = max(self.highest_seen, self.final_seq or 0)
-        pending = range(self.ledger_seq + 1, top + 1)
-        return act.ranges(
-            s for s in pending if s > self.contig_seq and s not in self._reorder and s not in self._ledgered
-        )
+        pending = range(self.contig_seq + 1, self.highest_seen + 1)  # on_end raises highest_seen to final_seq
+        return act.ranges(s for s in pending if s not in self._reorder and s not in self._ledgered)
 
     def on_hello(
         self,
@@ -65,8 +61,9 @@ class IngestCore:
     ) -> list[Action]:
         self.now_ms, self.epoch = now_ms, epoch
         self.ack_seq = self.ledger_seq = self.contig_seq = self.highest_seen = ack_seq_from_store
-        self._ledgered = {s for s in ledgered_after_ack if s > ack_seq_from_store}
-        self._advance_ledger()
+        self._ledger(ledgered_after_ack)
+        self.ack_seq = self.ledger_seq  # rows already durable and contiguous are acknowledged in welcome
+        self._advance()  # …and the expected cursor skips them (they are never re-sent)
         out: list[Action] = [] if hot_state_present else [act.Rehydrate()]
         if resume and last_sent_seq is not None and last_sent_seq > self.ack_seq:
             if last_sent_seq - self.ack_seq > credit_rules.RING_BUFFER_CHUNKS:
@@ -85,19 +82,18 @@ class IngestCore:
         self.stats.received += 1
         if self.final_seq is not None and seq > self.final_seq:
             return self._fail(CloseCode.SESSION_ENDED, "chunk after final_seq")
-        if seq <= self.contig_seq or seq in self._reorder:
+        if seq <= self.contig_seq or seq in self._reorder or seq in self._ledgered:
             self.stats.duplicates += 1
-            return [act.Ack(self.ack_seq, self._advertise())] if seq <= self.ack_seq else []
+            return [act.Ack(self.ack_seq, self.advertised)] if seq <= self.ack_seq else []
         if seq > self.highest_seen and credit_rules.violates(seq - self.ack_seq, self.advertised):
             return self._fail(CloseCode.CREDIT_VIOLATION, "outstanding exceeds credit + tolerance")
         self.highest_seen = max(self.highest_seen, seq)
         if seq == self.contig_seq + 1:
             return self._store(seq, offset_ms, flags)
         self.stats.reordered += 1
+        self.stats.dropped += len(self._reorder) >= self.reorder_max  # the nack below gets it re-sent
         if len(self._reorder) < self.reorder_max:
             self._reorder[seq] = (offset_ms, flags)
-        else:
-            self.stats.dropped += 1  # the nack below makes the recorder re-send it later
         return self._nack()
 
     def on_stored(self, seq: int) -> list[Action]:
@@ -105,9 +101,8 @@ class IngestCore:
         return []
 
     def on_ledgered(self, seqs: Iterable[int]) -> list[Action]:
-        self._ledgered.update(s for s in seqs if s > self.ledger_seq)
-        self._advance_ledger()
-        return self._maybe_ack() + self._maybe_finish()
+        self._ledger(seqs)
+        return self._advance() + self._maybe_ack() + self._maybe_finish()
 
     def on_end(self, final_seq: int, now_ms: int) -> list[Action]:
         if self.closed:
@@ -125,24 +120,27 @@ class IngestCore:
         self.credit = credit_rules.compute(self.credit_base, stt_lag, node_pending)
         out: list[Action] = []
         if credit_rules.changed_significantly(self.advertised, self.credit):
-            out.append(act.SendCredit(self._advertise()))
+            self.advertised = self.credit
+            out.append(act.SendCredit(self.credit))
         out += self._pause_check(now_ms) + self._maybe_ack() + self._maybe_finish()
         if self._end_deadline is not None and now_ms >= self._end_deadline and not self.closed:
             self._end_deadline = now_ms + END_WAIT_MS
             out += self._nack(force=True)
-        return out + self._hb.tick(now_ms) if not self.closed else out
+        if not self.closed and self._drain_deadline is None:  # after bye{drain} liveness no longer matters
+            out += self._hb.tick(now_ms)
+            self.closed = any(isinstance(a, act.Close) for a in out)
+        return out
 
     def on_pong(self, now_ms: int) -> list[Action]:
-        self._hb.pong()
-        return []
+        return self._hb.pong()
 
     def on_superseded(self, new_epoch: int) -> list[Action]:
         if self.closed or new_epoch <= self.epoch:
             return []
-        return self._finish(CloseCode.SUPERSEDED, "superseded")
+        return self._finish(CloseCode.SUPERSEDED, bye="superseded")
 
     def on_consent_revoked(self) -> list[Action]:
-        return [] if self.closed else self._finish(CloseCode.CONSENT_MISSING, "consent_revoked")
+        return [] if self.closed else self._finish(CloseCode.CONSENT_MISSING, bye="consent_revoked")
 
     def on_drain(self, now_ms: int) -> list[Action]:
         if self.closed or self._drain_deadline is not None:
@@ -150,20 +148,21 @@ class IngestCore:
         self.now_ms, self._drain_deadline = now_ms, now_ms + DRAIN_WAIT_MS
         return [act.Send(m.dump(m.Bye(reason="drain", ack_seq=self.ack_seq))), *self._maybe_finish()]
 
-    def _advertise(self) -> int:
-        self.advertised = self.credit
-        return self.advertised
-
     def _store(self, seq: int, offset_ms: int, flags: int) -> list[Action]:
-        out: list[Action] = [act.Store(seq, offset_ms, flags)]
         self.contig_seq = seq
-        while (nxt := self.contig_seq + 1) in self._reorder:
-            off, fl = self._reorder.pop(nxt)
-            out.append(act.Store(nxt, off, fl))
-            self.contig_seq = nxt
+        return [act.Store(seq, offset_ms, flags), *self._advance()]
+
+    def _advance(self) -> list[Action]:
+        """Extend the contiguous prefix: buffered chunks are stored, rows already durable are skipped."""
+        out: list[Action] = []
+        while (n := self.contig_seq + 1) in self._reorder or n in self._ledgered or n <= self.ledger_seq:
+            if n in self._reorder:
+                out.append(act.Store(n, *self._reorder.pop(n)))
+            self.contig_seq = n
         return out
 
-    def _advance_ledger(self) -> None:
+    def _ledger(self, seqs: Iterable[int]) -> None:
+        self._ledgered.update(s for s in seqs if s > self.ledger_seq)
         while (nxt := self.ledger_seq + 1) in self._ledgered:
             self._ledgered.discard(nxt)
             self.ledger_seq = nxt
@@ -174,9 +173,9 @@ class IngestCore:
         due = self.ledger_seq - self.ack_seq >= ACK_EVERY_CHUNKS or self.credit < credit_rules.LOW_WATER
         if not (force or due or self.now_ms - self._last_ack_ms >= ACK_EVERY_MS):
             return []
-        self.ack_seq, self._last_ack_ms = self.ledger_seq, self.now_ms
+        self.ack_seq, self._last_ack_ms, self.advertised = self.ledger_seq, self.now_ms, self.credit
         self.stats.acks += 1
-        return [act.Ack(self.ack_seq, self._advertise())]
+        return [act.Ack(self.ack_seq, self.advertised)]
 
     def _nack(self, *, force: bool = False) -> list[Action]:
         missing = self.missing  # re-nack only for newly missing seqs, or every 100 ms
@@ -201,31 +200,34 @@ class IngestCore:
         if self.closed:
             return []
         if self.final_seq is not None and self.ledger_seq >= self.final_seq:
-            return [act.Transition("ended"), *self._finish(CloseCode.ENDED, "ended")]
-        drain = self._drain_deadline
+            return self._finish(CloseCode.ENDED, bye="ended", state="ended")
+        drain = self._drain_deadline  # bye{drain} was sent by on_drain; close once flushed or at the deadline
         if drain is not None and (self.ledger_seq >= self.contig_seq or self.now_ms >= drain):
-            return self._finish(CloseCode.SERVICE_RESTART, "drain")
+            return self._finish(CloseCode.SERVICE_RESTART)
         return []
 
-    def _finish(self, code: CloseCode, reason: m.ByeReason) -> list[Action]:
-        out = self._maybe_ack(force=True)
+    def _finish(
+        self, code: CloseCode, *, bye: m.ByeReason | None = None, state: str | None = None
+    ) -> list[Action]:
+        out = self._maybe_ack(force=True) + (
+            [act.Transition(state)] if state else []
+        )  # durable position first
         self.closed = True
-        return [*out, act.Send(m.dump(m.Bye(reason=reason, ack_seq=self.ack_seq))), act.close(code, reason)]
+        if bye is not None:
+            out.append(act.Send(m.dump(m.Bye(reason=bye, ack_seq=self.ack_seq))))
+        return [*out, act.close(code, bye)]
 
     def _fail(self, code: CloseCode, message: str) -> list[Action]:
-        out: list[Action] = [act.Send(act.error_msg(code, message))]
-        if code is CloseCode.SEQ_GAP_UNRECOVERABLE:
-            out.append(act.Transition("ended"))
         self.closed = True
-        return [*out, act.close(code)]
+        ended = [act.Transition("ended")] if code is CloseCode.SEQ_GAP_UNRECOVERABLE else []
+        return [act.Send(act.error_msg(code, message)), *ended, act.close(code)]
 
 
 class WatchCore:
     """Viewer state machine: ``Subscribe`` before ``Replay``; finals strictly increasing, no gaps, no dups."""
 
     def __init__(self, *, now_ms: int, session_id: str = "") -> None:
-        self.sid, self.closed = session_id, False
-        self.last_final_seq, self.replaying = -1, False
+        self.sid, self.closed, self.last_final_seq, self.replaying = session_id, False, -1, False
         self._pending: dict[int, dict[str, Any]] = {}  # live finals held back until contiguous
         self._alerts: set[str] = set()
         self._hb = credit_rules.Heartbeat(now_ms)
@@ -258,10 +260,9 @@ class WatchCore:
     def on_live_event(self, ev: dict[str, Any]) -> list[Action]:
         if self.closed:
             return []
-        kind = ev.get("t")
-        if kind == "risk.alert":
+        if ev.get("t") == "risk.alert":
             return self._alert(ev)
-        if kind != "transcript.final":
+        if ev.get("t") != "transcript.final":
             return [act.Send(ev)]
         seq = int(ev["seq"])
         if seq <= self.last_final_seq or seq in self._pending:
@@ -278,8 +279,7 @@ class WatchCore:
         return out
 
     def on_pong(self, now_ms: int) -> list[Action]:
-        self._hb.pong()
-        return []
+        return self._hb.pong()
 
     def _alert(self, ev: dict[str, Any]) -> list[Action]:
         rid = str(ev.get("risk_event_id"))

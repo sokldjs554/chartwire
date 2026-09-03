@@ -1,0 +1,4 @@
+# Pinned exactly (spec §12.1); the same versions are installed in the project venv via `.[infra]`.
+aws-cdk-lib==2.267.0
+constructs==10.8.1
+cdk-nag==2.38.2

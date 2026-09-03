@@ -1,0 +1,20 @@
+{
+  "script_ref": "t01",
+  "seed": 1,
+  "template": "초진 우울",
+  "chunk_ms": 200,
+  "total_ms": 8300,
+  "utterances": [
+    {"idx": 0, "speaker": "clinician", "text": "안녕하세요 어떻게 지내셨어요", "t_start_ms": 0, "t_end_ms": 1500,
+     "gold": {"section_label": "none", "facts": [], "risk": null, "pii": []}},
+    {"idx": 1, "speaker": "patient", "text": "잠드는 데 두 시간쯤 걸려요", "t_start_ms": 1500, "t_end_ms": 3100,
+     "gold": {"section_label": "S", "facts": [{"type": "sleep_latency", "hours": 2}], "risk": null, "pii": []}},
+    {"idx": 2, "speaker": "clinician", "text": "혹시 죽고 싶다는 생각이 드세요?", "t_start_ms": 3100, "t_end_ms": 4900,
+     "gold": {"section_label": "none", "facts": [], "risk": {"category": "suicidal_ideation", "severity": 0, "kind": "clinician_question"}, "pii": []}},
+    {"idx": 3, "speaker": "patient", "text": "요즘은 그냥 사라지고 싶어요", "t_start_ms": 4900, "t_end_ms": 6500,
+     "gold": {"section_label": "S", "facts": [], "risk": {"category": "suicidal_ideation", "severity": 2, "kind": "positive"}, "pii": []}},
+    {"idx": 4, "speaker": "clinician", "text": "에스시탈로프람을 10mg으로 올려보겠습니다", "t_start_ms": 6500, "t_end_ms": 7300,
+     "gold": {"section_label": "P", "facts": [{"type": "plan_medication", "name": "에스시탈로프람", "dose": "10mg", "action": "increase"}], "risk": null, "pii": []}}
+  ],
+  "meta": {"generator": "chartwire.tests", "version": "1"}
+}

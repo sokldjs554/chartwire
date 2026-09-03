@@ -47,16 +47,16 @@ def upgrade() -> None:
     enable_rls("segment_search", force=False)
     for table in NOTE_TABLES:  # staff/admin get 0 rows even if a router forgets the role check
         op.execute(f"CREATE POLICY role_gate ON {table} AS RESTRICTIVE USING ({ROLE_GATE})")
-    op.execute("ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY")
-    op.execute("ALTER TABLE audit_events FORCE ROW LEVEL SECURITY")
-    op.execute(f"CREATE POLICY audit_insert ON audit_events FOR INSERT WITH CHECK ({TENANT_POLICY})")
+    # audit_events: tenant_isolation (INSERT/UPDATE/DELETE reach the append-only trigger) plus a
+    # RESTRICTIVE read gate — only auditor/admin/service can SELECT (and therefore RETURNING) rows.
+    enable_rls("audit_events")
     op.execute(
-        f"CREATE POLICY audit_select ON audit_events FOR SELECT USING ({TENANT_POLICY} AND {AUDIT_READ_ROLES})"
+        f"CREATE POLICY audit_read_gate ON audit_events AS RESTRICTIVE FOR SELECT USING ({AUDIT_READ_ROLES})"
     )
 
 
 def downgrade() -> None:
-    disable_rls("audit_events", "audit_insert", "audit_select")
+    disable_rls("audit_events", "tenant_isolation", "audit_read_gate")
     for table in NOTE_TABLES:
         op.execute(f"DROP POLICY role_gate ON {table}")
     disable_rls("segment_search")

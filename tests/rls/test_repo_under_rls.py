@@ -6,9 +6,10 @@ import random
 from datetime import datetime, timedelta
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import DBAPIError
 
+from chartwire.core.clock import FakeClock
 from chartwire.core.ids import uuid7
 from chartwire.db.repo import notes as notes_repo
 from chartwire.db.repo import outbox as outbox_repo
@@ -74,11 +75,18 @@ async def test_insert_final_is_idempotent_and_timeline_keyset_pages(app_engine, 
 # ------------------------------------------------------------------ outbox
 
 
-async def test_outbox_claim_retry_dead_letter_and_replay(app_engine, tenant_a, fake_clock):
+async def _tx_clock(session) -> FakeClock:
+    """``next_attempt_at`` defaults to the database ``now()`` (= transaction start); a fake clock
+    that starts earlier would never see rows emitted in this transaction as due."""
+    return FakeClock((await session.execute(select(func.now()))).scalar_one())
+
+
+async def test_outbox_claim_retry_dead_letter_and_replay(app_engine, tenant_a):
     ctx = TenantCtx.service(tenant_a.id)
-    now = fake_clock.now()
     aggregate = uuid7()
     async with tenant_tx(app_engine, ctx) as session:
+        fake_clock = await _tx_clock(session)
+        now = fake_clock.now()
         eid = await writer.emit(
             session,
             tenant_id=tenant_a.id,
@@ -137,10 +145,10 @@ async def test_outbox_claim_retry_dead_letter_and_replay(app_engine, tenant_a, f
         assert await outbox_repo.prune_done(session, now=now + timedelta(hours=25)) == 1
 
 
-async def test_outbox_lease_reclaim_and_tenant_scoping(app_engine, tenant_a, tenant_b, fake_clock):
-    now = fake_clock.now()
+async def test_outbox_lease_reclaim_and_tenant_scoping(app_engine, tenant_a, tenant_b):
     for tenant in (tenant_a, tenant_b):
         async with tenant_tx(app_engine, TenantCtx.service(tenant.id)) as session:
+            now = (await _tx_clock(session)).now()
             await outbox_repo.insert_event(
                 session,
                 tenant_id=tenant.id,

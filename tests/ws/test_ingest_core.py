@@ -82,6 +82,18 @@ def test_resume_welcome_lists_missing_ranges_excluding_ledgered_rows():
     assert core.on_tick(ACK_EVERY_MS, 0, 0) == [Ack(13, BASE)]
 
 
+def test_resume_welcome_acknowledges_rows_already_contiguous_in_the_ledger():
+    core = IngestCore(now_ms=0, credit_base=BASE)
+    out = hello(core, ack=40, resume=True, last_sent=52, ledgered_after_ack=[41, 42, 43, 45, 46, 50])
+    welcome = sends(out, "welcome")[0]
+    assert welcome["ack_seq"] == 43 and core.ack_seq == core.ledger_seq == 43
+    assert welcome["missing"] == [[44, 44], [47, 49], [51, 52]]
+    assert stores(feed(core, [44, 47, 48, 49, 51, 52], now=10)) == [44, 47, 48, 49, 51, 52]
+    assert core.on_ledgered([44]) == []  # 45, 46 were durable already → ledger 46, but < 8 chunks / < 100 ms
+    assert core.ledger_seq == 46
+    assert core.on_ledgered([47, 48, 49, 51, 52]) == [Ack(52, BASE)]  # 52 − 43 ≥ 8 chunks
+
+
 def test_resume_without_gap_has_no_missing():
     core = IngestCore(now_ms=0, credit_base=BASE)
     out = hello(core, ack=30, resume=True, last_sent=30)
@@ -215,7 +227,9 @@ def test_ack_is_never_ahead_of_ledger_and_is_monotone():
                 assert a.ack_seq <= core.ledger_seq
         assert core.ack_seq <= core.ledger_seq
     assert core.on_tick(19 * 60 + ACK_EVERY_MS, 0, 0) == [Ack(19, BASE)]
-    assert core.stats.acks == len({a for a in range(1, 20) if a % 2 == 0 or a == 19})  # one ack per 100 ms window
+    assert core.stats.acks == len(
+        {a for a in range(1, 20) if a % 2 == 0 or a == 19}
+    )  # one ack per 100 ms window
 
 
 # --- credit -----------------------------------------------------------------------------
@@ -241,7 +255,7 @@ def test_credit_violation_closes_4009_with_plus_twenty_tolerance():
 
 def test_credit_zero_for_two_seconds_sends_pause_once():
     core = fresh()
-    assert sends(core.on_tick(200, stt_lag=1000, node_pending=0), "credit") == [{"t": "credit", "credit": 0}]
+    assert core.on_tick(200, stt_lag=1000, node_pending=0) == [SendCredit(0)]
     assert sends(core.on_tick(2_200, stt_lag=1000, node_pending=0), "pause") == []
     assert sends(core.on_tick(2_201, stt_lag=1000, node_pending=0), "pause") == [
         {"t": "pause", "reason": "stt_lag", "retry_ms": 2000}
@@ -320,6 +334,7 @@ def test_heartbeat_ping_and_close_4000_after_two_missed_pongs():
     assert sends(core.on_tick(30_000, 0, 0), "ping")
     assert sends(core.on_tick(45_000, 0, 0), "ping")  # one unanswered → still pinging
     assert core.on_tick(60_000, 0, 0) == [Close(4000, "heartbeat_timeout")]
+    assert core.closed and core.on_chunk(1, 0, 0, 60_001) == []
 
 
 def test_superseded_by_newer_epoch_sends_bye_and_closes_4409():
@@ -346,28 +361,37 @@ def test_consent_revoked_sends_bye_and_closes_4011():
     assert core.on_consent_revoked() == []
 
 
-def test_drain_flushes_ledger_then_closes_1012():
+def test_drain_sends_one_bye_keeps_acking_then_closes_1012_when_flushed():
     core = fresh()
     feed(core, [1, 2, 3])
-    out = core.on_drain(1_000)
-    assert out == [Send({"t": "bye", "reason": "drain", "ack_seq": 0})]
-    assert core.on_drain(1_001) == []
-    assert core.on_ledgered([1, 2]) == []
-    out = core.on_ledgered([3])
-    assert out == [Ack(3, BASE), Send({"t": "bye", "reason": "drain", "ack_seq": 3}), Close(1012, "drain")]
+    assert core.on_drain(1_000) == [Send({"t": "bye", "reason": "drain", "ack_seq": 0})]
+    assert core.on_drain(1_001) == []  # idempotent: one bye per connection
+    assert core.on_ledgered([1, 2]) == [Ack(2, BASE)]  # acks keep flowing after bye (≥100 ms rule)
+    assert core.on_ledgered([3]) == [Ack(3, BASE), Close(1012, "drain")]
+    assert core.closed and core.stats.acks == 2
 
 
-def test_drain_deadline_closes_even_if_ledger_is_stuck():
+def test_drain_still_stores_in_flight_chunks_and_waits_for_them():
     core = fresh()
     feed(core, [1])
     core.on_drain(1_000)
-    assert core.on_tick(20_999, 0, 0) == []
-    assert closes(core.on_tick(21_000, 0, 0)) == [Close(1012, "drain")]
+    assert core.on_chunk(2, 200, 0, 1_010) == [Store(2, 200, 0)]
+    assert core.on_ledgered([1]) == [Ack(1, BASE)]  # chunk 2 stored but not durable: stay open
+    assert core.on_ledgered([2]) == [Ack(2, BASE), Close(1012, "drain")]
+
+
+def test_drain_deadline_closes_even_if_ledger_is_stuck_and_stops_pinging():
+    core = fresh()
+    feed(core, [1])
+    core.on_drain(1_000)
+    assert core.on_tick(20_999, 0, 0) == []  # no ping after bye
+    assert core.on_tick(21_000, 0, 0) == [Close(1012, "drain")]  # nothing durable → no ack, no second bye
+    assert core.closed and core.on_ledgered([1]) == []
 
 
 def test_drain_with_nothing_pending_closes_at_once():
     core = fresh()
-    assert closes(core.on_drain(5)) == [Close(1012, "drain")]
+    assert core.on_drain(5) == [Send({"t": "bye", "reason": "drain", "ack_seq": 0}), Close(1012, "drain")]
 
 
 def test_ack_batching_constant_matches_spec():

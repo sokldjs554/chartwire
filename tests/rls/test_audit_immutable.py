@@ -42,10 +42,17 @@ async def test_app_update_is_permission_denied(app_engine, ctx_a):
 
 async def test_owner_update_hits_the_trigger(app_engine, owner_engine, ctx_a):
     event_id = await _record(app_engine, ctx_a)
-    with pytest.raises(DBAPIError) as exc:  # owner has the privilege; the trigger still refuses
-        async with tenant_tx(owner_engine, ctx_a) as session:
-            await session.execute(text("UPDATE audit_events SET action = 'x' WHERE id = :i"), {"i": event_id})
-    assert "append-only" in str(exc.value.orig)
+    operator = TenantCtx.service(
+        ctx_a.tenant_id
+    )  # a role that can see the row (read gate) and owns the table
+    for sql in (
+        "UPDATE audit_events SET action = 'x' WHERE id = :i",
+        "DELETE FROM audit_events WHERE id = :i",
+    ):
+        with pytest.raises(DBAPIError) as exc:  # owner has the privilege; the trigger still refuses
+            async with tenant_tx(owner_engine, operator) as session:
+                await session.execute(text(sql), {"i": event_id})
+        assert "append-only" in str(exc.value.orig)
 
 
 async def test_select_requires_auditor_admin_or_service(app_engine, tenant_a, clinician_a, ctx_a):

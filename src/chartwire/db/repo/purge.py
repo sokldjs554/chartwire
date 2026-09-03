@@ -10,7 +10,8 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import bindparam, delete, func, insert, select, update
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from chartwire.db.models import (
@@ -70,7 +71,7 @@ async def append_step(session: AsyncSession, job_id: UUID, step: dict[str, Any])
     stmt = (
         update(PurgeJob)
         .where(PurgeJob.id == job_id)
-        .values(steps=PurgeJob.steps.op("||")(func.jsonb_build_array(func.to_jsonb(step))))
+        .values(steps=PurgeJob.steps.op("||")(bindparam("step", [step], type_=JSONB)))
     )
     await session.execute(stmt)
 

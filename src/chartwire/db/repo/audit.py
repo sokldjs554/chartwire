@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import insert, select
+from sqlalchemy import func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from chartwire.db.models import AuditEvent
@@ -24,8 +24,12 @@ async def record(
     request_id: str | None = None,
     detail: dict[str, Any] | None = None,
 ) -> int:
+    """Insert one row and return its id. No ``RETURNING`` (``inline()`` stops SQLAlchemy from adding
+    one for the identity PK): a clinician may append but not read audit rows (RESTRICTIVE
+    ``audit_read_gate``), and RETURNING is evaluated under the SELECT policies."""
     stmt = (
-        insert(AuditEvent)
+        insert(AuditEvent.__table__)
+        .inline()
         .values(
             tenant_id=tenant_id,
             actor_id=actor_id,
@@ -36,9 +40,10 @@ async def record(
             request_id=request_id,
             detail=detail or {},
         )
-        .returning(AuditEvent.id)
     )
-    return int((await session.execute(stmt)).scalar_one())
+    await session.execute(stmt)
+    new_id = await session.execute(select(func.currval(func.pg_get_serial_sequence("audit_events", "id"))))
+    return int(new_id.scalar_one())
 
 
 async def list_events(

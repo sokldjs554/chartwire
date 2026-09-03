@@ -19,10 +19,11 @@ app.add_typer(dev_app, name="dev")
 
 LAZY_SUBAPPS: dict[str, str] = {
     "synth": "chartwire.synth.cli",
+    "seed": "chartwire.synth.seed_cli",
     "eval": "chartwire.eval.cli",
     "perf": "chartwire.perf.cli",
     "serve": "chartwire.worker.cli",
-    "simulate": "chartwire.loadtest.cli",
+    "simulate": "chartwire.loadtest.simulate_cli",
     "loadtest": "chartwire.loadtest.cli",
     "token": "chartwire.auth.cli",
     "outbox": "chartwire.outbox.cli",
@@ -30,7 +31,10 @@ LAZY_SUBAPPS: dict[str, str] = {
     "audit": "chartwire.audit.cli",
     "readme-numbers": "chartwire.eval.readme_cli",
 }
-"""command name → module exposing ``app = typer.Typer()``; missing modules are skipped."""
+"""command name → module exposing ``app = typer.Typer()``; missing modules are skipped.
+
+Single-verb commands (``seed``, ``serve``, ``simulate``) are sub-apps whose ``@app.callback(invoke_without_command=True)``
+carries the options, so ``chartwire seed --demo --if-empty`` works without a nested command name."""
 
 
 def _mount_lazy() -> list[str]:

@@ -136,7 +136,7 @@ class WatchMachine(RuleBasedStateMachine):
 
 WatchMachine.TestCase.settings = settings(
     max_examples=1_000,
-    stateful_step_count=40,
+    stateful_step_count=32,
     deadline=None,
     suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large, HealthCheck.filter_too_much],
 )

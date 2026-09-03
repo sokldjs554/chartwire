@@ -16,7 +16,9 @@ from structlog.contextvars import bind_contextvars, clear_contextvars
 
 REDACTED = "[REDACTED]"
 PHI_KEYS: frozenset[str] = frozenset({"text", "quote", "name", "phone", "token", "ticket", "dek", "payload"})
-_PHI_PATTERN = re.compile(r"\d{3}-\d{3,4}-\d{4}|\d{6}-\d{7}")  # 전화번호 / 주민등록번호
+_PHI_PATTERN = re.compile(r"\d{2,4}-\d{3,4}-\d{4}|\d{6}-\d{7}")
+"""전화번호(휴대폰 010-…, 지역번호 02-…/031-…, 대표번호 1588-…) / 주민등록번호. §3.1의
+``\\d{3}-\\d{3,4}-\\d{4}``를 포함하는 상위 집합 — 서울 지역번호(2자리)를 놓치지 않기 위해 넓혔다."""
 
 
 def redact_value(value: Any) -> Any:

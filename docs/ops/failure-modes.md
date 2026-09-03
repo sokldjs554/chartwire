@@ -1,6 +1,6 @@
 # 장애 모드 표 (component × failure → behaviour → recovery → metric)
 
-> 모든 데이터는 합성(SYNTHETIC)입니다 — 실제 환자 정보 없음. 절차는 `runbook.md`, 설계 근거는 ADR-0001/0002/0004. 메트릭 이름은 전부 `src/chartwire/ops/metrics.py::ALL_NAMES`에 있고 단위 테스트가 그 집합을 고정합니다.
+> 모든 데이터는 합성(SYNTHETIC)입니다 — 실제 환자 정보 없음. 절차는 `runbook.md`, 설계 근거는 ADR-0001/0002/0004. 메트릭 이름은 전부 `src/chartwire/ops/metrics.py::ALL_NAMES`에 있고 단위 테스트가 그 집합을 고정합니다. 스펙이 닫힌 집합으로 정한 라벨 값(`ws_chunks_total{result}`, `handler_*{event_type}`, `note_status_total{status}`, `note_verify_reason_total{reason}` 등, `metrics.py::KNOWN_LABEL_VALUES`)은 프로세스 시작 시 0으로 미리 만들어지므로 배포 직후에도 `rate()`가 빈 시계열을 만나지 않습니다. `*_created` 보조 시계열은 끕니다.
 
 | 구성요소 | 장애 | 동작 (설계) | 복구 | 관찰 메트릭 |
 |---|---|---|---|---|

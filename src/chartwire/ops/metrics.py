@@ -12,11 +12,21 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Final
 
-from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
+from prometheus_client import (
+    CollectorRegistry,
+    Counter,
+    Gauge,
+    Histogram,
+    disable_created_metrics,
+    generate_latest,
+)
 from prometheus_client.exposition import CONTENT_TYPE_LATEST
 
 REGISTRY: Final = CollectorRegistry(auto_describe=True)
 """Private registry: nothing from the default process registry (python_gc_*, …) is exposed."""
+
+disable_created_metrics()  # type: ignore[no-untyped-call]
+"""No ``*_created`` companion series: they double the counter/histogram cardinality for no query value."""
 
 LATENCY_BUCKETS: Final = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0)
 E2E_BUCKETS: Final = (0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0)
@@ -158,6 +168,49 @@ ALL_NAMES: Final[tuple[str, ...]] = (
     "db_pool_in_use",
 )
 """Every metric name in the spec plus ``segments_default_partition_rows`` (§7.2 names none)."""
+
+KNOWN_LABEL_VALUES: Final[tuple[tuple[Counter | Gauge | Histogram, tuple[str, ...]], ...]] = (
+    (WS_CONNECTIONS, ("ingest", "watch")),
+    (WS_CHUNKS_TOTAL, ("stored", "duplicate", "reordered", "stale", "rejected")),
+    (WS_RESUME_TOTAL, ("ok", "gap_unrecoverable")),
+    (
+        HANDLER_DURATION_SECONDS,
+        ("session.transcribed", "consent.revoked", "purge.requested", "purge.completed"),
+    ),
+    (
+        HANDLER_FAILURES_TOTAL,
+        ("session.transcribed", "consent.revoked", "purge.requested", "purge.completed"),
+    ),
+    (NOTE_STATUS_TOTAL, ("verified", "needs_review", "abstained")),
+    (
+        NOTE_VERIFY_REASON_TOTAL,
+        (
+            "fabricated_segment",
+            "quote_mismatch",
+            "numeric_mismatch",
+            "entity_mismatch",
+            "negation_mismatch",
+            "speaker_mismatch",
+            "verdict_language",
+            "injection_pattern",
+        ),
+    ),
+    (NOTE_DRAFT_SECONDS, ("extractive", "anthropic", "recorded")),
+)
+"""Closed label sets fixed by the spec (§6.4, §7.2, §9.2, §9.3). Pre-creating them makes every series
+exist at 0 from the first scrape, so ``rate()`` / ``increase()`` never see a missing series after a
+deploy. ``risk_hits_total`` is left to first observation: ``category × severity × suppressed`` is
+data-driven and a zero-filled cube would only add noise."""
+
+
+def init_known_labels() -> None:
+    """Create the zero-valued child series for every closed label set (idempotent; runs at import)."""
+    for collector, values in KNOWN_LABEL_VALUES:
+        for value in values:
+            collector.labels(value)
+
+
+init_known_labels()
 
 
 def bind_db_pool(checked_out: Callable[[], int]) -> None:

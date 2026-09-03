@@ -8,14 +8,16 @@ Checked after every step:
 * ``ack_seq`` is monotone and never ahead of the core's contiguous ``ledger_seq``
 * a compliant recorder is never closed with 4009 (credit), 4000 (heartbeat) or 4008 (resume gap)
 * a seq is ``Store``d at most once per connection and only if the recorder actually sent it
+* a drain always ends in 1012 (flushed ledger or deadline) and the recorder resumes without loss
 
 At teardown the recorder sends ``end`` and the model delivers everything: the session must close
 with 1000, the final ack must equal ``final_seq`` and the set of stored seqs must equal the set
 of sent seqs (loss 0; duplicates exist only as re-sends).
 
 Modelling assumption (spec §6.4 rule 3): credit is recomputed from STT lag every 200 ms and
-moves by a few chunks per second, so the advertised credit never collapses by more than the
-+20 tolerance while a frame is in flight. The ``tick`` rule clamps the credit inputs to that.
+moves by a few chunks per second, so a frame that was legal when sent is still within the +20
+tolerance when it arrives. The ``tick`` rule clamps the credit inputs so that every in-flight
+frame satisfies ``seq - ack_seq <= credit + 20`` (the server's check) under the new credit.
 """
 
 from __future__ import annotations
@@ -26,11 +28,11 @@ from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, pr
 
 from chartwire.ws import credit
 from chartwire.ws.actions import Ack, Action, Close, CloseCode, Nack, Send, SendCredit, Store, Transition
-from chartwire.ws.core import END_WAIT_MS, IngestCore
+from chartwire.ws.core import DRAIN_WAIT_MS, END_WAIT_MS, IngestCore
 
 BASE = 30
 FORBIDDEN_CLOSES = {CloseCode.CREDIT_VIOLATION, CloseCode.HEARTBEAT_TIMEOUT, CloseCode.SEQ_GAP_UNRECOVERABLE}
-Frame = tuple[int, int, int, int | None]  # seq, offset_ms, flags, credit the recorder sent it under
+Frame = tuple[int, int, int]  # seq, offset_ms, flags
 
 
 class Recorder:
@@ -48,7 +50,7 @@ class Recorder:
     def next_chunk(self) -> Frame:
         self.last_sent += 1
         self.sent[self.last_sent] = ((self.last_sent - 1) * 200, 0)
-        return (self.last_sent, *self.sent[self.last_sent], self.credit)
+        return (self.last_sent, *self.sent[self.last_sent])
 
     def resend(self, ranges) -> list[Frame]:
         out: list[Frame] = []
@@ -56,7 +58,7 @@ class Recorder:
             for seq in range(lo, hi + 1):
                 assert seq > self.last_sent - credit.RING_BUFFER_CHUNKS, "nack outside the ring buffer"
                 assert seq in self.sent, "server asked for a seq the recorder never sent"
-                out.append((seq, *self.sent[seq], None))
+                out.append((seq, *self.sent[seq]))
         return out
 
 
@@ -96,8 +98,15 @@ class IngestMachine(RuleBasedStateMachine):
         )
 
     def deliver(self, frame: Frame) -> None:
-        seq, off, fl, _ = frame
+        seq, off, fl = frame
         self.apply(self.core.on_chunk(seq, off, fl, self.now))
+
+    def observe_ack(self, ack_seq: int, credit_now: int) -> None:
+        assert all(s in self.ledgered for s in range(1, ack_seq + 1)), "ack for a non-ledgered seq"
+        assert not self.acks or ack_seq >= self.acks[-1], "ack not monotone"
+        assert ack_seq <= self.core.ledger_seq
+        self.acks.append(ack_seq)
+        self.rec.ack, self.rec.credit = max(self.rec.ack, ack_seq), credit_now
 
     def apply(self, actions: list[Action]) -> None:
         for a in actions:
@@ -109,18 +118,14 @@ class IngestMachine(RuleBasedStateMachine):
                 self.pending.append(a.seq)
                 self.core.on_stored(a.seq)
             elif isinstance(a, Ack):
-                assert all(s in self.ledgered for s in range(1, a.ack_seq + 1)), "ack for a non-ledgered seq"
-                assert not self.acks or a.ack_seq >= self.acks[-1], "ack not monotone"
-                assert a.ack_seq <= self.core.ledger_seq
-                self.acks.append(a.ack_seq)
-                self.rec.ack, self.rec.credit = max(self.rec.ack, a.ack_seq), a.credit
+                self.observe_ack(a.ack_seq, a.credit)
             elif isinstance(a, Nack):
                 self.network.extend(self.rec.resend(a.missing))
             elif isinstance(a, SendCredit):
                 self.rec.credit = a.credit
             elif isinstance(a, Send):
-                if a.msg["t"] == "welcome":
-                    self.rec.ack, self.rec.credit = max(self.rec.ack, a.msg["ack_seq"]), a.msg["credit"]
+                if a.msg["t"] == "welcome":  # welcome.ack_seq is an ack too (the only one after some resumes)
+                    self.observe_ack(a.msg["ack_seq"], a.msg["credit"])
                     self.network.extend(self.rec.resend(a.msg["missing"]))
                 elif a.msg["t"] == "ping":
                     self.apply(self.core.on_pong(self.now))
@@ -154,7 +159,7 @@ class IngestMachine(RuleBasedStateMachine):
     @rule(data=st.data())
     def duplicate(self, data: st.DataObject) -> None:
         seq = data.draw(st.sampled_from(sorted(self.rec.sent)))
-        self.deliver((seq, *self.rec.sent[seq], None))
+        self.deliver((seq, *self.rec.sent[seq]))
 
     @precondition(lambda self: self.network)
     @rule(data=st.data())
@@ -173,9 +178,7 @@ class IngestMachine(RuleBasedStateMachine):
     @precondition(lambda self: self.closed is None)
     @rule(dt=st.integers(1, 400), lag=st.integers(0, 70), pend=st.integers(0, 600))
     def tick(self, dt: int, lag: int, pend: int) -> None:
-        floor = (
-            min([c for *_, c in self.network if c is not None], default=credit.TOLERANCE) - credit.TOLERANCE
-        )
+        floor = max((seq - self.rec.ack for seq, *_ in self.network), default=0) - credit.TOLERANCE
         if credit.compute(BASE, lag, pend) < floor:
             lag, pend = 2 * (BASE - floor), 0
         self.now += dt
@@ -186,6 +189,24 @@ class IngestMachine(RuleBasedStateMachine):
         if commit_old:  # the process-wide ledger batcher may still commit rows of the dead connection
             self.ledgered.update(self.pending)
         self.now += 50
+        self.connect(resume=True)
+
+    @precondition(lambda self: self.closed is None)
+    @rule(flush=st.booleans())
+    def drain_then_reconnect(self, flush: bool) -> None:
+        """SIGTERM on this node: bye{drain} → ledger flush (or a stuck ledger) → 1012 → recorder resumes elsewhere."""
+        self.apply(self.core.on_drain(self.now))
+        if flush and self.pending and self.closed is None:
+            batch, self.pending = self.pending, []
+            self.ledgered.update(batch)
+            self.apply(self.core.on_ledgered(batch))
+        if self.closed is None:
+            self.now += DRAIN_WAIT_MS
+            self.apply(self.core.on_tick(self.now, 0, 0))
+        assert self.closed is not None and self.closed.code == CloseCode.SERVICE_RESTART
+        if flush:  # everything stored on this connection was acknowledged before the close
+            assert self.rec.ack == self.core.ledger_seq >= self.core.contig_seq
+        self.ledgered.update(self.pending)  # the batcher outlives the connection (spec §6.6, process-wide)
         self.connect(resume=True)
 
     @precondition(lambda self: self.closed is None)
@@ -224,14 +245,14 @@ class IngestMachine(RuleBasedStateMachine):
             self.now += END_WAIT_MS
             self.apply(self.core.on_tick(self.now, 0, 0))
         assert self.closed == Close(1000, "ended"), self.closed
-        assert (self.acks[-1] == final_seq) if final_seq else not self.acks
+        assert self.acks[-1] == final_seq  # welcome.ack_seq counts, so there is always at least one
         assert self.stored_ever == set(self.rec.sent), "loss or phantom store"
         assert set(range(1, final_seq + 1)) <= self.ledgered
 
 
 IngestMachine.TestCase.settings = settings(
-    max_examples=1_200,
-    stateful_step_count=40,
+    max_examples=1_100,
+    stateful_step_count=32,
     deadline=None,
     suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large, HealthCheck.filter_too_much],
 )

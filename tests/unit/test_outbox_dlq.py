@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -63,7 +64,7 @@ def test_poison_message_dies_on_eighth_failure_only() -> None:
     for _ in range(7):
         outcome = on_failure(event, RuntimeError("always"), max_attempts=8, now=NOW, rng=rng)
         assert outcome.dead is False
-        event = OutboxEvent(**{**event.__dict__, "attempts": int(outcome.event_updates["attempts"])})  # type: ignore[arg-type,call-overload]
+        event = replace(event, attempts=int(str(outcome.event_updates["attempts"])))
     assert event.attempts == 7
     final = on_failure(event, RuntimeError("always"), max_attempts=8, now=NOW, rng=rng)
     assert final.dead is True

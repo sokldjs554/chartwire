@@ -1,0 +1,14 @@
+{
+  "script_ref": "t02",
+  "seed": 2,
+  "template": "재진 약물조정",
+  "chunk_ms": 200,
+  "total_ms": 3390,
+  "utterances": [
+    {"idx": 0, "speaker": "patient", "text": "가상환자 김하늬입니다 전화는 010-2345-6789예요", "t_start_ms": 130, "t_end_ms": 1010,
+     "gold": {"section_label": "none", "facts": [], "risk": null, "pii": [{"kind": "name", "value": "김하늬"}, {"kind": "phone", "value": "010-2345-6789"}]}},
+    {"idx": 1, "speaker": "clinician", "text": "서트랄린은 그대로 유지하겠습니다", "t_start_ms": 1400, "t_end_ms": 2390,
+     "gold": {"section_label": "P", "facts": [{"type": "plan_medication", "name": "서트랄린", "action": "keep"}], "risk": null, "pii": []}}
+  ],
+  "meta": {"generator": "chartwire.tests", "version": "1", "risk_kinds": [], "injection": false}
+}

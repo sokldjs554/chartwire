@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from sqlalchemy import text
@@ -14,7 +14,7 @@ from chartwire.db.tenant import tenant_tx
 pytestmark = pytest.mark.integration
 
 
-def _partition_for(at: datetime) -> str:
+def _partition_for(at: datetime | date) -> str:
     return f"transcript_segments_y{at:%Y}m{at:%m}"
 
 
@@ -106,26 +106,33 @@ async def test_ensure_segment_partition_runs_as_app_and_attaches_index(app_engin
 
 
 async def test_replay_prunes_to_started_at_partition(app_engine, session_a, ctx_a):
+    """Q1a: ``created_at >= started_at`` lets the planner drop every partition older than the
+    session's month at plan time. (Newer partitions and the default partition stay: a live
+    session has no upper bound, so the predicate is one-sided by design.)"""
     start = session_a.started_at
     assert start is not None
     for seq in (1, 2, 3):
         await _insert_segment(
             app_engine, ctx_a, session_a, created_at=start + timedelta(seconds=seq), seq=seq
         )
+    base_sql = "EXPLAIN (FORMAT JSON) SELECT id FROM transcript_segments WHERE session_id = :s AND seq > 0"
     async with tenant_tx(app_engine, ctx_a) as session:
         rows = await segments_repo.replay(session, session_a.id, after_seq=1, limit=10)
-        plan = (
+        unpruned = (await session.execute(text(base_sql + " ORDER BY seq"), {"s": session_a.id})).scalar_one()
+        pruned = (
             await session.execute(
-                text(
-                    "EXPLAIN (FORMAT JSON) SELECT id FROM transcript_segments "
-                    "WHERE session_id = :s AND seq > 0 AND created_at >= :st ORDER BY seq"
-                ),
-                {"s": session_a.id, "st": start},
+                text(base_sql + " AND created_at >= :st ORDER BY seq"), {"s": session_a.id, "st": start}
             )
         ).scalar_one()
     assert [r.seq for r in rows] == [2, 3]
-    scanned = _scanned_relations(plan[0]["Plan"])
-    assert len(scanned) == 1, scanned  # every other partition pruned at plan time
+    older = _partition_for(month_start(-1))  # created by 0003, strictly before started_at
+    scanned_all, scanned_pruned = (
+        _scanned_relations(unpruned[0]["Plan"]),
+        _scanned_relations(pruned[0]["Plan"]),
+    )
+    assert older in scanned_all and _partition_for(start) in scanned_all
+    assert older not in scanned_pruned and _partition_for(start) in scanned_pruned
+    assert scanned_pruned < scanned_all
 
 
 def _scanned_relations(node: dict) -> set[str]:
@@ -136,8 +143,6 @@ def _scanned_relations(node: dict) -> set[str]:
 
 
 def test_month_start_arithmetic():
-    from datetime import date
-
     assert month_start(-1, date(2026, 1, 15)) == date(2025, 12, 1)
     assert month_start(2, date(2026, 11, 30)) == date(2027, 1, 1)
     assert month_start(0, date(2026, 9, 2)) == date(2026, 9, 1)

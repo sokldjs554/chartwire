@@ -59,5 +59,6 @@ class Heartbeat:
         self.last_ping_ms, self.unanswered = now_ms, self.unanswered + 1
         return [Send({"t": "ping", "ts": now_ms})]
 
-    def pong(self) -> None:
+    def pong(self) -> list[Action]:
         self.unanswered = 0
+        return []

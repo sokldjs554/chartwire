@@ -1,0 +1,108 @@
+# 개발/데모용 compose (spec §12.2). 모든 데이터는 합성(SYNTHETIC)입니다 — 실제 환자 정보 없음.
+# 런타임 프로세스(api, worker, stt-worker)는 chartwire_app 으로만 접속한다; 마이그레이션만 chartwire_owner.
+x-app-env: &app-env
+  CHARTWIRE_DATABASE_URL: postgresql+asyncpg://chartwire_app:chartwire_app@postgres:5432/chartwire
+  CHARTWIRE_DATABASE_OWNER_URL: postgresql+psycopg://chartwire_owner:chartwire_owner@postgres:5432/chartwire
+  CHARTWIRE_REDIS_URL: redis://redis:6379/0
+  CHARTWIRE_OBJECTSTORE: localfs:/var/lib/chartwire/objects
+  CHARTWIRE_KEK_MASTER: ${CHARTWIRE_KEK_MASTER:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+  CHARTWIRE_JWT_SECRET: ${CHARTWIRE_JWT_SECRET:-dev-secret-change-me}
+  CHARTWIRE_NOTE_PROVIDER: ${CHARTWIRE_NOTE_PROVIDER:-extractive}
+
+x-app: &app
+  build: .
+  image: chartwire:local
+  restart: unless-stopped
+  volumes:
+    - objects:/var/lib/chartwire/objects
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro   # 01_roles.sql: 두 역할 + chartwire DB + 확장
+      - pgdata:/var/lib/postgresql/data
+    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d chartwire"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    command: ["redis-server", "--save", "", "--appendonly", "no"]   # 재구축 가능한 캐시 (ADR-0002)
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "6379:6379"
+
+  migrate:
+    build: .
+    image: chartwire:local
+    environment: *app-env
+    command: ["sh", "-c", "chartwire db upgrade && chartwire seed --demo --if-empty"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    <<: *app
+    environment:
+      <<: *app-env
+      CHARTWIRE_ROLE: api
+      CHARTWIRE_NODE_ID: api-1
+    ports:
+      - "8000:8000"          # REST /v1, WS /ws/v1, 콘솔 /console
+
+  worker:
+    <<: *app
+    environment:
+      <<: *app-env
+      CHARTWIRE_ROLE: worker
+      CHARTWIRE_NODE_ID: worker-1
+
+  stt-worker:
+    <<: *app
+    environment:
+      <<: *app-env
+      CHARTWIRE_ROLE: stt-worker
+      CHARTWIRE_NODE_ID: stt-1
+
+  # ---- profile `drain` (시나리오 E, 선택): api 2 레플리카 + nginx 업스트림. `docker compose --profile drain up`
+  api-drain:
+    <<: *app
+    profiles: ["drain"]
+    environment:
+      <<: *app-env
+      CHARTWIRE_ROLE: api
+    deploy:
+      replicas: 2
+
+  nginx:
+    image: nginx:1.27-alpine
+    profiles: ["drain"]
+    volumes:
+      - ./docker/nginx/drain.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - api-drain
+
+volumes:
+  pgdata:
+  objects:

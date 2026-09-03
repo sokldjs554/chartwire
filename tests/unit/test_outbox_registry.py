@@ -99,12 +99,12 @@ def test_spec_validation(kwargs: dict[str, object], message: str) -> None:
 
 
 def test_known_event_types_match_spec_table() -> None:
-    assert KNOWN_EVENT_TYPES == {
+    assert {
         "session.transcribed",
         "consent.revoked",
         "purge.requested",
         "purge.completed",
-    }
+    } == KNOWN_EVENT_TYPES
 
 
 def test_module_level_handler_is_bound_to_process_registry() -> None:
