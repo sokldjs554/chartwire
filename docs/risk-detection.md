@@ -70,3 +70,18 @@ stt-worker(§7.4)는 `hit.alerts` 인 경우에만 `risk_events` 행을 만들�
 - 이 모듈의 작성자(WP-C)는 `src/chartwire/eval/data/` 를 **열지 않았습니다**. 여기 있는 모든 예문은 스펙 §9.4·§10.2에 적힌 in-grammar 사례이거나 작성자가 새로 만든 문장입니다.
 - held-out 작성자(WP-F)는 `risk/` 를 열지 않습니다. 평가 하네스(WP-F)가 두 세트를 따로 돌리고 별도 행으로 보고합니다.
 - 사전을 고칠 때는 in-grammar 세트와 단위 테스트만 보고 고칩니다. held-out 점수를 보고 어휘를 추가하면 그 점수는 더 이상 held-out이 아닙니다 — 그런 변경은 `DETECTOR_VERSION` 을 올리고 새 held-out 세트를 만든 뒤에만 합니다.
+
+## 8. 경보 수명주기 (`alerts.py`, stt-worker, `alert_sla` 티커)
+
+탐지기는 순수 함수이고, 그 결과를 **행·타이머·메시지**로 바꾸는 것은 `risk/alerts.py` 입니다. 세 시점으로 나뉩니다.
+
+| 시점 | 함수 | 하는 일 |
+|---|---|---|
+| 최종 세그먼트 트랜잭션 **안** (stt-worker, §7.4) | `create_event(session, …, hit, now)` | `hit.alerts` 인 경우에만 `risk_events` 행(`phrase`, `span`, `scope` 플래그, `detector_version`, `sla_deadline_at = now + 60 s(3등급) / 300 s(2등급) / 없음(1등급)`) + 감사 `alert.created`. 세그먼트와 같은 트랜잭션이므로 세그먼트 없는 경보, 경보 없는 세그먼트는 존재하지 않습니다 |
+| 커밋 **뒤** | `after_commit(redis, event, committed_at)` | `ZADD alerts:sla {tenant}:{id} = 마감 epoch-ms`(타이머가 있는 등급만) + `PUBLISH sess:{sid}:events risk.alert{risk_event_id, category, severity, segment_seq, span, sla_deadline_at?, committed_at}`. `committed_at` 이 경보 지연 측정(§11.2 `alert_e2e`)의 시작점입니다. 둘 다 멱등이라 재전달돼도 안전합니다 |
+| 임상가 확인 | `ack(ctx, tenant_id, risk_event_id, by, actor_role)` (REST 와 뷰어 소켓 공용) | 행위자 역할의 테넌트 트랜잭션에서 `acknowledged_at/by`(첫 확인이 이김, 멱등) + 감사 `alert.acked` → `ZREM` → `PUBLISH risk.ack{risk_event_id, by}`. RLS 밖의 id 는 `None` |
+| 마감 경과 | `escalate_due(ctx, now)` — worker 의 `alert_sla` 티커(1 s) | `ZRANGEBYSCORE alerts:sla -inf now` → 테넌트별 한 트랜잭션에서 `escalation_level=1, escalated_at` + 감사 `alert.escalated` → 커밋 뒤 `PUBLISH risk.escalated` 를 세션 채널과 `tenant:{tid}:alerts` 양쪽에 → 마감이 지난 멤버는 (이미 확인됐거나 형식이 깨졌어도) 제거. **한 단계뿐**입니다 |
+
+`risk_unacked_over_sla` 게이지는 Redis 가 아니라 PostgreSQL(`acknowledged_at IS NULL AND sla_deadline_at < now`, 부분 인덱스 `ix_risk_open_sla`)에서 10 s 마다 다시 셉니다 — ZSET 을 잃어도(시나리오 A) 게이지는 참이고, `chartwire outbox stats --rebuild-sla` 가 ZSET 을 되살립니다(`docs/ops/runbook.md` §3-5).
+
+`risk_hits_total{category, severity, suppressed}` 는 억제된 히트까지 셉니다(경보 행은 만들지 않음). 통합 테스트: `tests/integration/test_alerts.py`(생성·확인·에스컬레이션, `FakeClock`), `tests/integration/test_stt_worker.py`(세그먼트 트랜잭션 안의 경보 + ZSET + 발행).

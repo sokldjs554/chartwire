@@ -31,7 +31,7 @@ def to_view(row: SegmentRow, *, dek: bytes) -> SegmentView:
     return SegmentView(
         segment_id=row.id,
         seq=row.seq,
-        speaker=speaker,  # type: ignore[arg-type]  # narrowed above; the DB CHECK guarantees it anyway
+        speaker=speaker,  # narrowed above; the DB CHECK guarantees it anyway
         text=plaintext.decode("utf-8"),
         t_start_ms=row.t_start_ms,
         t_end_ms=row.t_end_ms,

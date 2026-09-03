@@ -109,5 +109,44 @@ Decision{status, reason}
   넣지 않고, LLM 초안에서는 해당 문장이 `unsupported` 가 된다 — 안전 쪽으로 틀리는 것이다.
 - 숫자 규칙은 `단위가 붙은` 숫자만 본다. `새벽 4시` 는 `시` 가 단위 목록에 없으므로 비교하지 않는다.
 - 약물 사전은 환자가 말하는 일반명 56개뿐이다. 상품명은 의도적으로 없다.
-- 서명된 노트가 의료 기록이 되는 순간부터의 규칙(기록 키, 10년 보존, 인용 임베딩)은 ADR-0004 와 `notes/service.py` 의
-  몫이다.
+- 서명된 노트가 의료 기록이 되는 순간부터의 규칙(기록 키, 10년 보존, 인용 임베딩)은 아래 §8 과 ADR-0004 의 몫이다.
+
+## 8. 초안에서 의료 기록까지 (`service.py`, `worker/handlers/note_draft.py`, `api/routers/notes.py`)
+
+### 8.1 초안 (`draft_for_session`, outbox `session.transcribed` → `note_draft`)
+
+| 단계 | 무엇을 | 실패하면 |
+|---|---|---|
+| 동의 게이트 | 환자의 **현재** 동의에서 `ai_drafting` (스냅샷이 아니라 실제 행) | `abstained(consent_scope_missing)` — 세그먼트를 열지도, DEK 를 풀지도 않는다 |
+| 세그먼트 | `repo.segments.replay` 500행씩 → 세션 DEK 로 복호화 (`SegmentView`) | 복호화 실패는 핸들러 예외(재시도 → DLQ): 검증할 수 없는 세그먼트 위에 초안을 쓰지 않는다 |
+| 프로바이더 | `CHARTWIRE_NOTE_PROVIDER` 가 고르는 하나(`extractive` 기본, `anthropic` 은 모델이 설정된 경우만) | `ProviderError` → `abstained(provider_error)`. **대체 프로바이더 없음** (출처가 바뀌면 안 된다) |
+| 스키마 | `parse_draft` — 실패 시 프로바이더를 한 번 더 호출 | 두 번째 실패 → `abstained(schema)`. 거부된 출력도 세션 DEK 로 암호화해 보관 |
+| 검증·정책 | `verify` → `decide` (§3, §4) | — |
+| 저장 | `notes`(version = 이전 + 1, `raw_draft_enc`, `prompt_hash`, coverage, 카운트) + `note_statements`(`text_enc`, evidence = `{seq, quote_hash, start, end, method}`, verdict/사유) | 같은 트랜잭션. 폴러 아래서는 `processed_events` 와 함께 커밋 |
+| 뒤처리 | `sessions.state='drafted'`, 감사 `note.drafted`/`session.drafted`, PUBLISH `note.status`, 메트릭 §9.6 | Redis 발행 실패는 경고만 (캐시일 뿐) |
+
+파기된 세션(`purged` 또는 DEK 없음)은 노트를 만들지 않고 건너뛴다(`NoteOutcome.skipped`). `evidence` JSONB 에는 인용문이
+없다(해시만). REST 가 보여 주는 인용문은 `raw_draft_enc` 를 세션 DEK 로 다시 열어 `(section, ordinal)` 로 맞춘 것이다.
+
+### 8.2 검토 (REST `decision`, `assessment`)
+
+- 문장마다 `accept | edit | reject`. `edit` 의 텍스트는 세션 DEK 아래 `edited_text_enc` 에 들어가고 원문은 남는다.
+- `PUT /notes/{id}/assessment` 는 `note_assessments` 의 **유일한** 쓰기 경로다. 프로바이더·핸들러는 이 테이블을 쓸 코드가 없고,
+  출력 스키마에도 그런 필드가 없다(§2). 평가는 **테넌트 기록 키**로 암호화된다 — 파기와 무관하게 남아야 하는 값이기 때문이다.
+- auditor 는 노트를 읽되 `text`/`edited_text`/인용문/평가가 모두 `null` 이다(메타데이터만). staff/admin 은 REST 403 이고,
+  잊더라도 RLS `role_gate` 가 0행을 돌려준다.
+
+### 8.3 서명 (`sign`, ADR-0004)
+
+서명 조건: 평가가 있고, `unsupported` 문장이 전부 `reject` 또는 `edit` 되었을 것. 조건이 빠지면 409 (`CW-4092`, `CW-4093`).
+
+서명 순간 만들어지는 `signed_content_enc` 는 **자기완결적** 문서다: 수락·수정된 S/O/P 문장, 각 문장의 **verbatim 인용**(seq·오프셋 포함),
+평가, 임상의 id, 서명 시각, 세션·환자 id, 프로바이더/검증기 버전. 이것을 세션 DEK 가 아니라 **기록 키**로 암호화하고
+`legal_hold='medical_record'`, `retention_until = signed_at + 10년`, `sessions.state='signed'` 를 같은 트랜잭션에서 쓴다.
+
+그 뒤 동의가 철회되어 세션이 파기되면 세그먼트·`raw_draft_enc`·`note_statements.text_enc` 는 DEK 와 함께 사라지지만,
+`GET /notes/{id}` 는 서명 노트를 `signed_content_enc` 에서만 렌더링하므로 **그대로 읽힌다** — 통합 테스트
+`test_signed_note_survives_purge_of_segments_and_session_dek` 가 이를 고정한다. 반대로 서명되지 않은 초안은 파기 뒤 404 다.
+
+수정된 `unsupported` 문장은 기록에 들어가되, 실제로 매치된 근거만 붙는다(지어낸 인용문이 의료 기록에 박히지 않도록).
+거부된 문장은 기록에 없다. `original_text` 로 수정 전 문장은 남긴다.
