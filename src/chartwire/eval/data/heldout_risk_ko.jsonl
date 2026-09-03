@@ -1,0 +1,300 @@
+{"text": "약을 모아두고 있어요. 언제든 한꺼번에 먹을 수 있게요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "수단 준비"}
+{"text": "지난주에 옥상에 올라갔다가 그냥 내려왔어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "장소 접근, 직접 어휘 없음"}
+{"text": "유서를 써놨어요. 가족한테는 말 안 했고요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "유서"}
+{"text": "번개탄을 사놨어요. 아직 쓰진 않았어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "수단 구입"}
+{"text": "한강 다리 위에서 한참 서 있었어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "장소 접근, 간접"}
+{"text": "목을 맬 끈을 찾아봤어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "수단 탐색"}
+{"text": "어제 수면제 스무 알을 한꺼번에 삼켰다가 토했어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "최근 시도"}
+{"text": "죽을 날짜를 정했어요. 이번 달 말이요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "시점 계획"}
+{"text": "아파트 베란다에서 뛰어내릴 생각을 매일 해요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "방법 특정"}
+{"text": "인터넷에서 고통 없이 죽는 방법을 찾아보고 있어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "방법 탐색"}
+{"text": "부모님 안 계실 때 하려고 시간을 재고 있어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "계획, 어휘 간접"}
+{"text": "칼을 침대 밑에 두고 자요. 언제든 쓰려고요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "수단 보관"}
+{"text": "회사 옥상 문이 열려 있는지 확인해 봤어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "장소 확인, 간접"}
+{"text": "보험 정리하고 통장 비밀번호 동생한테 알려줬어요. 준비는 다 해놨어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "신변 정리, 어휘 없음"}
+{"text": "마 고마 다 정리하고 뛰내리뿔라 캤어예.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "경상 방언"}
+{"text": "약 모아둔 거 봉지에 한 가득이랑께요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "전라 방언"}
+{"text": "처방받은 약을 안 먹고 서랍에 다 모으고 있어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "수단 축적"}
+{"text": "죽을계획을 세워놨어요", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "띄어쓰기 오류"}
+{"text": "산에 가서 조용히 끝내려고 장소까지 봐뒀어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "장소 계획, 완곡"}
+{"text": "운전하다가 그냥 핸들을 꺾어버릴까 하는 생각이 들어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "방법 특정 충동"}
+{"text": "아이들 재우고 나서 하려고 날을 잡았어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 3, "alert": true, "kind": "positive", "note": "완곡, 시점 계획"}
+{"text": "요즘은 그냥 다 끝내고 싶어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "완곡 표현"}
+{"text": "죽고 싶다는 생각이 하루 종일 떠나질 않아요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "지속 사고"}
+{"text": "그냥 사라졌으면 좋겠어요. 아무도 모르게요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "간접"}
+{"text": "살기 싫어요. 진짜로요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": ""}
+{"text": "자고 일어나면 안 깨어났으면 좋겠어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "수동적 사고, 어휘 없음"}
+{"text": "이렇게 사느니 죽는 게 낫겠다 싶어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": ""}
+{"text": "죽고 싶데이. 마 진짜로.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "경상 방언"}
+{"text": "살기 싫어예. 하루하루가 너무 힘들어예.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "경상 방언"}
+{"text": "죽고 싶당께요. 아무한테도 말 못 했어라.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "전라 방언"}
+{"text": "인자 고마 없어져불고 싶소.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "전라 방언"}
+{"text": "죽고싶어요", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "띄어쓰기 오류"}
+{"text": "죽고 십어요. 요즘 계속 그래요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "오타"}
+{"text": "사라 지고 싶다는 생각이 자꾸 들어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "띄어쓰기 오류"}
+{"text": "살기시러요", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "오타+붙여쓰기"}
+{"text": "세상에서 없어지고 싶어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": ""}
+{"text": "그만 살고 싶어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": ""}
+{"text": "차라리 사고라도 나서 죽었으면 싶어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "수동적 사고"}
+{"text": "요즘 자꾸 죽음에 대해서만 생각하게 돼요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "명사형"}
+{"text": "이 세상에 제 자리는 없는 것 같아요. 없어지는 게 맞는 것 같아요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "간접"}
+{"text": "내일 아침이 안 왔으면 좋겠어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "완곡, 어휘 없음"}
+{"text": "눈 감고 그대로 안 떠지면 좋겠다고 매일 밤 기도해요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "완곡"}
+{"text": "다들 저 없이 사는 게 더 편할 거예요. 그래서 없어지려고요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "짐+의도"}
+{"text": "자살하고 싶다는 생각이 들어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "직접"}
+{"text": "자살 생각이 요즘 다시 심해졌어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "재발"}
+{"text": "솔직히 말하면 이제 살 힘이 없어요. 끝내고 싶어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": ""}
+{"text": "애들만 아니면 벌써 갔을 거예요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "완곡, 어휘 없음"}
+{"text": "애들 다 키웠으니까 이제 가도 되지 않을까 싶어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "노년기 완곡"}
+{"text": "어제는 진짜 죽을까 했어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "구어"}
+{"text": "이런 얘기 처음 하는 건데… 사실 계속 죽는 생각을 해요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": "말줄임표"}
+{"text": "죽어버리고 싶어요. 그냥 다요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": ""}
+{"text": "살아서 뭐 하나 싶어요. 그냥 끝냈으면 좋겠어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 2, "alert": true, "kind": "positive", "note": ""}
+{"text": "살아야 할 이유를 모르겠어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": true, "kind": "positive", "note": "무망감"}
+{"text": "제가 가족한테 짐만 되는 것 같아요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": true, "kind": "positive", "note": "짐 인식"}
+{"text": "희망이 하나도 안 보여요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": true, "kind": "positive", "note": "무망감"}
+{"text": "다 끝났으면 좋겠어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": true, "kind": "positive", "note": "수동적"}
+{"text": "사는 게 아무 의미가 없어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": true, "kind": "positive", "note": ""}
+{"text": "제가 없는 게 다들한테 나을 것 같아요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": true, "kind": "positive", "note": "짐 인식"}
+{"text": "이렇게 사는 게 무슨 소용인가 싶어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": true, "kind": "positive", "note": "완곡"}
+{"text": "앞으로 좋아질 거라는 생각이 안 들어요. 뭘 해도요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": true, "kind": "positive", "note": "무망감, 어휘 없음"}
+{"text": "그냥 다 포기하고 싶어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": true, "kind": "positive", "note": "경계 사례"}
+{"text": "아침에 눈 뜨는 게 싫어요. 또 하루가 시작되는 게요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": true, "kind": "positive", "note": "완곡"}
+{"text": "내가 없어도 세상은 잘 돌아갈 거잖아요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": true, "kind": "positive", "note": "반말 섞임"}
+{"text": "살아있는 게 벌 받는 것 같아요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": true, "kind": "positive", "note": ""}
+{"text": "손목을 긋고 싶은 충동이 자꾸 들어요.", "speaker": "patient", "category": "self_harm", "severity": 2, "alert": true, "kind": "positive", "note": "충동"}
+{"text": "어제 밤에 커터칼로 허벅지를 그었어요.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "최근 행위, 부위 비전형"}
+{"text": "자해를 했어요. 삼 일 전에요.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "최근 행위"}
+{"text": "자해를했어요", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "띄어쓰기 오류"}
+{"text": "손목에 상처가 있는 건… 제가 그랬어요.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "간접 고백"}
+{"text": "벽을 주먹으로 쳐서 손이 부었어요. 아프니까 오히려 마음이 편해져요.", "speaker": "patient", "category": "self_harm", "severity": 2, "alert": true, "kind": "positive", "note": "비절단 자해"}
+{"text": "화가 나면 제 머리를 벽에 박아요.", "speaker": "patient", "category": "self_harm", "severity": 2, "alert": true, "kind": "positive", "note": "비절단 자해"}
+{"text": "요즘 다시 긋기 시작했어요.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "재발, 목적어 생략"}
+{"text": "담뱃불로 팔을 지졌어요.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "화상 자해"}
+{"text": "피를 보면 좀 진정이 돼요. 그래서 자꾸 그어요.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "반복"}
+{"text": "긋고 싶어서 손이 떨려요. 지금도요.", "speaker": "patient", "category": "self_harm", "severity": 2, "alert": true, "kind": "positive", "note": "현재 충동"}
+{"text": "자해 충동이 하루에도 몇 번씩 와요.", "speaker": "patient", "category": "self_harm", "severity": 2, "alert": true, "kind": "positive", "note": ""}
+{"text": "손목 그은 지 일주일 됐어요. 반창고 붙이고 다녀요.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "최근 행위"}
+{"text": "팔 안쪽을 손톱으로 계속 파요. 피 날 때까지요.", "speaker": "patient", "category": "self_harm", "severity": 2, "alert": true, "kind": "positive", "note": "비절단 자해"}
+{"text": "팔을 긋고 나면 좀 살 것 같아예.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "경상 방언"}
+{"text": "손목 그어불고 싶당께요.", "speaker": "patient", "category": "self_harm", "severity": 2, "alert": true, "kind": "positive", "note": "전라 방언"}
+{"text": "스스로 몸에 상처를 내는 걸 멈출 수가 없어요.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "어휘 간접"}
+{"text": "죽으려고 그런 건 아닌데 손목을 그었어요.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "의도 부정 + 행위 긍정"}
+{"text": "약을 필요 이상으로 많이 먹었어요. 죽으려던 건 아니고 그냥 잠들고 싶어서요.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "과량복용, 의도 부정"}
+{"text": "커터칼을 항상 가방에 넣고 다녀요. 긋고 싶을 때 쓰려고요.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "수단 소지"}
+{"text": "오늘 아침에 손목에 칼을 댔다가 겁이 나서 멈췄어요.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "중단된 시도"}
+{"text": "머리카락을 뽑아요. 정수리 쪽이 휑해질 정도로요.", "speaker": "patient", "category": "self_harm", "severity": 1, "alert": true, "kind": "positive", "note": "발모 행동, 경계 사례"}
+{"text": "자해 안 한 지 이틀밖에 안 됐어요.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "부정어 포함이지만 최근 행위"}
+{"text": "남편을 죽이고 싶어요. 진심으로요.", "speaker": "patient", "category": "harm_to_others", "severity": 2, "alert": true, "kind": "positive", "note": "직접"}
+{"text": "직장 상사를 때리고 싶어서 손이 근질거려요.", "speaker": "patient", "category": "harm_to_others", "severity": 2, "alert": true, "kind": "positive", "note": ""}
+{"text": "아내가 자고 있을 때 목을 조르는 상상을 해요.", "speaker": "patient", "category": "harm_to_others", "severity": 3, "alert": true, "kind": "positive", "note": "방법 특정"}
+{"text": "칼을 들고 그 사람 집 앞까지 갔다가 왔어요.", "speaker": "patient", "category": "harm_to_others", "severity": 3, "alert": true, "kind": "positive", "note": "수단+접근"}
+{"text": "우리 애를 때리고 싶은 충동이 자꾸 들어요. 무서워요.", "speaker": "patient", "category": "harm_to_others", "severity": 2, "alert": true, "kind": "positive", "note": "아동"}
+{"text": "그 새끼 진짜 죽여버릴 거예요.", "speaker": "patient", "category": "harm_to_others", "severity": 2, "alert": true, "kind": "positive", "note": "비속어"}
+{"text": "어머니한테 손을 댈 뻔했어요. 어제요.", "speaker": "patient", "category": "harm_to_others", "severity": 2, "alert": true, "kind": "positive", "note": "완곡"}
+{"text": "애를 창밖으로 던져버리고 싶다는 생각이 들어서 너무 무서워요.", "speaker": "patient", "category": "harm_to_others", "severity": 3, "alert": true, "kind": "positive", "note": "영아, 방법 특정"}
+{"text": "아기가 울면 베개로 눌러버리고 싶어져요.", "speaker": "patient", "category": "harm_to_others", "severity": 3, "alert": true, "kind": "positive", "note": "산후, 방법 특정"}
+{"text": "그 사람 차 브레이크를 망가뜨릴까 생각해 봤어요.", "speaker": "patient", "category": "harm_to_others", "severity": 3, "alert": true, "kind": "positive", "note": "계획, 어휘 없음"}
+{"text": "회사에 불을 질러버리고 싶어요.", "speaker": "patient", "category": "harm_to_others", "severity": 2, "alert": true, "kind": "positive", "note": "방화"}
+{"text": "동료 한 명을 계속 따라다니고 있어요. 언젠가 손을 볼 거예요.", "speaker": "patient", "category": "harm_to_others", "severity": 2, "alert": true, "kind": "positive", "note": "스토킹+위협"}
+{"text": "그놈 죽이뿔고 싶데이.", "speaker": "patient", "category": "harm_to_others", "severity": 2, "alert": true, "kind": "positive", "note": "경상 방언"}
+{"text": "남편을 패버리고 싶어라. 진짜로.", "speaker": "patient", "category": "harm_to_others", "severity": 2, "alert": true, "kind": "positive", "note": "전라 방언"}
+{"text": "사람들을 다 죽여버리고 싶다는 생각이 요즘 들어요.", "speaker": "patient", "category": "harm_to_others", "severity": 2, "alert": true, "kind": "positive", "note": "불특정 다수"}
+{"text": "아내를 밀쳐서 넘어뜨렸어요. 그저께요.", "speaker": "patient", "category": "harm_to_others", "severity": 2, "alert": true, "kind": "positive", "note": "최근 행위"}
+{"text": "저 사람 없애 버리고 싶어요.", "speaker": "patient", "category": "harm_to_others", "severity": 2, "alert": true, "kind": "positive", "note": "완곡"}
+{"text": "때리고싶어요 그사람을", "speaker": "patient", "category": "harm_to_others", "severity": 2, "alert": true, "kind": "positive", "note": "띄어쓰기 오류, 어순"}
+{"text": "엄마가 잔소리하면 목을 졸라버리고 싶어요.", "speaker": "patient", "category": "harm_to_others", "severity": 3, "alert": true, "kind": "positive", "note": "방법 특정"}
+{"text": "동생 방에 들어가서 자는 얼굴에 칼을 대봤어요.", "speaker": "patient", "category": "harm_to_others", "severity": 3, "alert": true, "kind": "positive", "note": "수단+행위"}
+{"text": "어제 소주 세 병 마시고 약을 한꺼번에 먹었어요.", "speaker": "patient", "category": "substance_acute", "severity": 3, "alert": true, "kind": "positive", "note": "음주+과량복용"}
+{"text": "술 마시고 필름이 끊겨서 어떻게 집에 왔는지 몰라요.", "speaker": "patient", "category": "substance_acute", "severity": 2, "alert": true, "kind": "positive", "note": "블랙아웃"}
+{"text": "술 마시고 처방약이랑 같이 먹으면 잠이 잘 와서 매일 그렇게 해요.", "speaker": "patient", "category": "substance_acute", "severity": 2, "alert": true, "kind": "positive", "note": "병용 습관"}
+{"text": "오늘 아침부터 마시고 왔어요. 안 마시면 손이 떨려서요.", "speaker": "patient", "category": "substance_acute", "severity": 2, "alert": true, "kind": "positive", "note": "금단, 진료 중 음주"}
+{"text": "술 끊은 지 이틀째인데 헛것이 보여요.", "speaker": "patient", "category": "substance_acute", "severity": 3, "alert": true, "kind": "positive", "note": "금단 섬망 의심"}
+{"text": "어젯밤에 술이랑 수면제 같이 먹고 응급실 갔다 왔어요.", "speaker": "patient", "category": "substance_acute", "severity": 3, "alert": true, "kind": "positive", "note": "병용 후 응급"}
+{"text": "필름이 끊기는 일이 일주일에 세 번은 돼요.", "speaker": "patient", "category": "substance_acute", "severity": 2, "alert": true, "kind": "positive", "note": "반복 블랙아웃"}
+{"text": "술 마시면서 알프라졸람 한 통을 다 먹었어요.", "speaker": "patient", "category": "substance_acute", "severity": 3, "alert": true, "kind": "positive", "note": "벤조 병용 과량"}
+{"text": "밤새 술 마시고 지금도 취해 있어요.", "speaker": "patient", "category": "substance_acute", "severity": 2, "alert": true, "kind": "positive", "note": "현재 중독 상태"}
+{"text": "술을 안 마시면 온몸이 떨리고 식은땀이 나요.", "speaker": "patient", "category": "substance_acute", "severity": 2, "alert": true, "kind": "positive", "note": "금단"}
+{"text": "술 먹고 약 먹고 자면 안 깰 것 같아서 매일 그렇게 해요.", "speaker": "patient", "category": "substance_acute", "severity": 3, "alert": true, "kind": "positive", "note": "수동적 자살사고 겹침"}
+{"text": "소주 마시고 진통제 한 통 삼켰어예.", "speaker": "patient", "category": "substance_acute", "severity": 3, "alert": true, "kind": "positive", "note": "경상 방언"}
+{"text": "술 묵고 약까지 털어넣어불었소.", "speaker": "patient", "category": "substance_acute", "severity": 3, "alert": true, "kind": "positive", "note": "전라 방언"}
+{"text": "술마시고 약먹었어요", "speaker": "patient", "category": "substance_acute", "severity": 3, "alert": true, "kind": "positive", "note": "띄어쓰기 오류"}
+{"text": "3일 동안 잠도 안 자고 계속 마셨어요.", "speaker": "patient", "category": "substance_acute", "severity": 2, "alert": true, "kind": "positive", "note": "폭음"}
+{"text": "요즘 술 마시면 기억이 뚝뚝 끊겨요.", "speaker": "patient", "category": "substance_acute", "severity": 2, "alert": true, "kind": "positive", "note": "블랙아웃, 필름 어휘 없음"}
+{"text": "어제 술 마시고 필름 끊긴 사이에 손목을 그었나 봐요. 기억이 안 나요.", "speaker": "patient", "category": "self_harm", "severity": 3, "alert": true, "kind": "positive", "note": "음주 중 자해, 범주는 자해"}
+{"text": "죽고 싶다는 생각까지는 없어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "자해 같은 건 전혀 안 해요.", "speaker": "patient", "category": "self_harm", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "죽고 싶은 건 아니에요. 그냥 힘든 거예요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "그런 생각은 한 번도 해본 적 없어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": "지시어만"}
+{"text": "자살 생각은 없어요. 그건 확실해요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "누굴 해치고 싶은 마음은 없어요.", "speaker": "patient", "category": "harm_to_others", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "술은 입에도 안 대요.", "speaker": "patient", "category": "substance_acute", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "손목 긋고 그런 건 안 해요. 무서워서요.", "speaker": "patient", "category": "self_harm", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "죽고 싶진 않아요. 살고 싶어서 온 거예요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "사라지고 싶다거나 그런 건 아니고요, 그냥 쉬고 싶어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "약을 모아두거나 하진 않아요. 먹으라는 대로 먹어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": "수단 부정"}
+{"text": "죽고 싶단 생각은 없는데예.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": "경상 방언"}
+{"text": "그런 생각은 안 해라. 걱정 마쇼.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": "전라 방언"}
+{"text": "자해는 안 했어요. 이건 고양이가 할퀸 거예요.", "speaker": "patient", "category": "self_harm", "severity": 0, "alert": false, "kind": "negated", "note": "상처 설명"}
+{"text": "죽고 싶다는 생각은 전혀 없고요, 잠만 좀 잤으면 좋겠어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "요즘은 그런 생각 안 들어요. 약 먹고 많이 나아졌어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": "호전"}
+{"text": "아니요, 죽고 싶은 마음은 없어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "살기 싫다는 정도는 아니에요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "남편을 때리고 싶다거나 그런 건 아니에요. 그냥 화가 나는 거죠.", "speaker": "patient", "category": "harm_to_others", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "술 마시고 약 먹은 적은 없어요. 그건 위험하다고 들어서요.", "speaker": "patient", "category": "substance_acute", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "자살 같은 건 생각도 안 해봤어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "죽을 생각은 없어요. 근데 그냥 피곤해요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "유서 같은 거 쓴 적 없어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "혼자 있을 때도 그런 충동은 안 생겨요.", "speaker": "patient", "category": "self_harm", "severity": 0, "alert": false, "kind": "negated", "note": "지시어만"}
+{"text": "죽고싶지않아요", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": "띄어쓰기 오류"}
+{"text": "자해 충동은 없어요. 예전에도 없었고요.", "speaker": "patient", "category": "self_harm", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "없어지고 싶단 생각은 없어요. 그냥 좀 지쳐서요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "술 마시고 약 먹지 말라고 해서 술은 끊었어요.", "speaker": "patient", "category": "substance_acute", "severity": 0, "alert": false, "kind": "negated", "note": "위험 어휘 포함 부정"}
+{"text": "죽이고 싶을 정도는 아니에요. 그냥 보기 싫은 거예요.", "speaker": "patient", "category": "harm_to_others", "severity": 0, "alert": false, "kind": "negated", "note": ""}
+{"text": "뛰어내리고 싶다는 생각 같은 건 안 해봤어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "negated", "note": "수단 어휘 부정"}
+{"text": "만약 그런 생각이 들면 어떻게 해야 하죠?", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "hypothetical", "note": ""}
+{"text": "혹시라도 죽고 싶어지면 누구한테 연락해야 해요?", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "hypothetical", "note": "안전계획 질문"}
+{"text": "만약에 제가 자해를 하게 되면 약을 바꿔야 하나요?", "speaker": "patient", "category": "self_harm", "severity": 0, "alert": false, "kind": "hypothetical", "note": ""}
+{"text": "그런 생각이 든다면 바로 병원에 와야 하는 거죠?", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "hypothetical", "note": ""}
+{"text": "만약 자살 충동이 생기면 이 약을 먹어도 되나요?", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "hypothetical", "note": ""}
+{"text": "사람들이 죽고 싶다고 하면 보통 어떤 기분인 거예요? 저는 잘 모르겠어서요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "hypothetical", "note": "일반화 질문"}
+{"text": "만약에 제가 술 마시고 약을 먹으면 어떻게 되는 거예요? 궁금해서요.", "speaker": "patient", "category": "substance_acute", "severity": 0, "alert": false, "kind": "hypothetical", "note": ""}
+{"text": "만일 그런 충동이 오면 대처법을 미리 알아두고 싶어요.", "speaker": "patient", "category": "self_harm", "severity": 0, "alert": false, "kind": "hypothetical", "note": ""}
+{"text": "가정이지만, 상황이 더 나빠지면 그런 생각이 들 수도 있을 것 같아요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "hypothetical", "note": "경계 사례: 미래 가능성"}
+{"text": "만약 누굴 때리고 싶은 마음이 들면 어떻게 참아야 해요?", "speaker": "patient", "category": "harm_to_others", "severity": 0, "alert": false, "kind": "hypothetical", "note": ""}
+{"text": "혹시 죽고 싶어지면 이 번호로 전화하면 되는 거죠?", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "hypothetical", "note": "안전계획 확인"}
+{"text": "작년엔 죽고 싶었는데 지금은 아니에요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": false, "kind": "past", "note": "과거+현재 부정"}
+{"text": "고등학교 때 자해를 했었는데 지금은 안 해요.", "speaker": "patient", "category": "self_harm", "severity": 1, "alert": false, "kind": "past", "note": ""}
+{"text": "예전에 한 번 약을 먹고 병원에 실려간 적이 있어요. 십 년 전이에요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": false, "kind": "past", "note": "과거 시도력, 위험요인"}
+{"text": "그때는 정말 사라지고 싶었어요. 요즘은 괜찮아요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": false, "kind": "past", "note": ""}
+{"text": "이십 대 때 손목을 그은 적이 있어요. 그 이후로는 없어요.", "speaker": "patient", "category": "self_harm", "severity": 1, "alert": false, "kind": "past", "note": ""}
+{"text": "작년 이맘때 죽을 계획까지 세웠었는데 지금은 그런 생각 안 해요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": false, "kind": "past", "note": "과거 계획"}
+{"text": "옛날에 남편을 죽이고 싶다고 생각한 적은 있었죠. 이제는 그냥 남남이에요.", "speaker": "patient", "category": "harm_to_others", "severity": 1, "alert": false, "kind": "past", "note": ""}
+{"text": "군대에서 자살 시도를 했었어요. 지금은 그런 마음 전혀 없어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": false, "kind": "past", "note": "과거 시도력"}
+{"text": "예전엔 술 마시고 필름 끊기는 일이 잦았는데 끊은 지 삼 년 됐어요.", "speaker": "patient", "category": "substance_acute", "severity": 1, "alert": false, "kind": "past", "note": ""}
+{"text": "그때 자해했던 흉터가 남아서 여름에 반팔을 못 입어요.", "speaker": "patient", "category": "self_harm", "severity": 1, "alert": false, "kind": "past", "note": "흉터 언급"}
+{"text": "작년에 죽고 싶었데이. 지금은 마 괜찮다.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": false, "kind": "past", "note": "경상 방언"}
+{"text": "옛날에 손목 그은 적 있어라. 시방은 안 그래요.", "speaker": "patient", "category": "self_harm", "severity": 1, "alert": false, "kind": "past", "note": "전라 방언"}
+{"text": "몇 년 전에 유서를 썼던 적이 있어요. 지금은 다 찢어버렸고요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 1, "alert": false, "kind": "past", "note": ""}
+{"text": "첫째 낳고 나서 애를 해치고 싶다는 생각이 들었었는데 그때 치료받고 괜찮아졌어요.", "speaker": "patient", "category": "harm_to_others", "severity": 1, "alert": false, "kind": "past", "note": "산후 병력"}
+{"text": "친구가 자해를 한다고 해서 걱정돼요.", "speaker": "patient", "category": "self_harm", "severity": 0, "alert": false, "kind": "third_person", "note": ""}
+{"text": "동생이 죽고 싶다는 말을 자꾸 해요. 어떻게 해야 하죠?", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "third_person", "note": ""}
+{"text": "회사 동료가 옥상에서 뛰어내리겠다고 해서 다들 놀랐어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "third_person", "note": ""}
+{"text": "엄마가 술 마시고 약을 먹었다고 해서 응급실에 갔었어요.", "speaker": "patient", "category": "substance_acute", "severity": 0, "alert": false, "kind": "third_person", "note": ""}
+{"text": "아는 언니가 손목을 그었대요.", "speaker": "patient", "category": "self_harm", "severity": 0, "alert": false, "kind": "third_person", "note": ""}
+{"text": "아버지가 저를 죽이겠다고 소리를 질렀어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "third_person", "note": "가정폭력 노출, 환자 본인 위험 아님"}
+{"text": "오빠가 자살 시도를 했었어요. 그 뒤로 집이 엉망이에요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "third_person", "note": ""}
+{"text": "딸이 방에서 유서 같은 걸 쓰고 있는 걸 봤어요. 제 얘기는 아니고 딸 얘기예요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "third_person", "note": "가족 위험, 세션 환자 아님"}
+{"text": "지인이 번개탄을 샀다고 하더라고요. 말려야 하나요?", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "third_person", "note": ""}
+{"text": "남편이 자꾸 죽겠다고 협박해요. 제가 뭘 잘못한 건지.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "third_person", "note": ""}
+{"text": "친구가 그러는데 자기는 살 이유가 없대요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "third_person", "note": "인용"}
+{"text": "옆집 아저씨가 술 마시고 필름 끊겨서 길에서 잤대요.", "speaker": "patient", "category": "substance_acute", "severity": 0, "alert": false, "kind": "third_person", "note": ""}
+{"text": "동생이 자해를 해가 걱정이라예.", "speaker": "patient", "category": "self_harm", "severity": 0, "alert": false, "kind": "third_person", "note": "경상 방언"}
+{"text": "아는 사람이 죽고 싶다고 그러드랑께요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "third_person", "note": "전라 방언"}
+{"text": "조카가 요즘 죽고 싶다는 말을 하는데 어떻게 도와줘야 할까요?", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "third_person", "note": ""}
+{"text": "엄마가 저한테 너 때문에 죽고 싶다고 했어요.", "speaker": "patient", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "third_person", "note": "정서적 학대 인용"}
+{"text": "아들이 게임에서 지면 자기 머리를 때려요.", "speaker": "patient", "category": "self_harm", "severity": 0, "alert": false, "kind": "third_person", "note": ""}
+{"text": "동료가 부장을 죽이고 싶다고 농담처럼 말해요.", "speaker": "patient", "category": "harm_to_others", "severity": 0, "alert": false, "kind": "third_person", "note": ""}
+{"text": "환자분 어머니께서 예전에 자살로 돌아가셨다고 들었어요.", "speaker": "clinician", "category": "suicidal_ideation", "severity": 0, "alert": false, "kind": "third_person", "note": "임상가 가족력 언급"}
+{"text": "혹시 죽고 싶다는 생각이 드세요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "혹시 자해를 하신 적이 있으세요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "최근에 스스로를 해치고 싶은 충동이 있었나요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "누군가를 해치고 싶은 생각이 든 적 있으세요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "술 드시고 약을 같이 드신 적 있으세요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "죽는 것에 대해 구체적으로 생각해 보신 적 있으세요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "약을 모아두거나 하신 건 아니시죠?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": "부정 의문"}
+{"text": "손목의 상처는 언제 생긴 건가요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "요즘 사라지고 싶다는 생각이 드시나요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "그런 생각이 들 때 계획까지 세우신 적 있습니까?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "자살에 대해 생각하신 적이 있으신가요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "필름이 끊기는 일은 얼마나 자주 있으세요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "살기 싫다는 마음이 얼마나 자주 드세요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "유서를 써보신 적 있으세요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "아이를 해치고 싶은 생각이 들 때가 있으신가요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "죽고 싶다는 생각이 들면 저한테 바로 연락 주시겠어요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": "안전계획"}
+{"text": "지난번에 말씀하신 자해 충동은 요즘 어떠세요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "만약 그런 생각이 들면 어떻게 하실 건지 같이 정해볼까요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": "안전계획"}
+{"text": "술 드시면 기억이 끊기는 편이세요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "스스로 상처를 낸 적은 없으세요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "혹시 남편분한테 화가 나서 손이 나간 적이 있으세요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "그 생각이 얼마나 자주, 얼마나 오래 지속되나요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "죽고 싶단 생각 드십니까?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": "격식체"}
+{"text": "자해 충동이 생겼을 때 어떻게 견디셨어요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "요즘도 그 사람을 때리고 싶다는 마음이 드세요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": ""}
+{"text": "자살 위험 평가를 다시 한번 해보겠습니다.", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": "질문 아님, 임상가 진술"}
+{"text": "자해 충동이 올 때 얼음을 쥐는 방법을 한번 해보세요.", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": "질문 아님, 대처 안내"}
+{"text": "오늘 말씀하신 죽고 싶다는 생각은 차트에 기록하고 다음 주에 다시 확인하겠습니다.", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": "질문 아님, 임상가 재진술"}
+{"text": "죽고 싶다는 생각, 지금 이 순간에도 드세요?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": "물음표 앞 쉼표"}
+{"text": "혹시 술 마시고 필름 끊긴 적 있어예?", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "clinician_question", "note": "경상 방언 임상가"}
+{"text": "피곤해 죽겠어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "죽을 만큼 맛있는 걸 먹고 싶어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "자살 예방 교육을 받았어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "예방 교육"}
+{"text": "드라마에서 자살 장면을 봤는데 너무 슬펐어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "매체"}
+{"text": "배고파 죽겠어요. 아침을 못 먹었거든요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "애들 때문에 미치겠어요. 진짜.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "웃겨 죽는 줄 알았어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "이 노래 진짜 죽여줘요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "뉴스에서 연예인 자살 기사를 봤어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "매체"}
+{"text": "회사에서 자살 예방 캠페인 포스터를 붙이더라고요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "캠페인"}
+{"text": "요즘 죽을 것 같이 바빠요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "다리가 아파 죽겠어요. 계단을 너무 많이 올라서요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "영화에서 주인공이 손목 긋는 장면이 나와서 눈을 감았어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "매체"}
+{"text": "더워 죽겠는데 에어컨이 고장 났어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "우리 강아지가 죽고 나서 한동안 힘들었어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "사별"}
+{"text": "할머니가 작년에 돌아가셨어요. 그 뒤로 잠을 잘 못 자요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "사별"}
+{"text": "갑자기 죽을 것 같은 공포가 와요. 공황 발작 때요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "공황 증상"}
+{"text": "답답해 죽겠어요, 말이 안 통해서요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "게임에서 계속 죽어서 짜증 나요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "술 마시고 죽는 줄 알았어요, 숙취 때문에요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "음주 관용구"}
+{"text": "지겨워 죽겠어요, 매일 똑같은 일이라서요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "자살 예방 상담 자원봉사를 하고 있어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "학교에서 자해 예방 교육을 들었어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "죽은 듯이 잤어요. 오랜만에 푹 잤어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "이 약 먹으면 죽은 듯이 잠들어요. 좋은 건가요?", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "손목이 아파요. 마우스를 너무 오래 써서요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "손목 비자해"}
+{"text": "손목 터널 증후군이래요. 정형외과에서요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "손목 비자해"}
+{"text": "칼로 손을 베였어요. 요리하다가요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "칼 비자해"}
+{"text": "뛰어내리는 꿈을 자꾸 꿔요. 떨어지는 꿈이요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "꿈 내용"}
+{"text": "목이 매여서 밥을 잘 못 넘겨요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "목이 매이다"}
+{"text": "그 사람 때문에 죽을 맛이에요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "번지점프에서 뛰어내렸는데 진짜 짜릿했어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "뛰어내리다 비위험"}
+{"text": "유서 쓰기 체험 프로그램에 다녀왔어요. 회사 연수였어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "임종 체험"}
+{"text": "회사에서 죽을 각오로 일하래요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "사람 죽이는 게임을 밤새 했어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "게임"}
+{"text": "짐이 너무 무거워서 어깨가 아파요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "짐 비유 아님"}
+{"text": "이사 짐 정리하느라 허리가 나갔어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "애가 죽어라 말을 안 들어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "필름 카메라를 새로 샀어요. 취미로요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "필름 비음주"}
+{"text": "미치겠어요, 시험이 코앞이라서요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "죽어도 그 회사엔 다시 안 가요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": ""}
+{"text": "자살한 연예인 얘기를 친구들이 하길래 그냥 들었어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "매체 화제"}
+{"text": "심장이 터질 것 같아요. 공황이 오면요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "공황 증상"}
+{"text": "의미가 없는 회의가 너무 많아요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "의미 없다 비위험"}
+{"text": "희망이 없는 팀이라 이직을 알아보고 있어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "idiom", "note": "희망 없다 비위험"}
+{"text": "잠드는 데 두 시간쯤 걸려요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "수면"}
+{"text": "입맛이 없어서 삼 주 동안 삼 킬로 빠졌어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "식욕"}
+{"text": "에스시탈로프람 10mg 먹고 있어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "약물"}
+{"text": "약 먹으면 속이 울렁거려요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "부작용"}
+{"text": "회사에서 집중이 안 돼요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "집중"}
+{"text": "새벽 네 시에 깨서 다시 못 자요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "수면"}
+{"text": "가슴이 두근거리고 숨이 막혀요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "불안"}
+{"text": "기분이 계속 가라앉아요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "기분"}
+{"text": "눈물이 자꾸 나요. 이유도 없이요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "기분"}
+{"text": "아무것도 하기 싫어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "의욕"}
+{"text": "걱정이 멈추질 않아요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "불안"}
+{"text": "일주일에 세 번 소주 한 병 정도 마셔요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "음주량, 급성 아님"}
+{"text": "다음 주에 뵙겠습니다. 수면일지 써 오세요.", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "계획"}
+{"text": "손을 계속 씻어요. 하루에 오십 번도 넘게요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "강박"}
+{"text": "잠은 좀 나아졌는데 낮에 너무 졸려요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "수면"}
+{"text": "밥맛이 없어예. 억지로 먹어예.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "경상 방언"}
+{"text": "요새 통 잠을 못 자라.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "전라 방언"}
+{"text": "약 며칠 빼먹었어요. 깜빡해서요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "복약"}
+{"text": "재미있던 게 재미가 없어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "무쾌감"}
+{"text": "실수를 자꾸 해서 상사한테 혼났어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "집중"}
+{"text": "오늘 표정이 좀 어두워 보이시네요.", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "임상가 관찰"}
+{"text": "혈액검사 한번 해보겠습니다.", "speaker": "clinician", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "계획"}
+{"text": "아버지 제사 지내고 왔어요. 십 년 됐네요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "사별 맥락"}
+{"text": "장례식장에 다녀와서 기분이 가라앉아요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "사별 맥락"}
+{"text": "음… 그게요, 아 맞다, 지난주에 약을 바꿨어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "필러"}
+{"text": "알프라졸람은 잘 때만 먹고 있어요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "약물"}
+{"text": "메틸페니데이트 먹으면 오후에 확 꺼져요.", "speaker": "patient", "category": null, "severity": 0, "alert": false, "kind": "unrelated", "note": "약물 반동"}

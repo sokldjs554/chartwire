@@ -1,0 +1,46 @@
+from datetime import UTC, datetime, timedelta
+from uuid import UUID
+
+import pytest
+
+from chartwire.core.clock import Clock, FakeClock, SystemClock
+from chartwire.core.ids import uuid7, uuid7_time_ms
+
+
+def test_system_clock_is_utc_aware_and_monotonic():
+    clock: Clock = SystemClock()
+    a, b = clock.monotonic(), clock.monotonic()
+    assert clock.now().tzinfo is UTC and b >= a
+
+
+def test_fake_clock_advances_both_axes():
+    start = datetime(2026, 9, 1, tzinfo=UTC)
+    clock = FakeClock(start)
+    m0 = clock.monotonic()
+    clock.advance(2.5)
+    assert clock.now() == start + timedelta(seconds=2.5) and clock.monotonic() == m0 + 2.5
+    clock.set(start + timedelta(minutes=1))
+    assert clock.now() == start + timedelta(minutes=1)
+    with pytest.raises(ValueError):
+        clock.advance(-1)
+    with pytest.raises(ValueError):
+        FakeClock(datetime(2026, 1, 1))
+
+
+def test_uuid7_layout_and_timestamp():
+    u = uuid7(now_ms=1_700_000_000_000)
+    assert u.version == 7 and u.variant == "specified in RFC 4122"
+    assert uuid7_time_ms(u) == 1_700_000_000_000
+    with pytest.raises(ValueError):
+        uuid7_time_ms(UUID(int=0))
+
+
+def test_uuid7_is_monotonic_within_a_process():
+    ids = [uuid7() for _ in range(5000)]
+    assert ids == sorted(ids) and len(set(ids)) == len(ids)
+
+
+def test_uuid7_counter_borrows_next_millisecond_on_overflow():
+    ids = [uuid7(now_ms=42) for _ in range(5000)]  # far more than 2**12 per millisecond
+    assert ids == sorted(ids) and len(set(ids)) == len(ids)
+    assert uuid7_time_ms(ids[-1]) >= 43
