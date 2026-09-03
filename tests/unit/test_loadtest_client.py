@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -12,6 +13,8 @@ from chartwire.loadtest import client as lt
 from chartwire.ws.codec import FLAG_LAST_CHUNK, FLAG_SIM, HEADER_LEN, decode_frame
 
 TIMEOUT = 2.0
+SETTLE_TURNS = 16
+"""Event-loop turns a virtual sleep yields before advancing time (queue → wait_for → task chains)."""
 
 # --------------------------------------------------------------------------- fakes
 
@@ -30,9 +33,11 @@ class VirtualClock:
         return 1_700_000_000.0 + self.t
 
     async def sleep(self, seconds: float) -> None:
+        """Let every runnable task (scripted server, receiver loop) settle, then jump the clock."""
         self.sleeps.append(seconds)
+        for _ in range(SETTLE_TURNS):
+            await asyncio.sleep(0)
         self.t += seconds
-        await asyncio.sleep(0)
 
 
 class FakeSocket:
@@ -121,7 +126,9 @@ def make_recorder(
     return lt.RecorderClient(cfg, connect=net.connect, tickets=net.ticket, clock=clock), cfg
 
 
-async def welcome(sock: FakeSocket, *, epoch: int = 1, ack_seq: int = 0, credit: int = 50, missing: list | None = None) -> dict[str, Any]:
+async def welcome(
+    sock: FakeSocket, *, epoch: int = 1, ack_seq: int = 0, credit: int = 50, missing: list | None = None
+) -> dict[str, Any]:
     hello = await sock.next_json()
     assert hello["t"] == "hello"
     sock.push(
@@ -154,7 +161,9 @@ async def finish(sock: FakeSocket, final_seq: int) -> None:
     sock.server_close(1000)
 
 
-async def run_with(client_run: Awaitable[lt.SessionStats], server: Callable[[], Awaitable[None]]) -> lt.SessionStats:
+async def run_with(
+    client_run: Awaitable[lt.SessionStats], server: Callable[[], Awaitable[None]]
+) -> lt.SessionStats:
     task = asyncio.ensure_future(client_run)
     await asyncio.wait_for(server(), TIMEOUT * 4)
     return await asyncio.wait_for(task, TIMEOUT)
@@ -211,7 +220,7 @@ def test_expand_ranges_and_parse_iso() -> None:
 
 async def test_recorder_happy_path_hello_frames_end_bye() -> None:
     net, clock = FakeNetwork(), VirtualClock()
-    rec, cfg = make_recorder(net, clock, total_chunks=5, chunk_bytes=64)
+    rec, _cfg = make_recorder(net, clock, total_chunks=5, chunk_bytes=64)
 
     async def server() -> None:
         sock = await net.wait_socket(0)
@@ -259,7 +268,7 @@ async def test_recorder_never_exceeds_credit() -> None:
             observed_outstanding.append(seq - acked)
             if seq % 2 == 0:
                 await asyncio.sleep(0.02)  # nothing else must arrive while 2 are outstanding
-                assert sock.to_server.empty()
+                assert seq == 6 or sock.to_server.empty()  # (after the last chunk only ``end`` may follow)
                 acked = seq
                 sock.push({"t": "ack", "ack_seq": seq, "credit": 2})
         await finish(sock, 6)
@@ -364,7 +373,10 @@ async def test_recorder_answers_ping_and_resends_on_nack() -> None:
         sock.push({"t": "ping", "ts": 42})
         sock.push({"t": "ack", "ack_seq": 1, "credit": 50})
         seen: list[Any] = []
-        while len([m for m in seen if isinstance(m, dict)]) < 1 or len([m for m in seen if isinstance(m, bytes)]) < 2:
+        while (
+            len([m for m in seen if isinstance(m, dict)]) < 1
+            or len([m for m in seen if isinstance(m, bytes)]) < 2
+        ):
             seen.append(await sock.next_message())
         assert {"t": "pong", "ts": 42} in seen
         sock.push({"t": "nack", "missing": [[2, 2]]})
@@ -472,7 +484,9 @@ async def test_recorder_user_pause_resume_and_delay_hook() -> None:
 
 async def test_recorder_stop_and_reconnect_limit() -> None:
     net, clock = FakeNetwork(), VirtualClock()
-    rec, _ = make_recorder(net, clock, total_chunks=100, chunk_bytes=16, reconnect_delay_s=0.0, max_reconnects=2)
+    rec, _ = make_recorder(
+        net, clock, total_chunks=100, chunk_bytes=16, reconnect_delay_s=0.0, max_reconnects=2
+    )
 
     async def server() -> None:
         for i in range(3):
@@ -489,7 +503,9 @@ async def test_recorder_stop_and_reconnect_limit() -> None:
 # --------------------------------------------------------------------------- viewer
 
 
-def make_viewer(net: FakeNetwork, clock: VirtualClock, stats: lt.SessionStats, **overrides: Any) -> lt.ViewerClient:
+def make_viewer(
+    net: FakeNetwork, clock: VirtualClock, stats: lt.SessionStats, **overrides: Any
+) -> lt.ViewerClient:
     cfg = lt.ViewerConfig(session_id="s-1", watch_url="ws://test/ws/v1/watch", **overrides)
     return lt.ViewerClient(cfg, connect=net.connect, tickets=net.ticket, clock=clock, stats=stats)
 
@@ -532,7 +548,7 @@ async def test_viewer_dedups_finals_and_measures_latencies() -> None:
                 "segment_seq": 6,
                 "span": [0, 4],
                 "sla_deadline_at": None,
-                "committed_at": lt.datetime.fromtimestamp(committed, tz=lt.UTC).isoformat(),
+                "committed_at": datetime.fromtimestamp(committed, tz=UTC).isoformat(),
             }
         )
         ack = await sock.next_json()
@@ -543,7 +559,15 @@ async def test_viewer_dedups_finals_and_measures_latencies() -> None:
         sock.push({"t": "ping", "ts": 1})
         assert await sock.next_json() == {"t": "pong", "ts": 1}
         sock.push({"t": "session.state", "state": "ended"})
-        sock.push({"t": "note.status", "note_id": "n", "status": "needs_review", "coverage": 0.9, "unsupported_count": 1})
+        sock.push(
+            {
+                "t": "note.status",
+                "note_id": "n",
+                "status": "needs_review",
+                "coverage": 0.9,
+                "unsupported_count": 1,
+            }
+        )
         sock.push({"t": "bye", "reason": "ended"})
 
     out = await run_with(viewer.run(), server)
@@ -552,7 +576,9 @@ async def test_viewer_dedups_finals_and_measures_latencies() -> None:
     assert [round(v, 3) for v in out.final_e2e_ms] == [1000.0, 500.0]
     assert out.alerts == 1 and out.alerts_acked == 1 and out.escalations == 1
     assert out.alert_e2e_ms == [pytest.approx(250.0)]
-    assert out.lagged_dropped == 4 and out.states == ["recording", "ended"] and out.note_status == "needs_review"
+    assert (
+        out.lagged_dropped == 4 and out.states == ["recording", "ended"] and out.note_status == "needs_review"
+    )
     assert out.summary()["final_e2e_p95_ms"] == 1000.0
 
 
@@ -565,7 +591,18 @@ async def test_viewer_reconnects_with_from_seq_after_drop() -> None:
         sock = await net.wait_socket(0)
         await sock.next_json()
         sock.push({"t": "welcome", "session_id": "s-1", "state": "recording", "last_final_seq": 0})
-        sock.push({"t": "transcript.final", "seq": 5, "speaker": "clinician", "t_start_ms": 0, "t_end_ms": 1, "text": "", "confidence": 1.0, "segment_id": 1})
+        sock.push(
+            {
+                "t": "transcript.final",
+                "seq": 5,
+                "speaker": "clinician",
+                "t_start_ms": 0,
+                "t_end_ms": 1,
+                "text": "",
+                "confidence": 1.0,
+                "segment_id": 1,
+            }
+        )
         await asyncio.sleep(0.02)
         sock.push({"t": "bye", "reason": "drain"})
         sock.server_close(1012)
@@ -573,7 +610,18 @@ async def test_viewer_reconnects_with_from_seq_after_drop() -> None:
         hello = await sock2.next_json()
         assert hello == {"t": "hello", "ticket": "tk-2", "from_seq": 5}
         sock2.push({"t": "welcome", "session_id": "s-1", "state": "recording", "last_final_seq": 5})
-        sock2.push({"t": "transcript.final", "seq": 5, "speaker": "clinician", "t_start_ms": 0, "t_end_ms": 1, "text": "", "confidence": 1.0, "segment_id": 1})
+        sock2.push(
+            {
+                "t": "transcript.final",
+                "seq": 5,
+                "speaker": "clinician",
+                "t_start_ms": 0,
+                "t_end_ms": 1,
+                "text": "",
+                "confidence": 1.0,
+                "segment_id": 1,
+            }
+        )
         sock2.push({"t": "bye", "reason": "ended"})
 
     out = await run_with(viewer.run(), server)

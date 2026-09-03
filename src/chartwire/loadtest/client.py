@@ -256,6 +256,8 @@ class RecorderConfig:
     end_wait_s: float = 10.0
     reconnect_delay_s: float = 0.2
     max_reconnects: int = 50
+    close_grace_s: float = 2.0
+    """How long to wait for the server's close frame after a server-initiated stop (bye/error)."""
 
 
 class RecorderClient:
@@ -287,6 +289,7 @@ class RecorderClient:
         self._user_paused = False
         self._done = False
         self._stop_reason: str | None = None
+        self._server_stopped = False
         self._ws: WsTransport | None = None
         self._wake = asyncio.Event()
         self._finished = asyncio.Event()
@@ -379,6 +382,12 @@ class RecorderClient:
         receiver = asyncio.ensure_future(self._receive_loop(ws))
         try:
             await self._send_loop(ws, receiver)
+            if self._done and self._server_stopped:
+                # bye/error came from the server: observe its close code (recorded by run()).
+                await asyncio.wait({receiver}, timeout=self.cfg.close_grace_s)
+                self._raise_if_closed(receiver)
+            elif self._done:
+                await ws.close(1000)
         finally:
             if not receiver.done():
                 receiver.cancel()
@@ -541,11 +550,13 @@ class RecorderClient:
             code = int(msg.get("code", 0))
             self.stats.errors.append((code, str(msg.get("message", ""))))
             if code == 4008:
+                self._server_stopped = True
                 self._finish("gap_unrecoverable")
         elif kind == "bye":
             reason = str(msg.get("reason", ""))
             if msg.get("ack_seq") is not None:
                 self._advance_ack(int(msg["ack_seq"]))
+            self._server_stopped = reason in {"ended", "superseded", "consent_revoked"}
             if reason == "ended":
                 self._finish("ended")
             elif reason == "superseded":

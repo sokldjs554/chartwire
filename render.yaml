@@ -1,0 +1,68 @@
+# Render 블루프린트 (spec §12.2) — 무료 티어 데모 배포.
+# 모든 데이터는 합성(SYNTHETIC)입니다 — 실제 환자 정보 없음.
+#
+# 한 웹 서비스가 `chartwire serve all --embedded` 로 api + worker + stt-worker 태스크를 한 프로세스에서 돌린다
+# (PostgreSQL 풀 5, STT 시뮬레이터 전용). Render 관리형 Postgres 는 역할을 하나만 주므로
+# CHARTWIRE_DB_SINGLE_ROLE=1 로 마이그레이션과 런타임이 같은 역할을 쓴다(RLS 는 여전히 강제 —
+# 이 역할은 테이블 소유자가 아니며 FORCE ROW LEVEL SECURITY 가 적용된다; docs/limitations.md 참고).
+# 무료 티어 한계(콜드 스타트, 무료 DB 만료)는 docs/limitations.md 에 적혀 있고 README 는 동작할 때만 URL 을 보여준다.
+services:
+  - type: web
+    name: chartwire
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerCommand: chartwire serve all --embedded
+    preDeployCommand: chartwire db upgrade && chartwire seed --demo --if-empty
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: CHARTWIRE_ROLE
+        value: all
+      - key: CHARTWIRE_EMBEDDED
+        value: "1"
+      - key: CHARTWIRE_DB_SINGLE_ROLE
+        value: "1"
+      - key: CHARTWIRE_DATABASE_URL
+        fromDatabase:
+          name: chartwire-db
+          property: connectionString
+      - key: CHARTWIRE_DATABASE_OWNER_URL
+        fromDatabase:
+          name: chartwire-db
+          property: connectionString
+      - key: CHARTWIRE_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: chartwire-kv
+          property: connectionString
+      - key: CHARTWIRE_KEK_MASTER
+        generateValue: true          # Render 가 base64 256-bit 값을 생성 → kek_master 검증(정확히 32 B) 통과; LocalKek 전용, KMS 는 AWS 배포
+      - key: CHARTWIRE_JWT_SECRET
+        generateValue: true
+      - key: CHARTWIRE_OBJECTSTORE
+        value: localfs:/var/lib/chartwire/objects   # 무료 티어: 디스크 비영속 — 재배포 시 오디오 암호문 소실(파기 데모에는 충분)
+      - key: CHARTWIRE_NOTE_PROVIDER
+        value: extractive            # LLM 키 없이 동작; anthropic 티어는 실행하지 않음
+      - key: CHARTWIRE_ALLOW_SIM_FRAMES
+        value: "true"
+      - key: CHARTWIRE_NODE_ID
+        value: render-1
+      - key: PORT
+        value: "8000"
+
+databases:
+  - name: chartwire-db
+    plan: free
+    region: singapore
+    postgresMajorVersion: "16"
+    ipAllowList: []                  # 내부 네트워크에서만 접속
+
+# Render Key Value (Redis 호환) — 재구축 가능한 캐시이므로 무료 플랜의 비영속 스토리지로 충분하다 (ADR-0002).
+keyvalues:
+  - name: chartwire-kv
+    plan: free
+    region: singapore
+    maxmemoryPolicy: noeviction      # 스트림/세션 해시가 조용히 사라지지 않게 한다; 넘치면 XADD 가 실패해 fail-closed
+    ipAllowList: []

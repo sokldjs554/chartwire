@@ -14,7 +14,7 @@ are the verifier's output, and ``NoteStatus`` mirrors the ``notes.status`` CHECK
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Literal, Protocol
 from uuid import UUID
 
@@ -171,7 +171,7 @@ class VerifiedDraft(_Strict):
         return len(self.statements) - self.unsupported_count
 
 
-class NoteStatus(str, Enum):
+class NoteStatus(StrEnum):
     drafting = "drafting"
     needs_review = "needs_review"
     verified = "verified"

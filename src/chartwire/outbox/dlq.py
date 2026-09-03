@@ -1,9 +1,11 @@
 """Dead-letter bookkeeping as pure data (§7.1).
 
-Everything here is side-effect free: given a claimed event, an exception and the clock, it produces
-the column values the poller writes (``outbox_events`` update + optional ``dead_letters`` insert) and
-the values ``dlq.replay`` resets. Phase 1 adds the DB-facing ``replay(engine, event_id)`` /
-``list_dead(...)`` on top of these builders; the decisions themselves are testable without a database.
+The first half is side-effect free: given a claimed event, an exception and the clock, it produces
+the column values a failure writes (``outbox_events`` update + optional ``dead_letters`` insert) and
+the values a replay resets — the executable specification of the retry rule, tested without a
+database. The poller persists failures through ``db.repo.outbox.mark_failed`` (same rule, one SQL
+home); the DB-facing ``list_dead`` / ``replay`` / ``stats_all`` at the bottom back the CLI and the
+admin ops views.
 """
 
 from __future__ import annotations
@@ -16,8 +18,14 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncEngine
+
+from chartwire.db.models import DeadLetter
+from chartwire.db.repo import outbox as outbox_repo
+from chartwire.db.tenant import TenantCtx, tenant_tx
 from chartwire.outbox.backoff import RetryPlan, plan_retry
 from chartwire.outbox.context import OutboxEvent, OutboxStatus
+from chartwire.outbox.runtime import active_tenant_ids
 
 MAX_ERROR_CHARS = 2000
 """``last_error`` is diagnostic, not a log sink: type + message, truncated."""
@@ -129,3 +137,48 @@ def replay_updates(now: datetime) -> Mapping[str, object]:
         "lease_until": None,
         "last_error": None,
     }
+
+
+# --- database-facing operations (Phase 1) -----------------------------------------------------------
+# ``dead_letters`` / ``outbox_events`` are RLS tables, so every read or write happens under one tenant's
+# context; cross-tenant CLI views iterate the active tenants (ADR-0001).
+
+
+async def list_dead(
+    engine: AsyncEngine, *, tenant_id: UUID | None = None, limit: int = 100
+) -> list[DeadLetter]:
+    """Dead letters newest first, for one tenant or across all active tenants."""
+    tenants = [tenant_id] if tenant_id is not None else await active_tenant_ids(engine)
+    rows: list[DeadLetter] = []
+    for tid in tenants:
+        async with tenant_tx(engine, TenantCtx.service(tid)) as session:
+            rows.extend(await outbox_repo.list_dead_letters(session, limit=limit))
+    rows.sort(key=lambda r: (r.died_at, r.id), reverse=True)
+    return rows[:limit]
+
+
+async def replay(
+    engine: AsyncEngine, event_id: int, *, tenant_id: UUID | None = None, now: datetime | None = None
+) -> bool:
+    """``dlq.replay(id)`` (§7.1): ``dead`` → ``pending`` with ``attempts=0``; ``False`` if no such row."""
+    tenants = [tenant_id] if tenant_id is not None else await active_tenant_ids(engine)
+    for tid in tenants:
+        async with tenant_tx(engine, TenantCtx.service(tid)) as session:
+            if await outbox_repo.replay_dead(session, event_id, now=now) is not None:
+                return True
+    return False
+
+
+async def stats_all(engine: AsyncEngine, *, now: datetime | None = None) -> dict[str, dict[str, float]]:
+    """``chartwire outbox stats``: per-tenant status counts and lag, plus a ``total`` row."""
+    out: dict[str, dict[str, float]] = {}
+    total: dict[str, float] = {"pending": 0, "in_flight": 0, "done": 0, "dead": 0, "lag_seconds": 0.0}
+    for tid in await active_tenant_ids(engine):
+        async with tenant_tx(engine, TenantCtx.service(tid)) as session:
+            row = await outbox_repo.stats(session, now=now)
+        out[str(tid)] = {k: float(v) for k, v in row.items()}
+        for key in ("pending", "in_flight", "done", "dead"):
+            total[key] += float(row[key])
+        total["lag_seconds"] = max(total["lag_seconds"], float(row["lag_seconds"]))
+    out["total"] = total
+    return out

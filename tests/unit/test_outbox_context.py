@@ -93,14 +93,14 @@ def test_status_values_match_check_constraint() -> None:
 
 
 class _Store:
-    def put(self, key: str, data: bytes) -> None: ...
-    def get(self, key: str) -> bytes:
+    async def put(self, key: str, data: bytes) -> None: ...
+    async def get(self, key: str) -> bytes:
         return b""
 
-    def delete_prefix(self, prefix: str) -> int:
+    async def delete_prefix(self, prefix: str) -> int:
         return 0
 
-    def list(self, prefix: str) -> list[str]:
+    async def list(self, prefix: str) -> list[str]:
         return []
 
 
@@ -112,10 +112,10 @@ class _Kek:
         return wrapped
 
 
-def test_protocols_are_structural() -> None:
+async def test_protocols_are_structural() -> None:
     store: ObjectStore = _Store()
     kek: KekProvider = _Kek()
     ctx = HandlerContext(None, None, store, None, None, kek, None)  # type: ignore[arg-type]
-    assert ctx.objectstore.list("t/") == []
+    assert await ctx.objectstore.list("t/") == []
     assert ctx.kek.unwrap(b"x", "ref") == b"x"
     assert isinstance(UUID(int=0), UUID)

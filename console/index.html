@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>chartwire 콘솔</title>
+<!--
+  chartwire 데모 콘솔 (spec §13.3). 단일 파일 · 순수 JS · 빌드/CDN 없음 · /console 로 서빙.
+  녹음기 클라이언트는 src/chartwire/loadtest/client.py 와 같은 §6 규칙을 구현한다
+  (12 B LE 헤더 magic 0x4357, SIM 플래그, 링 버퍼 150, credit 준수, hello/welcome/ack/nack/credit/pause/end/bye,
+  resume{last_sent_seq} + missing 재전송, epoch/superseded). 모든 데이터는 합성(SYNTHETIC)입니다.
+-->
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #1c1e21; --muted: #667085; --line: #e3e6ea;
+  --accent: #2456c9; --accent-ink: #ffffff; --ok: #1a7f4b; --warn: #b7791f; --bad: #c0392b;
+  --partial: #9aa3ad; --clinician: #2456c9; --patient: #8a3ffc; --unknown: #667085;
+  --sev1: #e0b400; --sev2: #e67e22; --sev3: #c0392b; --mark: #fff3a3;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111418; --panel: #1a1f26; --ink: #e6e9ee; --muted: #98a2b3; --line: #2b323c;
+    --accent: #6d9cff; --accent-ink: #0b1220; --ok: #4cc38a; --warn: #e2b85a; --bad: #ff6b5c;
+    --partial: #6b7480; --clinician: #8db3ff; --patient: #c39bff; --unknown: #98a2b3; --mark: #5b4b00;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", "Noto Sans KR", sans-serif; }
+#banner { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: var(--bad); color: #fff; text-align: center; font-weight: 600; padding: 6px 12px; letter-spacing: .01em; }
+header { margin-top: 34px; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; border-bottom: 1px solid var(--line); background: var(--panel); }
+header h1 { font-size: 18px; margin: 0; }
+header h1 small { color: var(--muted); font-weight: 400; margin-left: 8px; font-size: 12px; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 12px; padding: 12px 16px; }
+@media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 10px; flex-wrap: wrap; }
+.tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; color: var(--muted); cursor: pointer; font-weight: 600; }
+.tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.tab { display: none; } .tab.active { display: block; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+.grow { flex: 1 1 160px; }
+label { color: var(--muted); font-size: 12px; }
+label.chk { display: inline-flex; align-items: center; gap: 4px; color: var(--ink); font-size: 13px; }
+input[type=text], input[type=password], input[type=number], select, textarea { background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; min-width: 0; }
+textarea { width: 100%; min-height: 90px; resize: vertical; }
+button.btn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 6px; padding: 6px 12px; font: inherit; font-weight: 600; cursor: pointer; }
+button.btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+button.btn.danger { background: var(--bad); color: #fff; }
+button.btn:disabled { opacity: .45; cursor: not-allowed; }
+.gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 8px 0; }
+.gauge { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+.gauge b { display: block; font-size: 20px; font-family: var(--mono); }
+.gauge span { color: var(--muted); font-size: 11px; }
+.log { font-family: var(--mono); font-size: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; height: 180px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+.log .warn { color: var(--warn); } .log .bad { color: var(--bad); } .log .ok { color: var(--ok); }
+.transcript { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 8px; height: 360px; overflow: auto; }
+.seg { padding: 3px 6px; border-radius: 4px; display: flex; gap: 8px; align-items: baseline; }
+.seg .who { font-size: 11px; font-weight: 700; min-width: 44px; }
+.seg.clinician .who { color: var(--clinician); } .seg.patient .who { color: var(--patient); } .seg.unknown .who { color: var(--unknown); }
+.seg .lat { margin-left: auto; color: var(--muted); font-family: var(--mono); font-size: 11px; white-space: nowrap; }
+.seg.partial { color: var(--partial); font-style: italic; }
+.seg.hit { outline: 2px solid var(--accent); }
+mark { background: var(--mark); color: inherit; border-radius: 2px; }
+.risk { display: none; border-radius: 8px; padding: 10px; margin: 8px 0; color: #fff; }
+.risk.show { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.risk.sev1 { background: var(--sev1); color: #1c1e21; } .risk.sev2 { background: var(--sev2); } .risk.sev3 { background: var(--sev3); }
+.badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; }
+.badge.bad { color: var(--bad); } .badge.ok { color: var(--ok); } .badge.warn { color: var(--warn); } .badge.muted { color: var(--muted); }
+.stmt { border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin: 6px 0; cursor: pointer; }
+.stmt.selected { border-color: var(--accent); }
+.stmt.rejected { opacity: .5; text-decoration: line-through; }
+.stmt .ev { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.stmt .acts { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+.stmt .acts button { font-size: 12px; padding: 3px 8px; }
+h3 { margin: 12px 0 6px; font-size: 14px; }
+h3 .sec { font-family: var(--mono); color: var(--accent); margin-right: 6px; }
+.meter { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--ok); width: 0; transition: width .3s; }
+pre.json { font-family: var(--mono); font-size: 11px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; max-height: 240px; overflow: auto; white-space: pre-wrap; word-break: break-all; margin: 6px 0; }
+table.kv { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.kv td { padding: 4px 6px; border-bottom: 1px solid var(--line); } table.kv td:last-child { text-align: right; font-family: var(--mono); }
+#toasts { position: fixed; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 60; max-width: min(420px, 90vw); }
+.toast { background: var(--ink); color: var(--bg); border-radius: 8px; padding: 8px 12px; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+.toast.bad { background: var(--bad); color: #fff; } .toast.ok { background: var(--ok); color: #fff; }
+.muted { color: var(--muted); } .mono { font-family: var(--mono); }
+.hidden { display: none !important; }
+#who { font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="banner">모든 데이터는 합성(SYNTHETIC)입니다 — 실제 환자 정보 없음</div>
+<header>
+  <h1>chartwire<small>정신과 진료실 실시간 음성차팅의 밑바닥 — 데모 콘솔</small></h1>
+  <div class="row grow">
+    <label>API base <input type="text" id="apiBase" placeholder="(같은 origin)" size="24"></label>
+    <select id="demoAccount" title="데모 계정">
+      <option value="clinician">clinician</option><option value="staff">staff</option>
+      <option value="admin">admin</option><option value="auditor">auditor</option>
+    </select>
+    <input type="text" id="tenant" value="demo" size="6" title="tenant slug">
+    <input type="text" id="email" size="20" title="email">
+    <input type="password" id="password" value="demo1234!" size="10" title="password">
+    <button class="btn" id="loginBtn">로그인</button>
+    <span id="who" class="muted">로그인 전</span>
+  </div>
+</header>
+<main>
+<section class="panel">
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="rec" aria-selected="true">Recorder</button>
+    <button role="tab" data-tab="live">Live chart</button>
+    <button role="tab" data-tab="soap">SOAP draft</button>
+  </div>
+
+  <!-- ─────────────── Recorder ─────────────── -->
+  <div class="tab active" id="tab-rec">
+    <div class="row">
+      <label>세션 <select id="sessionSel" class="grow"><option value="">(세션 없음 — 새로고침 또는 생성)</option></select></label>
+      <button class="btn secondary" id="refreshSessions">새로고침</button>
+    </div>
+    <details>
+      <summary class="muted">세션 만들기 (가상환자 + 동의 + script_ref)</summary>
+      <div class="row">
+        <label>환자 이름(정확 일치) <input type="text" id="patientName" value="가상환자-0001" size="14"></label>
+        <button class="btn secondary" id="findPatient">찾기</button>
+        <button class="btn secondary" id="newPatient">새 가상환자</button>
+        <span id="patientInfo" class="muted mono"></span>
+      </div>
+      <div class="row">
+        <label>script_ref <select id="scriptSel"></select></label>
+        <button class="btn" id="createSession">세션 생성 (POST /v1/sessions)</button>
+      </div>
+    </details>
+    <div class="row" id="consentRow">
+      <span class="muted">동의 범위:</span>
+      <label class="chk"><input type="checkbox" data-scope="recording" checked> recording</label>
+      <label class="chk"><input type="checkbox" data-scope="transcription" checked> transcription</label>
+      <label class="chk"><input type="checkbox" data-scope="ai_drafting" checked> ai_drafting</label>
+      <label class="chk"><input type="checkbox" data-scope="search_index" checked> search_index</label>
+      <button class="btn secondary" id="saveConsent">동의 저장 (새 버전)</button>
+      <span class="muted">recording 을 끄고 시작하면 서버가 hello 를 4011 로 닫는다</span>
+    </div>
+    <div class="row">
+      <label>속도 <input type="range" id="speed" min="0.5" max="8" step="0.5" value="2"> <span id="speedVal" class="mono">×2</span></label>
+      <label>길이(초) <input type="number" id="durationS" value="120" min="5" max="3600" style="width:70px"></label>
+      <button class="btn" id="startBtn" disabled>Start</button>
+      <button class="btn danger" id="dropBtn" disabled>네트워크 끊기 5초</button>
+      <button class="btn secondary" id="pauseBtn" disabled>일시정지</button>
+      <button class="btn secondary" id="endBtn" disabled>종료</button>
+    </div>
+    <div class="gauges">
+      <div class="gauge"><b id="gSeq">0</b><span>seq (last sent)</span></div>
+      <div class="gauge"><b id="gAck">0</b><span>ack_seq (PostgreSQL durable)</span></div>
+      <div class="gauge"><b id="gCredit">–</b><span>credit</span></div>
+      <div class="gauge"><b id="gOut">0</b><span>outstanding</span></div>
+      <div class="gauge"><b id="gRtt">–</b><span>ack RTT ms (last / p95)</span></div>
+      <div class="gauge"><b id="gEpoch">–</b><span>epoch · state</span></div>
+    </div>
+    <div class="log" id="recLog"></div>
+  </div>
+
+  <!-- ─────────────── Live chart ─────────────── -->
+  <div class="tab" id="tab-live">
+    <div class="row">
+      <button class="btn" id="watchBtn" disabled>뷰어 연결</button>
+      <button class="btn secondary" id="unwatchBtn" disabled>끊기</button>
+      <span class="badge muted" id="presence">viewers: –</span>
+      <span class="badge muted" id="liveState">state: –</span>
+      <span class="badge warn hidden" id="lagged">lagged</span>
+      <span class="badge bad hidden" id="degraded">degraded</span>
+      <span class="muted" id="liveInfo"></span>
+    </div>
+    <div class="risk" id="risk">
+      <b id="riskTitle">위험 발화 경보</b>
+      <span id="riskMeta" class="mono"></span>
+      <span id="riskSla" class="mono"></span>
+      <span class="badge hidden" id="riskEsc" style="color:#fff">ESCALATED</span>
+      <button class="btn" id="riskAck">ACK</button>
+    </div>
+    <div class="transcript" id="liveTranscript"></div>
+    <div class="log" id="liveLog" style="height:120px;margin-top:8px"></div>
+  </div>
+
+  <!-- ─────────────── SOAP draft ─────────────── -->
+  <div class="tab" id="tab-soap">
+    <div class="row">
+      <button class="btn" id="loadNote" disabled>초안 불러오기 (notes/latest)</button>
+      <button class="btn secondary" id="requestDraft" disabled>초안 요청 (POST notes/draft)</button>
+      <span class="badge muted" id="noteStatus">status: –</span>
+      <span class="badge muted" id="noteUnsupported">unsupported: –</span>
+      <span class="muted" id="noteAbstain"></span>
+    </div>
+    <div class="row"><label class="grow">coverage <span id="coverageVal" class="mono">–</span><div class="meter"><i id="coverageBar"></i></div></label></div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px">
+      <div>
+        <div id="statements"><p class="muted">초안이 없습니다.</p></div>
+        <h3>A — Assessment <span class="badge warn">AI가 작성하지 않는 영역</span></h3>
+        <textarea id="assessment" placeholder="임상의가 직접 작성하는 평가(Assessment). 초안 스키마에는 이 필드가 없다."></textarea>
+        <div class="row">
+          <button class="btn secondary" id="saveAssessment" disabled>Assessment 저장 (PUT)</button>
+          <button class="btn" id="signNote" disabled>서명 (POST sign)</button>
+          <span id="signInfo" class="mono muted"></span>
+        </div>
+      </div>
+      <div>
+        <div class="muted" style="font-size:12px;margin-bottom:4px">근거 하이라이트 — 문장을 클릭하면 인용 구간이 표시된다</div>
+        <div class="transcript" id="soapTranscript"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── Side panel ─────────────── -->
+<aside class="panel">
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="consent" aria-selected="true">Consent &amp; purge</button>
+    <button role="tab" data-tab="ops">Ops</button>
+  </div>
+  <div class="tab active" id="tab-consent">
+    <div class="row"><button class="btn secondary" id="loadConsents" disabled>동의 이력</button><span id="consentSummary" class="muted mono"></span></div>
+    <div class="row">
+      <button class="btn danger" id="revokeBtn" disabled>동의 철회 (POST revoke)</button>
+      <button class="btn secondary" id="purgeBtn" disabled>파기 작업 생성 (admin)</button>
+    </div>
+    <div class="muted" style="font-size:12px">철회 → outbox <code>consent.revoked</code> → 파기 파이프라인 → 영수증. 작업 id 를 알면 아래에서 직접 추적한다.</div>
+    <div class="row"><input type="text" id="purgeJobId" class="grow" placeholder="purge job id"><button class="btn secondary" id="trackPurge" disabled>추적</button></div>
+    <div class="log" id="purgeLog" style="height:140px"></div>
+    <pre class="json" id="receipt">(파기 영수증 없음)</pre>
+    <div class="row"><button class="btn" id="verifyDecrypt" disabled>복호화 시도 (verify-decrypt)</button></div>
+    <pre class="json" id="verifyOut">(아직 시도하지 않음)</pre>
+  </div>
+  <div class="tab" id="tab-ops">
+    <div class="row"><label class="chk"><input type="checkbox" id="opsPoll"> /metrics 2 s 폴링</label><span id="opsInfo" class="muted"></span></div>
+    <table class="kv">
+      <tr><td>WS 연결 (ingest / watch)</td><td id="mConn">–</td></tr>
+      <tr><td>chunks/s (stored)</td><td id="mChunks">–</td></tr>
+      <tr><td>ledger flush p95</td><td id="mFlush">–</td></tr>
+      <tr><td>ledger pending rows</td><td id="mPending">–</td></tr>
+      <tr><td>stt lag (chunks, sum)</td><td id="mStt">–</td></tr>
+      <tr><td>outbox pending / lag</td><td id="mOutbox">–</td></tr>
+      <tr><td>unacked alerts over SLA</td><td id="mSla">–</td></tr>
+      <tr><td>dead letters (총 누적 / 현재)</td><td id="mDlq">–</td></tr>
+    </table>
+    <div class="row"><button class="btn secondary" id="loadDlq" disabled>DLQ 목록 (admin)</button></div>
+    <div id="dlqList" class="muted" style="font-size:12px"></div>
+  </div>
+</aside>
+</main>
+<div id="toasts"></div>
+<script>
+'use strict';
+/* ───────────────────────── 공용: 상수 · 유틸 · 토스트 · API ───────────────────────── */
+const SYNTHETIC_BANNER = '모든 데이터는 합성(SYNTHETIC)입니다 — 실제 환자 정보 없음';
+const CLOSE_CODES = {
+  1000: 'normal', 1006: 'abnormal (no close frame)', 1012: 'service_restart (drain)',
+  4000: 'heartbeat_timeout', 4001: 'unauthorized/ticket_invalid', 4003: 'forbidden', 4004: 'session_not_found',
+  4005: 'bad_hello/sim_not_allowed', 4008: 'seq_gap_unrecoverable', 4009: 'credit_violation',
+  4010: 'payload_too_large/bad_frame', 4011: 'consent_missing', 4012: 'session_ended',
+  4013: 'viewer_too_slow/rate_limited', 4409: 'superseded', 4503: 'dependency_unavailable (retryable)',
+};
+const RESUMABLE_CLOSE = new Set([1006, 1012, 4000, 4503]);   // loadtest/client.py RESUMABLE_CLOSE_CODES
+const FRAME_MAGIC = 0x4357, FRAME_VER = 1, FLAG_LAST = 1, FLAG_SIM = 4, HEADER_LEN = 12;
+const CHUNK_MS = 200, CHUNK_BYTES = 6400, RING_SIZE = 150, HELLO_TIMEOUT_MS = 5000, END_WAIT_MS = 10000;
+const SCOPES = ['recording', 'transcription', 'ai_drafting', 'search_index'];
+const DEMO_EMAILS = { clinician: 'clinician@demo.clinic', staff: 'staff@demo.clinic', admin: 'admin@demo.clinic', auditor: 'auditor@demo.clinic' };
+
+const $ = (id) => document.getElementById(id);
+const fmtMs = (v) => (v == null ? '–' : v.toFixed(v < 10 ? 1 : 0));
+const nowMs = () => performance.now();
+function percentile(arr, p) {
+  if (!arr.length) return null;
+  const s = [...arr].sort((a, b) => a - b);
+  const rank = Math.max(1, Math.min(s.length, Math.round((p / 100) * s.length)));
+  return s[rank - 1];
+}
+function esc(text) { return String(text ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function toast(msg, kind) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (kind ? ' ' + kind : '');
+  el.textContent = msg;
+  $('toasts').appendChild(el);
+  setTimeout(() => el.remove(), kind === 'bad' ? 9000 : 5000);
+}
+function logTo(id, text, cls) {
+  const box = $(id);
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = `${new Date().toLocaleTimeString('ko-KR', { hour12: false })}.${String(Date.now() % 1000).padStart(3, '0')} ${text}`;
+  box.appendChild(line);
+  while (box.childElementCount > 400) box.firstChild.remove();
+  box.scrollTop = box.scrollHeight;
+}
+function closeLabel(code) { return `${code} ${CLOSE_CODES[code] || 'unknown'}`; }
+
+const state = {
+  token: null, role: null, userId: null, sessionId: null, patientId: null,
+  consents: [], note: null, sentAt: new Map(),                      // sentAt: chunk seq → perf ms (final e2e 계산)
+  finals: new Map(),                                                // segment seq → text (근거 하이라이트)
+};
+
+function apiBase() {
+  const v = $('apiBase').value.trim().replace(/\/+$/, '');
+  return v || location.origin;
+}
+function wsBase() { return apiBase().replace(/^http/, 'ws'); }
+
+class ApiError extends Error {
+  constructor(status, problem) {
+    super(`${problem.code || status} ${problem.title || ''}: ${problem.detail || ''}`.trim());
+    this.status = status; this.problem = problem;
+  }
+}
+async function api(method, path, body, opts = {}) {
+  const headers = { Accept: 'application/json' };
+  if (state.token) headers.Authorization = `Bearer ${state.token}`;
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (opts.idempotent) headers['Idempotency-Key'] = crypto.randomUUID();
+  let res;
+  try {
+    res = await fetch(apiBase() + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  } catch (e) {
+    throw new ApiError(0, { code: 'NETWORK', title: '연결 실패', detail: `${method} ${path}: ${e.message}` });
+  }
+  const text = await res.text();
+  let data = null;
+  if (text) { try { data = JSON.parse(text); } catch { data = { raw: text }; } }
+  if (!res.ok) {
+    const problem = data && typeof data === 'object' ? data : {};
+    if (res.status === 404 && !problem.code) problem.detail = `${path} 엔드포인트가 아직 없습니다(다른 WP 가 구현 중)`;
+    throw new ApiError(res.status, { title: problem.title || res.statusText, ...problem });
+  }
+  return data;
+}
+/* API 호출을 감싸 문제(problem+json)를 토스트로 보여주고 null 을 돌려준다 — 엔드포인트가 없어도 콘솔은 계속 동작한다. */
+async function tryApi(method, path, body, opts) {
+  try { return await api(method, path, body, opts); }
+  catch (e) { toast(e.message, 'bad'); return null; }
+}
+
+/* ───────────────────────── 탭 · 로그인 ───────────────────────── */
+document.querySelectorAll('.tabs').forEach((bar) => {
+  bar.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button[data-tab]');
+    if (!btn) return;
+    bar.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(b === btn)));
+    bar.parentElement.querySelectorAll(':scope > .tab').forEach((t) => t.classList.toggle('active', t.id === 'tab-' + btn.dataset.tab));
+    if (btn.dataset.tab === 'ops') ops.refresh();
+  });
+});
+$('demoAccount').addEventListener('change', () => { $('email').value = DEMO_EMAILS[$('demoAccount').value]; });
+$('email').value = DEMO_EMAILS.clinician;
+try { $('apiBase').value = localStorage.getItem('chartwire.apiBase') || ''; } catch { /* storage unavailable */ }
+$('apiBase').addEventListener('change', () => { try { localStorage.setItem('chartwire.apiBase', $('apiBase').value.trim()); } catch { /* ignore */ } });
+
+function setEnabled(ids, on) { ids.forEach((id) => { $(id).disabled = !on; }); }
+function refreshButtons() {
+  const authed = !!state.token, sess = authed && !!state.sessionId, pat = authed && !!state.patientId;
+  setEnabled(['refreshSessions', 'findPatient', 'newPatient', 'createSession', 'loadDlq'], authed);
+  setEnabled(['saveConsent', 'loadConsents', 'revokeBtn'], pat);
+  setEnabled(['startBtn', 'watchBtn', 'loadNote', 'requestDraft', 'purgeBtn'], sess);
+  setEnabled(['trackPurge'], authed);
+  $('purgeBtn').disabled = !(sess && state.role === 'admin');
+  $('loadDlq').disabled = !(authed && state.role === 'admin');
+}
+$('loginBtn').addEventListener('click', async () => {
+  const body = { tenant_slug: $('tenant').value.trim(), email: $('email').value.trim(), password: $('password').value };
+  const out = await tryApi('POST', '/v1/auth/token', body);
+  if (!out) return;
+  state.token = out.access_token;
+  const me = await tryApi('GET', '/v1/me');
+  state.role = (me && (me.role || (me.principal && me.principal.role))) || $('demoAccount').value;
+  state.userId = me && (me.sub || me.user_id || (me.principal && me.principal.sub)) || null;
+  $('who').textContent = `${body.email} · ${state.role} · JWT ${out.expires_in || '?'} s`;
+  toast(`로그인 성공 (${state.role})`, 'ok');
+  refreshButtons();
+  sessions.refresh();
+});
+
+/* ───────────────────────── 세션 · 환자 · 동의 ───────────────────────── */
+const sessions = {
+  async refresh() {
+    const out = await tryApi('GET', '/v1/sessions?state=created&limit=50');
+    const list = Array.isArray(out) ? out : (out && out.items) || [];
+    const sel = $('sessionSel');
+    sel.innerHTML = '';
+    if (!list.length) sel.appendChild(new Option('(created 상태 세션 없음)', ''));
+    for (const s of list) sel.appendChild(new Option(`${s.script_ref || '(script 없음)'} · ${String(s.id).slice(0, 8)} · ${s.state}`, s.id));
+    sel.dataset.rows = JSON.stringify(list.map((s) => [s.id, s.patient_id]));
+    sel.dispatchEvent(new Event('change'));
+  },
+};
+$('sessionSel').addEventListener('change', () => {
+  const sel = $('sessionSel');
+  state.sessionId = sel.value || null;
+  const rows = sel.dataset.rows ? JSON.parse(sel.dataset.rows) : [];
+  const row = rows.find((r) => r[0] === state.sessionId);
+  if (row) state.patientId = row[1];
+  refreshButtons();
+});
+$('refreshSessions').addEventListener('click', () => sessions.refresh());
+for (let i = 1; i <= 20; i++) $('scriptSel').appendChild(new Option(`s${String(i).padStart(2, '0')}`, `s${String(i).padStart(2, '0')}`));
+function checkedScopes() { return [...document.querySelectorAll('#consentRow input[data-scope]')].filter((c) => c.checked).map((c) => c.dataset.scope); }
+function setPatient(p) {
+  state.patientId = p.id;
+  $('patientInfo').textContent = `${p.pseudonym || p.id} · consent=${p.consent_state || '?'}`;
+  refreshButtons();
+}
+$('findPatient').addEventListener('click', async () => {
+  const out = await tryApi('GET', `/v1/patients?name=${encodeURIComponent($('patientName').value.trim())}`);
+  const p = Array.isArray(out) ? out[0] : out;
+  if (!p) { toast('환자를 찾지 못했습니다 (블라인드 인덱스 정확 일치)', 'bad'); return; }
+  setPatient(p);
+});
+$('newPatient').addEventListener('click', async () => {
+  const name = `가상환자-${String(1000 + Math.floor(Math.random() * 9000))}`;
+  const p = await tryApi('POST', '/v1/patients', { name, birth_year: 1970 + Math.floor(Math.random() * 40), sex: Math.random() < 0.5 ? 'F' : 'M' });
+  if (!p) return;
+  $('patientName').value = name;
+  setPatient(p);
+  const c = await tryApi('POST', `/v1/patients/${p.id}/consents`, { scopes: checkedScopes() }, { idempotent: true });
+  if (c) toast(`동의 v${c.version ?? '?'} 저장: ${checkedScopes().join(', ')}`, 'ok');
+});
+$('saveConsent').addEventListener('click', async () => {
+  const c = await tryApi('POST', `/v1/patients/${state.patientId}/consents`, { scopes: checkedScopes() }, { idempotent: true });
+  if (c) toast(`동의 v${c.version ?? '?'} 저장: ${checkedScopes().join(', ') || '(없음)'}`, 'ok');
+});
+$('createSession').addEventListener('click', async () => {
+  if (!state.patientId) { toast('먼저 환자를 찾거나 만드세요', 'bad'); return; }
+  const s = await tryApi('POST', '/v1/sessions', { patient_id: state.patientId, script_ref: $('scriptSel').value }, { idempotent: true });
+  if (!s) return;   // 403 CW-4031 CONSENT_SCOPE_MISSING 이면 토스트로 그대로 보인다
+  toast(`세션 생성 ${String(s.id).slice(0, 8)} (${s.state})`, 'ok');
+  await sessions.refresh();
+  $('sessionSel').value = s.id;
+  $('sessionSel').dispatchEvent(new Event('change'));
+});
+async function wsTicket(kind) {
+  const out = await api('POST', `/v1/sessions/${state.sessionId}/ws-ticket`, { kind });
+  return out.ticket;
+}
+
+/* ───────────────────────── Recorder: §6 프로토콜 클라이언트 ───────────────────────── */
+/* 12 B LE 헤더: u16 magic 0x4357 | u8 ver 1 | u8 flags | u32 seq | u32 offset_ms — codec.encode_frame 과 동일 */
+function buildFrame(seq, offsetMs, payload, last) {
+  const buf = new ArrayBuffer(HEADER_LEN + payload.length);
+  const dv = new DataView(buf);
+  dv.setUint16(0, FRAME_MAGIC, true);
+  dv.setUint8(2, FRAME_VER);
+  dv.setUint8(3, (last ? FLAG_LAST : 0) | FLAG_SIM);
+  dv.setUint32(4, seq, true);
+  dv.setUint32(8, offsetMs, true);
+  new Uint8Array(buf, HEADER_LEN).set(payload);
+  return buf;
+}
+/* 시드 기반 의사난수 페이로드(청크마다 sha256 이 달라진다, §6.2) — xorshift32 */
+function chunkPayload(seed, seq, size) {
+  let x = ((seed * 2654435761) ^ (seq * 40503) ^ 0x9e3779b9) >>> 0 || 1;
+  const out = new Uint8Array(size);
+  for (let i = 0; i < size; i++) { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; out[i] = x & 0xff; }
+  return out;
+}
+function expandRanges(ranges) {
+  const out = [];
+  for (const [lo, hi] of ranges || []) for (let s = lo; s <= hi; s++) out.push(s);
+  return out;
+}
+
+class RecorderClient {
+  constructor(opts) {
+    this.opts = opts;                       // {totalChunks, speed, seed, onGauge, onLog, onDone}
+    this.ring = new Map();                  // seq → frame (최근 150 청크 = 30 s)
+    this.resend = [];                       // nack/welcome.missing 재전송 큐 (오름차순)
+    this.pendingAck = new Map();            // seq → 전송 시각 (ack RTT)
+    this.rtt = [];
+    this.nextSeq = 1; this.lastSentSeq = 0; this.ackSeq = 0; this.credit = 0; this.epoch = 0;
+    this.everConnected = false; this.done = false; this.outcome = 'running';
+    this.userPaused = false; this.pauseUntil = 0; this.partitionUntil = 0;
+    this.ws = null; this.zombies = []; this.reconnects = 0; this.timer = null; this.endDeadline = 0; this.ending = false;
+  }
+  log(text, cls) { this.opts.onLog(text, cls); }
+  gauge() { this.opts.onGauge(this); }
+  get outstanding() { return this.lastSentSeq - this.ackSeq; }
+  get chunkPeriodMs() { return CHUNK_MS / this.opts.speed(); }
+
+  async start() { await this.connect(); }
+  async connect() {
+    if (this.done) return;
+    const resume = this.everConnected;
+    let ticket;
+    try { ticket = await wsTicket('ingest'); }
+    catch (e) { this.log(`ws-ticket 실패: ${e.message}`, 'bad'); this.finish('ticket_failed'); return; }
+    const ws = new WebSocket(`${wsBase()}/ws/v1/ingest`);
+    ws.binaryType = 'arraybuffer';
+    this.ws = ws;
+    const hello = { t: 'hello', ticket, proto: 1, codec: 'pcm16le', sample_rate: 16000, chunk_ms: CHUNK_MS, resume };
+    if (resume) hello.last_sent_seq = this.lastSentSeq;
+    const helloTimer = setTimeout(() => { if (this.ws === ws && !ws.welcomed) { this.log('welcome 5 s 타임아웃', 'bad'); ws.close(); } }, HELLO_TIMEOUT_MS);
+    ws.onopen = () => { ws.send(JSON.stringify(hello)); this.log(`→ hello resume=${resume}${resume ? ` last_sent_seq=${this.lastSentSeq}` : ''}`); };
+    ws.onmessage = (ev) => { if (this.ws === ws) this.onMessage(ws, ev.data, helloTimer); };
+    ws.onclose = (ev) => {
+      clearTimeout(helloTimer);
+      if (this.ws !== ws) return;             // 파티션 중 버린 좀비 소켓의 close 는 무시
+      this.ws = null;
+      this.stopTimer();
+      const code = ev.code;
+      this.log(`✕ close ${closeLabel(code)}${ev.reason ? ' ' + ev.reason : ''}`, code === 1000 ? 'ok' : 'warn');
+      if (this.done) { this.gauge(); return; }
+      if (RESUMABLE_CLOSE.has(code)) { this.reconnects += 1; setTimeout(() => this.connect(), 300); }
+      else this.finish(`closed:${code}`);
+    };
+    ws.onerror = () => {};                    // 브라우저는 상세를 주지 않는다; close 코드로 판단
+  }
+  /* "네트워크 끊기 5초": 브라우저는 TCP RST 를 노출하지 않으므로 close frame 을 보내지 않고 소켓 참조를 버린다
+     (송수신 모두 무시 = 서버 관점의 좀비 연결). 5 s 뒤 resume hello 가 epoch 를 올려 좀비를 4409 로 밀어낸다. */
+  dropNetwork(ms) {
+    if (!this.ws || this.done) return;
+    const zombie = this.ws;
+    zombie.onmessage = () => {}; zombie.onclose = (ev) => this.log(`좀비 연결 close ${closeLabel(ev.code)} (epoch fencing)`, 'warn');
+    this.zombies.push(zombie);
+    this.ws = null; this.stopTimer();
+    this.partitionUntil = nowMs() + ms;
+    this.log(`⚡ 네트워크 파티션 ${ms} ms — close frame 없이 소켓 방치 (in-flight ${this.outstanding} chunks)`, 'bad');
+    this.gauge();
+    setTimeout(() => { this.reconnects += 1; this.connect(); }, ms);
+  }
+  onMessage(ws, data, helloTimer) {
+    if (typeof data !== 'string') return;
+    let msg;
+    try { msg = JSON.parse(data); } catch { this.log(`잘못된 JSON: ${data.slice(0, 80)}`, 'bad'); return; }
+    switch (msg.t) {
+      case 'welcome': {
+        clearTimeout(helloTimer); ws.welcomed = true;
+        const resume = this.everConnected;
+        this.epoch = msg.epoch; this.credit = msg.credit;
+        this.advanceAck(msg.ack_seq);
+        const missing = msg.missing || [];
+        this.log(`← welcome epoch=${msg.epoch} ack_seq=${msg.ack_seq} credit=${msg.credit} missing=${JSON.stringify(missing)}`, 'ok');
+        if (resume) this.log(`RESUME OK: ${expandRanges(missing).length} chunks 재전송 예정, ${this.lastSentSeq - msg.ack_seq} in flight 중 durable 아님`, 'ok');
+        this.queueResends(expandRanges(missing));
+        this.everConnected = true;
+        this.schedule(0);
+        break;
+      }
+      case 'ack': this.credit = msg.credit; this.advanceAck(msg.ack_seq); this.schedule(0); break;
+      case 'nack': this.log(`← nack missing=${JSON.stringify(msg.missing)}`, 'warn'); this.queueResends(expandRanges(msg.missing)); this.schedule(0); break;
+      case 'credit': this.log(`← credit ${this.credit} → ${msg.credit}`); this.credit = msg.credit; this.schedule(0); break;
+      case 'pause': this.pauseUntil = nowMs() + (msg.retry_ms || 1000); this.log(`← pause reason=${msg.reason} retry_ms=${msg.retry_ms}`, 'warn'); break;
+      case 'ping': ws.send(JSON.stringify({ t: 'pong', ts: msg.ts })); break;
+      case 'error': this.log(`← error ${msg.code} ${msg.message} retryable=${msg.retryable}`, 'bad'); if (msg.code === 4008) this.finish('gap_unrecoverable'); break;
+      case 'bye': {
+        if (msg.ack_seq != null) this.advanceAck(msg.ack_seq);
+        this.log(`← bye reason=${msg.reason} ack_seq=${msg.ack_seq ?? '–'}`, msg.reason === 'ended' ? 'ok' : 'warn');
+        if (msg.reason === 'ended') this.finish('ended');
+        else if (msg.reason === 'superseded' || msg.reason === 'consent_revoked') this.finish(msg.reason);
+        break;                                // drain: 서버가 1012 로 닫고 onclose 가 resume 재접속
+      }
+      case 'session.state': this.log(`← session.state ${msg.state}`); this.opts.onState && this.opts.onState(msg.state); break;
+      default: break;                         // transcript.final / risk.alert 미러는 Live 탭이 담당
+    }
+    this.gauge();
+  }
+  advanceAck(ackSeq) {
+    if (ackSeq <= this.ackSeq) return;
+    this.ackSeq = ackSeq;
+    const t = nowMs();
+    for (const [seq, sent] of this.pendingAck) if (seq <= ackSeq) { this.rtt.push(t - sent); this.pendingAck.delete(seq); }
+    if (this.rtt.length > 500) this.rtt.splice(0, this.rtt.length - 500);
+  }
+  queueResends(seqs) {
+    const queued = new Set(this.resend);
+    for (const seq of seqs) {
+      if (seq <= this.ackSeq || queued.has(seq)) continue;
+      if (!this.ring.has(seq)) { this.log(`seq ${seq} 가 링 버퍼(${RING_SIZE})에 없음 — 4008 상황`, 'bad'); this.finish('gap_unrecoverable'); return; }
+      this.resend.push(seq); queued.add(seq);
+    }
+    this.resend.sort((a, b) => a - b);
+  }
+  schedule(delayMs) { this.stopTimer(); if (!this.done && this.ws) this.timer = setTimeout(() => this.tick(), delayMs); }
+  stopTimer() { if (this.timer) { clearTimeout(this.timer); this.timer = null; } }
+  /* 전송 루프 — client.py _send_loop 와 같은 순서: 재전송 → end 단계 → 일시정지/서버 pause → credit → 새 청크 */
+  tick() {
+    this.timer = null;
+    const ws = this.ws;
+    if (this.done || !ws || ws.readyState !== WebSocket.OPEN) return;
+    const t = nowMs();
+    if (this.resend.length) {
+      const seq = this.resend[0];
+      if (seq - this.ackSeq > this.credit) return;           // ack/credit 가 오면 다시 깨운다
+      this.resend.shift();
+      ws.send(this.ring.get(seq));
+      this.pendingAck.set(seq, t);
+      this.log(`↻ resend seq=${seq}`);
+      this.schedule(0); return;
+    }
+    if (this.nextSeq > this.opts.totalChunks || this.ending) { this.endPhase(ws, t); return; }
+    if (this.pauseUntil > t) { this.schedule(this.pauseUntil - t); return; }
+    if (this.userPaused) return;
+    const seq = this.nextSeq;
+    if (seq - this.ackSeq > this.credit) { this.gauge(); return; }  // credit 준수: last_sent_seq − ack_seq ≤ credit
+    const last = seq === this.opts.totalChunks;
+    const frame = buildFrame(seq, (seq - 1) * CHUNK_MS, chunkPayload(this.opts.seed, seq, CHUNK_BYTES), last);
+    this.ring.set(seq, frame);
+    if (this.ring.size > RING_SIZE) this.ring.delete(this.ring.keys().next().value);
+    ws.send(frame);
+    this.nextSeq = seq + 1; this.lastSentSeq = seq;
+    this.pendingAck.set(seq, t); state.sentAt.set(seq, t);
+    this.gauge();
+    this.schedule(this.chunkPeriodMs);
+  }
+  endPhase(ws, t) {
+    if (!this.ending) {
+      this.ending = true; this.finalSeq = this.lastSentSeq;
+      ws.send(JSON.stringify({ t: 'end', final_seq: this.finalSeq }));
+      this.endDeadline = t + END_WAIT_MS;
+      this.log(`→ end final_seq=${this.finalSeq} (원장 ledger_seq == final_seq 를 기다림)`);
+    } else if (t >= this.endDeadline) { this.finish('end_timeout'); return; }
+    this.schedule(250);
+  }
+  /* 사용자 버튼: pause{} / resume_rec{} 는 세션 상태만 바꾼다(seq/ack/credit 규칙 무관) */
+  pause() { this.userPaused = true; if (this.ws) this.ws.send(JSON.stringify({ t: 'pause' })); this.log('→ pause'); }
+  resume() { this.userPaused = false; if (this.ws) this.ws.send(JSON.stringify({ t: 'resume_rec' })); this.log('→ resume_rec'); this.schedule(0); }
+  end() { this.ending = true; this.schedule(0); }
+  finish(reason) {
+    if (this.done) return;
+    this.done = true; this.outcome = reason; this.stopTimer();
+    this.log(`■ 종료: ${reason} (sent=${this.lastSentSeq} ack=${this.ackSeq} reconnects=${this.reconnects})`, reason === 'ended' ? 'ok' : 'bad');
+    if (this.ws && reason !== 'ended' && !['superseded', 'consent_revoked'].includes(reason)) this.ws.close(1000);
+    for (const z of this.zombies) if (z.readyState === WebSocket.OPEN) z.close(1000);
+    this.gauge();
+    this.opts.onDone(reason);
+  }
+}
+
+/* ───────────────────────── Recorder UI ───────────────────────── */
+let recorder = null;
+$('speed').addEventListener('input', () => { $('speedVal').textContent = `×${$('speed').value}`; });
+function recGauge(r) {
+  $('gSeq').textContent = r.lastSentSeq; $('gAck').textContent = r.ackSeq; $('gCredit').textContent = r.ws ? r.credit : '–';
+  $('gOut').textContent = r.outstanding;
+  $('gRtt').textContent = r.rtt.length ? `${fmtMs(r.rtt[r.rtt.length - 1])} / ${fmtMs(percentile(r.rtt, 95))}` : '–';
+  $('gEpoch').textContent = `${r.epoch || '–'} · ${r.done ? r.outcome : (r.ws ? (r.userPaused ? 'paused' : 'recording') : (r.partitionUntil > nowMs() ? 'partition' : 'connecting'))}`;
+  $('gOut').style.color = r.outstanding > r.credit + 20 ? 'var(--bad)' : '';
+}
+function recButtons(running) {
+  $('startBtn').disabled = running || !state.sessionId;
+  $('dropBtn').disabled = !running; $('pauseBtn').disabled = !running; $('endBtn').disabled = !running;
+}
+$('startBtn').addEventListener('click', async () => {
+  const totalChunks = Math.round((Number($('durationS').value) * 1000) / CHUNK_MS);
+  $('recLog').innerHTML = ''; state.sentAt.clear();
+  recorder = new RecorderClient({
+    totalChunks, seed: Math.floor(Math.random() * 1e9), speed: () => Number($('speed').value),
+    onGauge: recGauge, onLog: (t, c) => logTo('recLog', t, c),
+    onState: (s) => { $('liveState').textContent = `state: ${s}`; },
+    onDone: () => { recButtons(false); $('pauseBtn').textContent = '일시정지'; },
+  });
+  recButtons(true);
+  logTo('recLog', `세션 ${state.sessionId} · ${totalChunks} chunks × ${CHUNK_BYTES} B · 링 버퍼 ${RING_SIZE}`);
+  await recorder.start();
+  if (!viewer.ws) viewer.connect();          // 데모 편의: 녹음 시작과 함께 뷰어도 붙인다
+});
+$('dropBtn').addEventListener('click', () => recorder && recorder.dropNetwork(5000));
+$('pauseBtn').addEventListener('click', () => {
+  if (!recorder) return;
+  if (recorder.userPaused) { recorder.resume(); $('pauseBtn').textContent = '일시정지'; }
+  else { recorder.pause(); $('pauseBtn').textContent = '재개'; }
+});
+$('endBtn').addEventListener('click', () => recorder && recorder.end());
+
+/* ───────────────────────── Live chart: 뷰어 소켓 ───────────────────────── */
+const viewer = {
+  ws: null, lastFinalSeq: -1, partialEl: null, alert: null, slaTimer: null, reconnects: 0, stopped: false,
+  log(t, c) { logTo('liveLog', t, c); },
+  async connect() {
+    if (!state.sessionId) return;
+    this.stopped = false;
+    let ticket;
+    try { ticket = await wsTicket('watch'); } catch (e) { toast(e.message, 'bad'); return; }
+    const ws = new WebSocket(`${wsBase()}/ws/v1/watch`);
+    this.ws = ws;
+    ws.onopen = () => {
+      const hello = { t: 'hello', ticket };
+      if (this.lastFinalSeq >= 0) hello.from_seq = this.lastFinalSeq + 1;
+      ws.send(JSON.stringify(hello));
+      this.log(`→ hello${hello.from_seq != null ? ` from_seq=${hello.from_seq}` : ''}`);
+      $('watchBtn').disabled = true; $('unwatchBtn').disabled = false;
+    };
+    ws.onmessage = (ev) => { if (typeof ev.data === 'string') this.onMessage(ws, JSON.parse(ev.data)); };
+    ws.onclose = (ev) => {
+      if (this.ws !== ws) return;
+      this.ws = null;
+      $('watchBtn').disabled = !state.sessionId; $('unwatchBtn').disabled = true;
+      this.log(`✕ close ${closeLabel(ev.code)}`, ev.code === 1000 ? 'ok' : 'warn');
+      if (!this.stopped && (RESUMABLE_CLOSE.has(ev.code) || ev.code === 4013) && this.reconnects++ < 20) setTimeout(() => this.connect(), 500);
+    };
+  },
+  disconnect() { this.stopped = true; if (this.ws) this.ws.close(1000); },
+  onMessage(ws, m) {
+    switch (m.t) {
+      case 'welcome':
+        this.log(`← welcome state=${m.state} last_final_seq=${m.last_final_seq}`, 'ok');
+        $('liveState').textContent = `state: ${m.state}`;
+        break;
+      case 'transcript.partial': this.renderPartial(m); break;
+      case 'transcript.final': this.renderFinal(m); break;
+      case 'risk.alert': this.showAlert(m); break;
+      case 'risk.ack':
+        if (this.alert && this.alert.risk_event_id === m.risk_event_id) { this.log(`← risk.ack by ${m.by}`, 'ok'); this.hideAlert(); }
+        break;
+      case 'risk.escalated':
+        if (this.alert && this.alert.risk_event_id === m.risk_event_id) $('riskEsc').classList.remove('hidden');
+        this.log(`← risk.escalated ${m.risk_event_id}`, 'bad');
+        break;
+      case 'session.state': $('liveState').textContent = `state: ${m.state}`; this.log(`← session.state ${m.state}`); break;
+      case 'note.status':
+        toast(`SOAP 초안 ${m.status} · coverage ${Number(m.coverage).toFixed(2)} · unsupported ${m.unsupported_count}`, m.status === 'abstained' ? 'bad' : 'ok');
+        this.log(`← note.status ${m.status} coverage=${m.coverage} unsupported=${m.unsupported_count}`);
+        state.noteHint = m.note_id;
+        break;
+      case 'viewer.presence': $('presence').textContent = `viewers: ${m.count}`; break;
+      case 'viewer.lagged': $('lagged').classList.remove('hidden'); $('lagged').textContent = `lagged: ${m.dropped_partials} partials dropped`; break;
+      case 'viewer.degraded': $('degraded').classList.remove('hidden'); this.log('← viewer.degraded (Redis 불통: 재접속 시 replay 로 보정)', 'bad'); break;
+      case 'ping': ws.send(JSON.stringify({ t: 'pong', ts: m.ts })); break;
+      case 'error': this.log(`← error ${m.code} ${m.message}`, 'bad'); break;
+      case 'bye': this.log(`← bye reason=${m.reason}`, m.reason === 'ended' ? 'ok' : 'warn'); if (m.reason === 'ended') this.stopped = true; break;
+      default: break;
+    }
+  },
+  renderPartial(m) {
+    const box = $('liveTranscript');
+    if (!this.partialEl) { this.partialEl = document.createElement('div'); this.partialEl.className = 'seg partial'; box.appendChild(this.partialEl); }
+    this.partialEl.innerHTML = `<span class="who">…</span><span>${esc(m.text)}</span><span class="lat">from_seq ${m.from_seq}</span>`;
+    box.scrollTop = box.scrollHeight;
+  },
+  renderFinal(m) {
+    if (m.seq <= this.lastFinalSeq) return;      // replay/live 중복 제거 (WatchCore 와 같은 규칙)
+    this.lastFinalSeq = m.seq;
+    state.finals.set(m.seq, m.text);
+    if (this.partialEl) { this.partialEl.remove(); this.partialEl = null; }
+    let lat = '';
+    const chunkSeq = Math.floor(m.t_end_ms / CHUNK_MS) + 1;             // 이 발화의 마지막 청크
+    const sent = state.sentAt.get(chunkSeq);
+    if (sent != null) lat = `e2e ${fmtMs(nowMs() - sent)} ms`;
+    else if (m.committed_at) lat = `commit→view ${fmtMs(Date.now() - Date.parse(m.committed_at))} ms`;
+    const el = document.createElement('div');
+    el.className = `seg ${m.speaker}`; el.dataset.seq = m.seq;
+    el.innerHTML = `<span class="who">${esc(m.speaker)}</span><span>${esc(m.text)}</span><span class="lat">#${m.seq} · ${(m.t_start_ms / 1000).toFixed(1)}s · ${lat}</span>`;
+    const box = $('liveTranscript');
+    box.appendChild(el); box.scrollTop = box.scrollHeight;
+    soap.appendSegment(m.seq, m.speaker, m.text);
+  },
+  showAlert(m) {
+    this.alert = m;
+    const box = $('risk');
+    box.className = `risk show sev${m.severity}`;
+    $('riskTitle').textContent = `위험 발화 경보 · ${m.category} · severity ${m.severity}`;
+    $('riskMeta').textContent = `segment #${m.segment_seq} span ${JSON.stringify(m.span)}`;
+    $('riskEsc').classList.add('hidden');
+    this.log(`← risk.alert ${m.category} sev=${m.severity} seg=${m.segment_seq}${m.committed_at ? ` commit→view ${fmtMs(Date.now() - Date.parse(m.committed_at))} ms` : ''}`, 'bad');
+    const seg = $('liveTranscript').querySelector(`[data-seq="${m.segment_seq}"]`);
+    if (seg) seg.classList.add('hit');
+    clearInterval(this.slaTimer);
+    const deadline = m.sla_deadline_at ? Date.parse(m.sla_deadline_at) : null;
+    const tickSla = () => {
+      if (deadline == null) { $('riskSla').textContent = 'SLA –'; return; }
+      const left = Math.round((deadline - Date.now()) / 1000);
+      $('riskSla').textContent = left >= 0 ? `SLA ${left}s 남음` : `SLA ${-left}s 초과`;
+    };
+    tickSla(); this.slaTimer = setInterval(tickSla, 1000);
+  },
+  hideAlert() { clearInterval(this.slaTimer); this.alert = null; $('risk').className = 'risk'; },
+};
+$('watchBtn').addEventListener('click', () => viewer.connect());
+$('unwatchBtn').addEventListener('click', () => viewer.disconnect());
+$('riskAck').addEventListener('click', () => {
+  if (!viewer.alert) return;
+  if (viewer.ws && viewer.ws.readyState === WebSocket.OPEN) { viewer.ws.send(JSON.stringify({ t: 'risk.ack', risk_event_id: viewer.alert.risk_event_id })); viewer.log('→ risk.ack'); }
+  else tryApi('POST', `/v1/alerts/${viewer.alert.risk_event_id}/ack`).then((r) => { if (r !== null) viewer.hideAlert(); });
+});
+
+/* ───────────────────────── SOAP draft ───────────────────────── */
+const soap = {
+  note: null, selected: null,
+  appendSegment(seq, speaker, text) {
+    const box = $('soapTranscript');
+    if (box.querySelector(`[data-seq="${seq}"]`)) return;
+    const el = document.createElement('div');
+    el.className = `seg ${speaker}`; el.dataset.seq = seq;
+    el.innerHTML = `<span class="who">${esc(speaker)}</span><span class="txt">${esc(text)}</span><span class="lat">#${seq}</span>`;
+    box.appendChild(el);
+  },
+  async loadSegments() {
+    const segs = await tryApi('GET', `/v1/sessions/${state.sessionId}/segments?limit=500`);
+    for (const s of Array.isArray(segs) ? segs : []) { state.finals.set(s.seq, s.text); this.appendSegment(s.seq, s.speaker, s.text); }
+  },
+  async load() {
+    if (!$('soapTranscript').childElementCount) await this.loadSegments();
+    const note = await tryApi('GET', `/v1/sessions/${state.sessionId}/notes/latest`);
+    if (!note) return;
+    this.render(note);
+  },
+  render(note) {
+    this.note = note; state.note = note;
+    $('noteStatus').textContent = `status: ${note.status}`;
+    $('noteStatus').className = `badge ${note.status === 'signed' ? 'ok' : note.status === 'abstained' ? 'bad' : 'warn'}`;
+    $('noteUnsupported').textContent = `unsupported: ${note.unsupported_count}`;
+    $('noteUnsupported').className = `badge ${note.unsupported_count ? 'bad' : 'ok'}`;
+    $('noteAbstain').textContent = note.abstain_reason ? `abstain: ${note.abstain_reason}` : '';
+    const cov = Number(note.coverage || 0);
+    $('coverageVal').textContent = cov.toFixed(2); $('coverageBar').style.width = `${Math.round(cov * 100)}%`;
+    $('coverageBar').style.background = cov >= 0.8 ? 'var(--ok)' : cov >= 0.5 ? 'var(--warn)' : 'var(--bad)';
+    if (note.assessment && note.assessment.text != null) $('assessment').value = note.assessment.text;
+    const signed = note.status === 'signed';
+    $('saveAssessment').disabled = signed; $('signNote').disabled = signed; $('assessment').disabled = signed;
+    $('signInfo').textContent = signed ? `legal_hold=${note.legal_hold || 'medical_record'} · retention_until=${note.retention_until || '?'} · signed_at=${note.signed_at || '?'}` : '';
+    const box = $('statements'); box.innerHTML = '';
+    for (const sec of ['S', 'O', 'P']) {
+      const items = (note.statements || []).filter((s) => s.section === sec).sort((a, b) => a.ordinal - b.ordinal);
+      const h = document.createElement('h3'); h.innerHTML = `<span class="sec">${sec}</span>${{ S: 'Subjective', O: 'Objective', P: 'Plan' }[sec]} <span class="muted">(${items.length})</span>`;
+      box.appendChild(h);
+      if (!items.length) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = '문장 없음'; box.appendChild(p); }
+      for (const st of items) box.appendChild(this.renderStatement(st, signed));
+    }
+  },
+  renderStatement(st, signed) {
+    const el = document.createElement('div');
+    el.className = `stmt${st.decision === 'reject' ? ' rejected' : ''}`;
+    const unsupported = st.verdict && st.verdict !== 'supported';
+    el.innerHTML = `<div>${esc(st.edited_text || st.text)} ${unsupported ? `<span class="badge bad">${esc(st.verdict)}: ${esc(st.verdict_reason || '')}</span>` : '<span class="badge ok">supported</span>'} ${st.decision ? `<span class="badge muted">${esc(st.decision)}</span>` : ''}</div>
+      <div class="ev">${(st.evidence || []).map((e) => `#${e.seq} “${esc(e.quote)}”`).join(' · ') || '근거 없음'}</div>
+      <div class="acts">${signed ? '' : '<button class="btn secondary" data-d="accept">accept</button><button class="btn secondary" data-d="edit">edit</button><button class="btn secondary" data-d="reject">reject</button>'}</div>`;
+    el.addEventListener('click', (ev) => {
+      const b = ev.target.closest('button[data-d]');
+      if (b) { this.decide(st, b.dataset.d); return; }
+      this.highlight(st, el);
+    });
+    return el;
+  },
+  highlight(st, el) {
+    document.querySelectorAll('.stmt.selected').forEach((x) => x.classList.remove('selected'));
+    el.classList.add('selected');
+    const pane = $('soapTranscript');
+    pane.querySelectorAll('.seg').forEach((seg) => { seg.classList.remove('hit'); const t = seg.querySelector('.txt'); if (t) t.innerHTML = esc(state.finals.get(Number(seg.dataset.seq)) ?? t.textContent); });
+    let first = null;
+    for (const e of st.evidence || []) {
+      const seg = pane.querySelector(`[data-seq="${e.seq}"]`);
+      if (!seg) continue;
+      seg.classList.add('hit'); first = first || seg;
+      const text = state.finals.get(e.seq) || '';
+      const s = Math.max(0, e.start | 0), en = Math.min(text.length, e.end | 0);
+      const inside = en > s ? text.slice(s, en) : e.quote;
+      const at = en > s ? s : text.indexOf(e.quote);
+      if (at >= 0) seg.querySelector('.txt').innerHTML = `${esc(text.slice(0, at))}<mark>${esc(inside)}</mark>${esc(text.slice(at + inside.length))}`;
+    }
+    if (first) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  },
+  async decide(st, decision) {
+    const body = { decision };
+    if (decision === 'edit') {
+      const edited = prompt('수정 문장 (근거 인용은 그대로 유지)', st.edited_text || st.text);
+      if (edited == null || !edited.trim()) return;
+      body.edited_text = edited.trim();
+    }
+    const out = await tryApi('POST', `/v1/notes/${this.note.id}/statements/${st.id}/decision`, body);
+    if (out !== null) { toast(`${decision} 저장`, 'ok'); this.load(); }
+  },
+};
+$('loadNote').addEventListener('click', () => soap.load());
+$('requestDraft').addEventListener('click', async () => { const r = await tryApi('POST', `/v1/sessions/${state.sessionId}/notes/draft`); if (r !== null) toast('note.draft 를 outbox 에 넣었습니다 (202)', 'ok'); });
+$('saveAssessment').addEventListener('click', async () => {
+  if (!soap.note) return;
+  const r = await tryApi('PUT', `/v1/notes/${soap.note.id}/assessment`, { text: $('assessment').value });
+  if (r !== null) toast('Assessment 저장 (note_assessments 유일한 쓰기 경로)', 'ok');
+});
+$('signNote').addEventListener('click', async () => {
+  if (!soap.note) return;
+  const r = await tryApi('POST', `/v1/notes/${soap.note.id}/sign`);
+  if (r === null) return;      // unsupported 미처리 / assessment 없음 → problem 토스트
+  toast(`서명 완료 · legal_hold=${r.legal_hold} · retention_until=${r.retention_until}`, 'ok');
+  soap.render({ ...soap.note, ...r, status: 'signed' });
+});
+
+/* ───────────────────────── Consent & purge ───────────────────────── */
+const purge = {
+  jobId: null, timer: null, seenSteps: 0,
+  log(t, c) { logTo('purgeLog', t, c); },
+  track(id) {
+    this.jobId = id; this.seenSteps = 0; $('purgeJobId').value = id;
+    $('purgeLog').innerHTML = ''; $('receipt').textContent = '(진행 중)'; $('verifyOut').textContent = '(아직 시도하지 않음)';
+    clearInterval(this.timer);
+    this.timer = setInterval(() => this.poll(), 1000);
+    this.poll();
+  },
+  async poll() {
+    let job;
+    try { job = await api('GET', `/v1/purge-jobs/${this.jobId}`); }
+    catch (e) { this.log(e.message, 'bad'); clearInterval(this.timer); return; }
+    const steps = job.steps || [];
+    for (; this.seenSteps < steps.length; this.seenSteps++) {
+      const s = steps[this.seenSteps];
+      this.log(`step ${s.step || s.name || this.seenSteps + 1}: ${s.count != null ? `count=${s.count} ` : ''}${s.at || s.ts || ''}`.trim());
+    }
+    if (['verified', 'failed', 'completed', 'done'].includes(job.state || job.status)) {
+      clearInterval(this.timer);
+      $('receipt').textContent = JSON.stringify(job, null, 2);
+      this.log(`파기 영수증 state=${job.state || job.status} receipt_hash=${job.receipt_hash || '?'}`, job.state === 'failed' ? 'bad' : 'ok');
+      $('verifyDecrypt').disabled = false;
+    }
+  },
+};
+$('loadConsents').addEventListener('click', async () => {
+  const list = await tryApi('GET', `/v1/patients/${state.patientId}/consents`);
+  if (!list) return;
+  state.consents = Array.isArray(list) ? list : [];
+  const latest = state.consents[state.consents.length - 1];
+  $('consentSummary').textContent = latest ? `v${latest.version} [${(latest.scopes || []).join(',')}]${latest.revoked_at ? ' revoked' : ''}` : '(없음)';
+});
+$('revokeBtn').addEventListener('click', async () => {
+  if (!state.consents.length) { $('loadConsents').click(); await new Promise((r) => setTimeout(r, 400)); }
+  const latest = [...state.consents].reverse().find((c) => !c.revoked_at);
+  if (!latest) { toast('철회할 활성 동의가 없습니다', 'bad'); return; }
+  const out = await tryApi('POST', `/v1/consents/${latest.id}/revoke`, { reason: '환자 요청(데모)' }, { idempotent: true });
+  if (out === null) return;
+  toast('동의 철회 202 — 진행 중인 세션은 4011 로 닫히고 파기가 예약됩니다', 'ok');
+  purge.log(`consent ${latest.id} revoked → outbox consent.revoked`);
+  const jobId = out && (out.purge_job_id || (out.purge_job && out.purge_job.id));
+  if (jobId) purge.track(jobId); else purge.log('purge job id 는 워커가 만든다 — admin 으로 "파기 작업 생성" 또는 id 추적', 'warn');
+});
+$('purgeBtn').addEventListener('click', async () => {
+  const out = await tryApi('POST', '/v1/purge-jobs', { subject_type: 'session', subject_id: state.sessionId }, { idempotent: true });
+  if (out && out.id) purge.track(out.id);
+});
+$('trackPurge').addEventListener('click', () => { const id = $('purgeJobId').value.trim(); if (id) purge.track(id); });
+$('verifyDecrypt').addEventListener('click', async () => {
+  const out = await tryApi('POST', `/v1/purge-jobs/${purge.jobId}/verify-decrypt`);
+  if (!out) return;
+  $('verifyOut').textContent = JSON.stringify(out, null, 2);
+  toast(`unwrap=${out.unwrap} · decrypt_sample=${out.decrypt_sample}`, String(out.unwrap).startsWith('failed') ? 'ok' : 'bad');
+});
+
+/* ───────────────────────── Ops: /metrics 파서 ───────────────────────── */
+function parseProm(text) {
+  const out = [];
+  for (const line of text.split('\n')) {
+    if (!line || line[0] === '#') continue;
+    const m = /^([a-zA-Z_:][a-zA-Z0-9_:]*)(\{([^}]*)\})?\s+(\S+)/.exec(line);
+    if (!m) continue;
+    const labels = {};
+    if (m[3]) for (const kv of m[3].match(/[a-zA-Z_][a-zA-Z0-9_]*="(?:[^"\\]|\\.)*"/g) || []) { const i = kv.indexOf('='); labels[kv.slice(0, i)] = kv.slice(i + 2, -1); }
+    out.push({ name: m[1], labels, value: Number(m[4]) });
+  }
+  return out;
+}
+const sum = (rows, name, pred) => rows.filter((r) => r.name === name && (!pred || pred(r.labels))).reduce((a, r) => a + r.value, 0);
+function histQuantile(rows, name, q) {
+  const buckets = rows.filter((r) => r.name === `${name}_bucket`).map((r) => [r.labels.le === '+Inf' ? Infinity : Number(r.labels.le), r.value]);
+  const byLe = new Map(); for (const [le, v] of buckets) byLe.set(le, (byLe.get(le) || 0) + v);
+  const sorted = [...byLe].sort((a, b) => a[0] - b[0]);
+  const total = sorted.length ? sorted[sorted.length - 1][1] : 0;
+  if (!total) return null;
+  for (const [le, cum] of sorted) if (cum >= q * total) return le;
+  return null;
+}
+const ops = {
+  prev: null, timer: null,
+  async refresh() {
+    let text;
+    try { const r = await fetch(apiBase() + '/metrics'); if (!r.ok) throw new Error(`${r.status}`); text = await r.text(); }
+    catch (e) { $('opsInfo').textContent = `/metrics 실패: ${e.message}`; return; }
+    const rows = parseProm(text), t = nowMs();
+    $('mConn').textContent = `${sum(rows, 'ws_connections', (l) => l.kind === 'ingest')} / ${sum(rows, 'ws_connections', (l) => l.kind === 'watch')}`;
+    const stored = sum(rows, 'ws_chunks_total', (l) => l.result === 'stored');
+    $('mChunks').textContent = this.prev ? ((stored - this.prev.stored) / ((t - this.prev.t) / 1000)).toFixed(1) : '–';
+    const p95 = histQuantile(rows, 'ledger_flush_seconds', 0.95);
+    $('mFlush').textContent = p95 == null ? '–' : p95 === Infinity ? '>max' : `≤${(p95 * 1000).toFixed(0)} ms`;
+    $('mPending').textContent = sum(rows, 'ledger_pending_rows');
+    $('mStt').textContent = sum(rows, 'stt_lag_chunks');
+    $('mOutbox').textContent = `${sum(rows, 'outbox_pending')} / ${sum(rows, 'outbox_lag_seconds').toFixed(1)} s`;
+    $('mSla').textContent = sum(rows, 'risk_unacked_over_sla');
+    $('mDlq').textContent = `${sum(rows, 'outbox_dead_total')} / ${this.dlqCount ?? '–'}`;
+    $('opsInfo').textContent = `${rows.length} samples · ${new Date().toLocaleTimeString('ko-KR', { hour12: false })}`;
+    this.prev = { stored, t };
+  },
+  async loadDlq() {
+    const list = await tryApi('GET', '/v1/ops/dead-letters');
+    if (!list) return;
+    const items = Array.isArray(list) ? list : list.items || [];
+    this.dlqCount = items.length;
+    const box = $('dlqList'); box.innerHTML = items.length ? '' : 'DLQ 비어 있음';
+    for (const d of items) {
+      const el = document.createElement('div'); el.className = 'row';
+      el.innerHTML = `<span class="mono">${esc(d.event_type)} · ${esc(String(d.id).slice(0, 8))} · ${esc(d.last_error || d.error || '').slice(0, 60)}</span><button class="btn secondary">replay</button>`;
+      el.querySelector('button').addEventListener('click', async () => { const r = await tryApi('POST', `/v1/ops/dead-letters/${d.id}/replay`); if (r !== null) { toast('replay 요청', 'ok'); this.loadDlq(); } });
+      box.appendChild(el);
+    }
+    this.refresh();
+  },
+};
+$('opsPoll').addEventListener('change', () => { clearInterval(ops.timer); if ($('opsPoll').checked) { ops.refresh(); ops.timer = setInterval(() => ops.refresh(), 2000); } });
+$('loadDlq').addEventListener('click', () => ops.loadDlq());
+
+/* ───────────────────────── 초기화 ───────────────────────── */
+$('banner').textContent = SYNTHETIC_BANNER;
+refreshButtons();
+window.addEventListener('beforeunload', () => { if (recorder && !recorder.done) recorder.finish('page_unload'); viewer.disconnect(); });
+</script>
+</body>
+</html>

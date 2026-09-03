@@ -92,7 +92,7 @@ class WatchHello(Message):
 
 class RiskAckRequest(Message):
     t: Literal["risk.ack"] = "risk.ack"
-    risk_event_id: UUID
+    risk_event_id: int = Field(ge=1)
 
 
 # --- server → recorder -------------------------------------------------------------------
@@ -178,7 +178,7 @@ class TranscriptFinal(Message):
 
 class RiskAlert(Message):
     t: Literal["risk.alert"] = "risk.alert"
-    risk_event_id: UUID
+    risk_event_id: int = Field(ge=1)
     category: str
     severity: int = Field(ge=1, le=3)
     segment_seq: int = Field(ge=0)
@@ -189,13 +189,13 @@ class RiskAlert(Message):
 
 class RiskAckEvent(Message):
     t: Literal["risk.ack"] = "risk.ack"
-    risk_event_id: UUID
+    risk_event_id: int = Field(ge=1)
     by: UUID
 
 
 class RiskEscalated(Message):
     t: Literal["risk.escalated"] = "risk.escalated"
-    risk_event_id: UUID
+    risk_event_id: int = Field(ge=1)
 
 
 class SessionStateMsg(Message):

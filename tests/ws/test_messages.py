@@ -8,7 +8,7 @@ import pytest
 from chartwire.ws import messages as m
 from chartwire.ws.actions import Ack, CloseCode, Nack, Send, SendCredit
 
-RID = UUID("00000000-0000-0000-0000-000000000001")
+RID = 41  # risk_events.id is a bigint identity
 UID = UUID("00000000-0000-0000-0000-000000000002")
 
 RECORDER_TO_SERVER = [
@@ -22,7 +22,7 @@ RECORDER_TO_SERVER = [
 VIEWER_TO_SERVER = [
     ({"t": "hello", "ticket": "tk"}, m.WatchHello),
     ({"t": "hello", "ticket": "tk", "from_seq": 12}, m.WatchHello),
-    ({"t": "risk.ack", "risk_event_id": str(RID)}, m.RiskAckRequest),
+    ({"t": "risk.ack", "risk_event_id": RID}, m.RiskAckRequest),
     ({"t": "pong", "ts": 5}, m.Pong),
 ]
 SERVER_TO_RECORDER = [
@@ -32,7 +32,7 @@ SERVER_TO_RECORDER = [
     ({"t": "credit", "credit": 12}, m.CreditMsg),
     ({"t": "pause", "reason": "stt_lag", "retry_ms": 2000}, m.PauseNotice),
     ({"t": "transcript.final", "seq": 0, "speaker": "patient", "t_start_ms": 0, "t_end_ms": 900, "text": "잠을 못 자요", "confidence": 0.9, "segment_id": 1}, m.TranscriptFinal),
-    ({"t": "risk.alert", "risk_event_id": str(RID), "category": "self_harm", "severity": 3, "segment_seq": 4, "span": [2, 9], "sla_deadline_at": "2026-09-02T00:01:00+00:00"}, m.RiskAlert),
+    ({"t": "risk.alert", "risk_event_id": RID, "category": "self_harm", "severity": 3, "segment_seq": 4, "span": [2, 9], "sla_deadline_at": "2026-09-02T00:01:00+00:00"}, m.RiskAlert),
     ({"t": "session.state", "state": "ended"}, m.SessionStateMsg),
     ({"t": "error", "code": 4503, "message": "redis", "retryable": True}, m.ErrorMsg),
     ({"t": "ping", "ts": 1}, m.Ping),
@@ -42,11 +42,11 @@ SERVER_TO_VIEWER = [
     ({"t": "welcome", "session_id": "s", "state": "recording", "last_final_seq": -1}, m.WatchWelcome),
     ({"t": "transcript.partial", "from_seq": 3, "text": "잠"}, m.TranscriptPartial),
     ({"t": "transcript.final", "seq": 1, "speaker": "clinician", "t_start_ms": 0, "t_end_ms": 1, "text": "네", "confidence": 1.0, "segment_id": 2, "committed_at": "2026-09-02T00:00:00+00:00"}, m.TranscriptFinal),
-    ({"t": "risk.alert", "risk_event_id": str(RID), "category": "self_harm", "severity": 2, "segment_seq": 1, "span": [0, 1]}, m.RiskAlert),
-    ({"t": "risk.ack", "risk_event_id": str(RID), "by": str(UID)}, m.RiskAckEvent),
-    ({"t": "risk.escalated", "risk_event_id": str(RID)}, m.RiskEscalated),
+    ({"t": "risk.alert", "risk_event_id": RID, "category": "self_harm", "severity": 2, "segment_seq": 1, "span": [0, 1]}, m.RiskAlert),
+    ({"t": "risk.ack", "risk_event_id": RID, "by": str(UID)}, m.RiskAckEvent),
+    ({"t": "risk.escalated", "risk_event_id": RID}, m.RiskEscalated),
     ({"t": "session.state", "state": "transcribed"}, m.SessionStateMsg),
-    ({"t": "note.status", "note_id": str(RID), "status": "drafted", "coverage": 0.8, "unsupported_count": 1}, m.NoteStatus),
+    ({"t": "note.status", "note_id": str(UID), "status": "drafted", "coverage": 0.8, "unsupported_count": 1}, m.NoteStatus),
     ({"t": "viewer.presence", "count": 2}, m.ViewerPresence),
     ({"t": "viewer.lagged", "dropped_partials": 7}, m.ViewerLagged),
     ({"t": "viewer.degraded"}, m.ViewerDegraded),
@@ -112,7 +112,7 @@ def test_extra_fields_are_forbidden(kind, raw):
         ("ingest", {"t": "hello", "ticket": ""}, "ticket"),
         ("ingest", {"t": "end", "final_seq": -1}, "final_seq"),
         ("watch", {"t": "end", "final_seq": 1}, "t"),  # recorder message on the viewer endpoint
-        ("watch", {"t": "risk.ack", "risk_event_id": "not-a-uuid"}, "risk_event_id"),
+        ("watch", {"t": "risk.ack", "risk_event_id": "not-an-id"}, "risk_event_id"),
     ],
 )
 def test_invalid_client_messages_raise_message_error(kind, raw, fragment):
@@ -137,7 +137,7 @@ def test_server_message_validation_errors():
             "watch",
             {
                 "t": "risk.alert",
-                "risk_event_id": str(RID),
+                "risk_event_id": RID,
                 "category": "c",
                 "severity": 4,
                 "segment_seq": 0,
@@ -148,7 +148,7 @@ def test_server_message_validation_errors():
 
 def test_dump_omits_none_and_stringifies_uuids():
     assert m.dump(m.Bye(reason="ended")) == {"t": "bye", "reason": "ended"}
-    assert m.dump(m.RiskEscalated(risk_event_id=RID)) == {"t": "risk.escalated", "risk_event_id": str(RID)}
+    assert m.dump(m.RiskEscalated(risk_event_id=RID)) == {"t": "risk.escalated", "risk_event_id": RID}
     assert orjson.dumps(m.dump(m.Welcome(session_id="s", epoch=1, ack_seq=0, credit=50)))
 
 

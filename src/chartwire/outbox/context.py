@@ -6,14 +6,24 @@ minimal structural Protocols here so the outbox package stays importable on its 
 
 from __future__ import annotations
 
+import contextlib
 import json
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Iterator, Mapping
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Any, Protocol
 from uuid import UUID
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from chartwire.db.tenant import TenantCtx
+from chartwire.db.tenant import tenant_tx as _db_tenant_tx
+
+_CURRENT_TX: ContextVar[tuple[UUID, AsyncSession] | None] = ContextVar("chartwire_outbox_tx", default=None)
+"""The handler transaction opened by ``runtime.run_handler`` for the task that runs a handler."""
 
 
 class Clock(Protocol):
@@ -25,15 +35,15 @@ class Clock(Protocol):
 
 
 class ObjectStore(Protocol):
-    """Structural twin of ``chartwire.objectstore.ObjectStore`` (§3.1)."""
+    """Structural twin of ``chartwire.objectstore.ObjectStore`` (§3.1; async like ``LocalFs``/``S3``)."""
 
-    def put(self, key: str, data: bytes) -> None: ...
+    async def put(self, key: str, data: bytes) -> None: ...
 
-    def get(self, key: str) -> bytes: ...
+    async def get(self, key: str) -> bytes: ...
 
-    def delete_prefix(self, prefix: str) -> int: ...
+    async def delete_prefix(self, prefix: str) -> int: ...
 
-    def list(self, prefix: str) -> list[str]: ...
+    async def list(self, prefix: str) -> list[str]: ...
 
 
 class KekProvider(Protocol):
@@ -68,6 +78,32 @@ class HandlerContext:
     settings: Any
     kek: KekProvider
     keycache: Any
+
+    @contextlib.asynccontextmanager
+    async def tenant_tx(self, tenant_id: UUID) -> AsyncIterator[AsyncSession]:
+        """Transaction under ``app.tenant_id``/``app.role='service'`` for handler DB effects (§7.1).
+
+        Under the poller this *joins* the handler transaction that ``runtime.run_handler`` opened for
+        the same tenant, so the handler's rows and ``processed_events`` commit together (and roll back
+        together when the handler raises). Outside the poller (tests, CLI, tickers) it opens a fresh
+        transaction that commits on exit.
+        """
+        current = _CURRENT_TX.get()
+        if current is not None and current[0] == tenant_id:
+            yield current[1]
+            return
+        async with _db_tenant_tx(self.engine, TenantCtx.service(tenant_id)) as session:
+            yield session
+
+
+@contextlib.contextmanager
+def bind_tx(tenant_id: UUID, session: AsyncSession) -> Iterator[None]:
+    """Make ``session`` the transaction ``HandlerContext.tenant_tx(tenant_id)`` joins (poller only)."""
+    token = _CURRENT_TX.set((tenant_id, session))
+    try:
+        yield
+    finally:
+        _CURRENT_TX.reset(token)
 
 
 @dataclass(frozen=True, slots=True)

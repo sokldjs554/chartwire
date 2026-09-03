@@ -1,0 +1,58 @@
+{
+  "name": "06_provider_abstain",
+  "description": "모델이 근거 부족으로 스스로 기권 (statements 비움, abstain=true) → abstained(provider_abstain)",
+  "model": "claude-opus-5",
+  "segments": [
+    {
+      "seq": 1,
+      "speaker": "clinician",
+      "text": "안녕하세요, 지난 2주 동안 어떻게 지내셨어요?"
+    },
+    {
+      "seq": 2,
+      "speaker": "patient",
+      "text": "잠드는 데 두 시간쯤 걸려요"
+    },
+    {
+      "seq": 3,
+      "speaker": "patient",
+      "text": "입맛이 없어요"
+    },
+    {
+      "seq": 4,
+      "speaker": "patient",
+      "text": "에스시탈로프람 10mg 먹고 있어요"
+    },
+    {
+      "seq": 5,
+      "speaker": "clinician",
+      "text": "오늘 표정이 좀 어두워 보이시네요"
+    },
+    {
+      "seq": 6,
+      "speaker": "patient",
+      "text": "예전에 우울증 진단을 받은 적이 있어요"
+    },
+    {
+      "seq": 7,
+      "speaker": "clinician",
+      "text": "에스시탈로프람을 15mg으로 올려보겠습니다"
+    },
+    {
+      "seq": 8,
+      "speaker": "clinician",
+      "text": "2주 뒤에 뵙겠습니다"
+    }
+  ],
+  "raw": {
+    "statements": [],
+    "abstain": true,
+    "abstain_reason": "근거가 되는 환자 발화가 충분하지 않음"
+  },
+  "expected": {
+    "schema_ok": true,
+    "status": "abstained",
+    "reasons": [],
+    "supported": 0
+  }
+}
