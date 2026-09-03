@@ -207,7 +207,6 @@ class IngestConnection:
             await self._persist_hello(sess, hello)
         except SQLAlchemyError:
             return await self._fail(CloseCode.DEPENDENCY_UNAVAILABLE, "database unavailable", retryable=True)
-        self.rt.ledger.reset_session(sess.session_id)
         self.core = IngestCore(
             now_ms=now_ms(), credit_base=self.rt.settings.credit_base, session_id=str(sess.session_id)
         )

@@ -14,11 +14,13 @@
 | 프로세스 | 역할 | 헬스 | 드레인 예산 |
 |---|---|---|---|
 | `chartwire serve api` | REST + WebSocket 인제스트/뷰어 | `/healthz`(항상 200), `/readyz`(드레인·의존성 실패 시 503), `/metrics` | 20 s (§6.4-7) |
-| `chartwire serve worker` | 아웃박스 폴러 + 티커(`alert_sla`, `partition_ensure`, `outbox_prune`, `session_reaper`) | `/healthz`, `/readyz`, `/metrics` (별도 포트) | 25 s (§7.3) |
+| `chartwire serve worker` | 아웃박스 폴러 + 티커(`alert_sla` 1 s, `partition_ensure` 1 h, `outbox_prune` 10 min, `session_reaper` 60 s) | `/healthz`, `/readyz`, `/metrics` — 별도 포트 `CHARTWIRE_WORKER_PORT`(기본 9001) | 25 s (§7.3) |
 | `chartwire serve stt-worker` | `sess:{sid}:chunks` 소비, 최종 세그먼트 + 위험 발화 트랜잭션 | 동일 | 25 s |
 | `chartwire serve all --embedded` | 위 셋을 한 프로세스 안에서(Render 무료 티어 전용) | 동일 | 25 s |
 
-- `SIGTERM`/`SIGINT` → `ops.drain.Drainer.begin()` → 등록된 훅이 한 번씩 실행(readyz 503, 새 클레임 중단, 리코더에 `bye{reason:'drain'}`) → 진행 중 작업(`Drainer.track()`)이 0이 되면 종료, 예산 초과 시 강제 종료(`drain deadline reached` 경고 로그).
+- `SIGTERM`/`SIGINT` → `ops.drain.Drainer.begin()` → 등록된 훅이 한 번씩 실행(readyz 503, 새 클레임 중단, 리코더에 `bye{reason:'drain'}`) → 진행 중 작업(`Drainer.track()`)이 0이 되면 종료, 예산 초과 시 강제 종료(`drain deadline reached` 경고 로그). 종료 코드: 깨끗한 드레인 0, 예산 초과 1.
+- api 에서는 `ops.routes.on_startup` 이 uvicorn 의 시그널 핸들러 **앞에** 드레이너를 끼워 넣고, 드레인이 끝난 뒤 그 시그널의 원래 핸들러(uvicorn `handle_exit`)를 다시 호출합니다 — 서버는 드레인 뒤에만 내려갑니다. worker 는 `wait_drained()` 뒤 스스로 종료하므로 되돌려 주는 핸들러가 없습니다.
+- 워커의 핸들러 실행 중 **SIGKILL**(OOM, 노드 소실)은 트랜잭션과 함께 죽습니다: 행은 `in_flight` 로 리스가 만료될 때까지 남고(핸들러 `lease_s`, 기본 60 s), 다른 워커의 `stuck reclaim`(30 s 주기)이 `pending` 으로 되돌린 뒤 정확히 한 번 효과가 커밋됩니다(`tests/chaos/test_worker_sigkill.py` 가 실제 프로세스로 검증). `attempts` 는 오르지 않습니다.
 - 컨테이너 `HEALTHCHECK`는 `/healthz`를 봅니다. 드레인 중에도 200이므로 오케스트레이터가 드레인 중인 프로세스를 죽이지 않습니다. 로드밸런서는 `/readyz`를 봅니다(ALB deregistration delay 30 s ≥ 드레인 예산).
 
 ## 2. 배포 / 드레인 절차
@@ -49,7 +51,7 @@
 2. `/readyz`가 200으로 돌아오는지 확인. 돌아오지 않으면 api 프로세스 재시작(연결 풀이 죽은 소켓을 물고 있을 때).
 3. 리코더는 자동 재접속합니다. `ws_resume_total{result="ok"}`가 올라가고 `ws_ack_latency_seconds`가 정상화되는지 확인.
 4. stt-worker 로그에서 `rebuild`가 세션마다 한 번씩 찍히고 `stt_lag_chunks`가 상승했다가 내려오는지 확인. 계속 0이면 `stt:active` SET이 비어 있는 것 — 진행 중 세션의 id를 `SADD stt:active`로 다시 넣습니다(`recording` 상태 세션 목록은 `sessions` 테이블).
-5. 알림 SLA ZSET(`alerts:sla`)은 손실됩니다. `risk_events WHERE acknowledged_at IS NULL AND sla_deadline_at IS NOT NULL`로 다시 `ZADD`하는 `chartwire outbox stats --rebuild-sla`(Phase 1) 또는 수동 스크립트를 실행합니다. 그때까지 `risk_unacked_over_sla`는 PostgreSQL 기준으로 계속 계산됩니다(에스컬레이션만 지연).
+5. 알림 SLA ZSET(`alerts:sla`)은 손실됩니다. `chartwire outbox stats --rebuild-sla` 가 활성 테넌트를 순회하며 `risk_events WHERE acknowledged_at IS NULL AND sla_deadline_at IS NOT NULL AND escalation_level = 0` 을 다시 `ZADD` 하고 추가한 멤버 수를 `alerts_sla_rebuilt` 로 출력합니다(멱등: 이미 있는 멤버는 점수만 갱신). 그때까지 `risk_unacked_over_sla`는 PostgreSQL 기준으로 계속 계산됩니다(에스컬레이션만 지연).
 6. 사후: `ws_chunks_total{result="rejected"}` 총량, 영향 세션 수, 재접속까지 걸린 시간을 기록합니다.
 
 ## 4. 시나리오 B — 아웃박스 지연 / DLQ 증가
@@ -68,12 +70,27 @@
 | `handler_failures_total{event_type=X}` ↑ | X 핸들러의 의존성 장애(KMS, 오브젝트 스토어, 동의 게이트) 또는 독약 메시지 | 아래 "DLQ 처리". |
 | `in_flight` 행이 `lease_until` 지나서도 남음 | `stuck reclaim` 티커가 멈춤 | 워커 재시작. 30 s 안에 `pending`으로 돌아와야 함. |
 
+**명령**
+
+```bash
+chartwire outbox stats                     # 테넌트별 pending/in_flight/done/dead + lag_seconds, total 행 (JSON)
+chartwire outbox stats --rebuild-sla       # + alerts:sla ZSET 재구축 (시나리오 A-5)
+chartwire outbox dlq list [--tenant <uuid>] [--limit 50]
+chartwire outbox dlq replay --id <outbox_event_id> [--tenant <uuid>]
+chartwire outbox bench --events 2000 --workers 2 --tenants 5 --out /tmp/H.json   # 시나리오 H 소형 실행: 워커 프로세스 2개, 25 % 지점에서 하나를 SIGKILL
+curl -s localhost:9001/metrics | grep -E '^(outbox_|handler_)'                    # worker 메트릭
+```
+
 **DLQ 처리**
 1. `chartwire outbox dlq list [--tenant …]`로 `event_type`, `attempts`, `last_error`, `died_at` 확인. `last_error`는 예외 타입 + 메시지(전화번호/주민번호 형태는 `[REDACTED]`, 2,000자 제한)이며 전사 텍스트는 절대 담기지 않습니다.
 2. 같은 오류가 여러 테넌트에서 동시에 → 공통 의존성 장애. 원인 복구 뒤 `chartwire outbox dlq replay --id <outbox_event_id>`. replay는 `attempts=0, status='pending', next_attempt_at=now()`로 되돌리고 `dead_letters.replayed_at`을 찍습니다. 핸들러가 멱등이므로 부분 실행된 이벤트를 다시 돌려도 안전합니다.
 3. 한 행만 반복 실패(독약 메시지) → 페이로드(`session_id`/`patient_id` 등 id만 있음)로 대상 애그리거트 상태를 확인. 예: 이미 `purged` 세션에 대한 `session.transcribed` → 핸들러가 `abstain`으로 끝내야 정상이며 예외라면 코드 결함. 수정 배포 후 replay.
 4. `purge.completed` 이벤트의 `purge_verify` 실패는 **파기 영수증에 `failed`가 남는** 사안입니다. replay 전에 `chartwire purge verify --job <id>`를 수동 실행해 잔여 행/오브젝트를 확인하고, 잔여가 있으면 `purge run`을 다시 돌립니다(멱등).
 5. 처리 뒤 `outbox_dead_total` 증가가 멈추고 `outbox_lag_seconds`가 내려오는지 확인. `dead` 행은 `outbox_prune`이 지우지 않으므로(`done`만 삭제) 조사 기록으로 남습니다.
+
+**처리량이 부족할 때 무엇을 늘리나**
+- 워커 프로세스는 CPU 1개짜리 asyncio 루프입니다(핸들러 트랜잭션 + `processed_events` + 배치 `mark_done`). 워커 수를 늘리면 `FOR UPDATE SKIP LOCKED` 덕에 선형에 가깝게 늘어나고, 한 워커 안의 동시성(`Poller(concurrency=8)`)은 핸들러가 I/O 대기(LLM, 오브젝트 스토어)일 때만 도움이 됩니다.
+- 테넌트 수는 패스당 클레임 비용입니다(`claim_ms_p50 × 테넌트 수`가 유휴 패스의 하한). `chartwire outbox bench --tenants 30|300` 으로 비교하고 `docs/loadtest/H.json` 에 기록합니다(시나리오 H).
 
 **`ix_outbox_pending` 비대화**
 `outbox_prune`(10분 주기, 테넌트별 5,000행 배치)이 24 h 지난 `done` 행을 지웁니다. 티커가 오래 멈춘 뒤에는 인덱스 dead tuple 때문에 `claim_batch`가 느려질 수 있습니다(§4.6 Q4 관찰). `VACUUM outbox_events` 후 정상화 여부를 `handler_duration_seconds`가 아닌 폴러 로그의 `claim_ms`로 봅니다.
@@ -100,10 +117,20 @@
 
 `transcript_segments`는 `created_at` 월 단위 RANGE 파티션이고 DEFAULT 파티션이 있습니다. worker의 `partition_ensure` 티커가 매시간 `ensure_segment_partition(m)`를 현재+1, +2개월에 대해 호출하고 DEFAULT 파티션 행 수를 `segments_default_partition_rows`로 내보냅니다.
 
-- 게이지가 0이 아니면 시계가 어긋난 세션이거나 티커가 두 달 이상 멈춘 것입니다. 원인을 잡은 뒤 `chartwire db partitions ensure`로 파티션을 만들고 DEFAULT 행을 옮깁니다(`INSERT … SELECT` + `DELETE`, 테넌트별 `app.tenant_id` 설정 필요 — FORCE RLS).
+- 티커는 시작 직후 1회, 이후 매시간 돕니다(`partitions ensured` 로그에 파티션 이름 3개). 게이지가 0이 아니면 시계가 어긋난 세션이거나 티커가 두 달 이상 멈춘 것입니다. 원인을 잡은 뒤 `chartwire db partitions ensure`로 파티션을 만들고 DEFAULT 행을 옮깁니다(`INSERT … SELECT` + `DELETE`, 테넌트별 `app.tenant_id` 설정 필요 — FORCE RLS).
 - 파티션은 지우지 않습니다. 보존 정책은 파티션 드롭이 아니라 동의 철회 파기(세션 단위)와 서명 진료기록 보존(10년)으로 표현됩니다(ADR-0004).
 
-## 7. 자주 보는 로그 이벤트
+## 7. 검증 명령 (이 문서의 절차를 코드가 보증하는 테스트)
+
+```bash
+export CHARTWIRE_TEST_DB=chartwire_test_g CHARTWIRE_TEST_REDIS_DB=7
+pytest tests/integration/test_outbox_poller.py -q -p no:xdist   # 독약 메시지 → DLQ 1행, 멱등 재전달, 리스 reclaim, 두 워커 중복 없음
+pytest tests/integration/test_outbox_tickers.py -q -p no:xdist  # prune 24 h, session_reaper, partition_ensure
+pytest tests/integration/test_ops_routes.py -q -p no:xdist      # /healthz /readyz /metrics, 드레인 503, SIGTERM 체인
+pytest tests/chaos -q -p no:xdist                                # 워커 SIGKILL → 두 번째 워커가 정확히 1회 완료
+```
+
+## 8. 자주 보는 로그 이벤트
 
 | 이벤트 | 프로세스 | 뜻 |
 |---|---|---|
@@ -111,6 +138,11 @@
 | `readiness check timed out` / `readiness check raised` | 전체 | `/readyz` 의존성 프로브 실패(어느 프로브인지 `check` 필드) |
 | `drain hook raised` | 전체 | 드레인 훅 하나가 예외 — 나머지 훅과 드레인은 계속됨 |
 | `outbox claimed` / `outbox handler failed` / `outbox dead` | worker | 배치 클레임 / 재시도 예약 / DLQ 이동(id·event_type·attempts만) |
+| `outbox reclaimed stuck rows` | worker | 리스가 만료된 `in_flight` 행을 `pending` 으로 되돌림(다른 워커가 죽었다는 뜻) |
+| `outbox wake subscription lost; polling only` | worker | `outbox:wake` 구독 실패 — 1 s 폴링으로 계속 동작, Redis 복구 시 자동 재구독 |
+| `ticker failed` | worker | 티커 1회 실패(`ticker` 필드) — 다음 주기에 계속 |
+| `session reaped` | worker | 유휴 세션 종료(`session_idle_timeout_s` 초과) + 종료 마커 |
+| `worker started` / `worker stopped` | worker | 티커 목록·포트 / `clean`(드레인 성공 여부)·`reason` |
 | `rebuild` | stt-worker | 스트림 간격 감지 → 원장에서 재구축 |
 
 로그에는 전사 텍스트·이름·토큰·키가 절대 나오지 않습니다(`core.logging.redact_phi`; 통합 테스트가 전체 실행 로그를 grep 합니다, §0-9).

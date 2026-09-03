@@ -161,8 +161,13 @@ offset  size  field      value
 - `credit < 10` (저수위: 커밋마다 즉시 ack 해서 녹음기를 풀어 준다)
 - 연결이 닫히기 직전(bye/close 전 강제 ack)
 
-원장 배치(§6.6)는 50 ms 또는 500 행마다 플러시하므로 ack 왕복 시간은 대략 50 ms 아래로 내려가지 않는다.
-**ack 가 원장을 앞서는 일은 없다** (`ack_seq ≤ ledger_seq`, 테스트 불변식).
+원장 배치(§6.6)는 50 ms 또는 500 행마다 플러시하므로 ack 왕복 시간은 대략 50 ms 아래로 내려가지 않는다. 한 배치의
+커밋은 `on_ledgered` 한 번으로 묶여 들어오므로 ack 는 **배치당 최대 하나**다 — credit 을 가득 채워 보내는 녹음기는
+배치마다(≈ credit 청크마다) ack 를 받고, 실시간(5 청크/s) 녹음기는 100 ms 규칙에 따라 청크 한두 개마다 받는다.
+**ack 가 원장을 앞서는 일은 없다** (`ack_seq ≤ ledger_seq`, 테스트 불변식). PostgreSQL 쪽의 `sessions.ack_seq` 도
+같은 원칙을 SQL 로 강제한다: 배치 트랜잭션은 `(이전 ack_seq, 힌트]` 구간의 행을 전부 셀 수 있을 때만 값을 올린다
+(`ws/ledger.py::_raise_ack_stmt`). 끊긴 연결이 남긴 오래된 힌트가 구멍을 건너뛰어 `welcome.ack_seq` 를 부풀리는 일은
+구조적으로 불가능하다.
 
 ### 4.3 크레딧 (`credit.py`, `on_tick` 200 ms)
 
@@ -229,10 +234,17 @@ credit = clamp(credit_base − stt_lag_chunks(sid) // 2 − node_pending_ledger_
 그 뒤의 청크와 재접속 `hello` 는 모두 거부된다(동의 게이트가 현재 동의를 다시 확인). 이후 파기 파이프라인은
 `docs/consent-purge.md`.
 
-### 4.9 Redis 장애 (fail-closed)
+### 4.9 Redis·원장 장애 (fail-closed)
 
-저장 경로나 원장이 실패하면 ack 를 보내지 않고 `error{code:4503, retryable:true}` 를 보낸다. 3회 연속 실패면 `4503` 으로
-닫는다. 녹음기는 백오프 후 `resume` 으로 재접속한다. ack 되지 않은 청크는 링 버퍼에 남아 있으므로 손실이 없다.
+저장 경로의 Redis 단계(`xadd_chunk.lua`)는 100/200/300 ms 백오프로 3회 시도한다. 3회 모두 실패하거나 `sess:{sid}`
+해시가 사라졌거나(FLUSHDB·재시작 — Lua 가 `-1` 을 돌려줌) 원장 배치가 실패하면, 그 청크는 이 연결에서 다시는 ack
+될 수 없으므로 서버는 `error{code:4503, retryable:true}` 를 보내고 `4503` 으로 닫는다. 그 사이에 ack 는 나가지 않는다.
+녹음기는 백오프 후 `resume` 으로 재접속한다. `hello` 는 해시가 없으면 PostgreSQL(`sessions.epoch/ack_seq/state/
+started_at`)에서 재수화한 뒤 `hello.lua` 를 실행하므로 epoch 는 계속 이어지고(이전 연결은 여전히 펜싱됨) 소비자
+그룹도 다시 만들어진다. ack 되지 않은 청크는 링 버퍼에 남아 있고 `welcome.missing` 이 원장 기준으로 다시 계산되므로
+손실이 없다(`test_redis_flush_mid_session_fails_closed_then_rehydrates_on_reconnect`).
+
+`ctl:{sid}` 로 `{"t":"purge"}` 가 오면(파기 파이프라인) 녹음기·뷰어 모두 `error 4012` 후 `4012`.
 
 ## 5. 뷰어 규칙 (`WatchCore`, §6.7)
 
@@ -247,7 +259,15 @@ credit = clamp(credit_base − stt_lag_chunks(sid) // 2 − node_pending_ledger_
 5. 큐 격리: 뷰어마다 `partial_q`(256, 가득 차면 가장 오래된 것을 버리고 `viewer.lagged` 를 5 s 에 한 번)와
    `critical_q`(1024, final/alert/state/note; 가득 차면 `4013` — 뷰어는 `from_seq` 로 재접속). 보류 final 이 1,024 개를
    넘어도 `4013`.
-6. heartbeat 는 녹음기와 같다. Redis 구독이 끊기면 `viewer.degraded{}` 를 보낸다.
+6. heartbeat 는 녹음기와 같다. Redis 구독이 끊기면 `viewer.degraded{}` 를 보낸다(프로세스당 하나의 구독 리더가
+   백오프로 재접속·재구독한다).
+7. 틈 메우기 재생이 0행이면(발행자가 커밋 전에 발행한 경우) 200 ms 뒤에 다시 시도한다 — 재생 요청이 핫 루프가 되지
+   않는다. stt-worker 는 커밋 뒤에 발행하므로 정상 경로에서는 한 번에 메워진다.
+8. 뷰어의 `risk.ack{risk_event_id}` 는 REST `POST /v1/alerts/{id}/ack` 와 같은 효과다: 뷰어 자신의 테넌트·사용자
+   컨텍스트로 `risk_events.acknowledged_at/by` 갱신 + 감사 `alert.acked` + `alerts:sla` ZREM + 모든 뷰어에게
+   `risk.ack{risk_event_id, by}` 발행. 다른 세션의 경보 id 는 조용히 무시된다.
+9. 접속·이탈마다 `sess:{sid}:viewers` SET 을 갱신하고 `viewer.presence{count}` 를 발행한다. `4013` 으로 닫을 때는
+   막힌 sender 를 먼저 취소하고 close 프레임에 5 s 를 넘기지 않는다(막힌 소켓이 연결 태스크를 붙잡지 못하게).
 
 ## 6. 상태 기계
 
@@ -373,3 +393,15 @@ close 4008 seq_gap_unrecoverable      (세션 상태 → ended, 부분 데이터
 - `Rehydrate` 는 `hello` 시 Redis `sess:{sid}` 가 없을 때(캐시 유실) PostgreSQL 에서 핫 상태를 재구축하라는 액션이다.
 - 로그에는 청크 바이트·전사 텍스트·티켓이 절대 남지 않는다. 카운터(`received/stored/duplicates/reordered/dropped/
   nacks/acks`)만 메트릭으로 나간다.
+- 셸 구조(`ingest.py`/`watch.py`): 연결마다 **메인 태스크 하나**가 인바운드 큐를 소비하며 코어를 호출하는 유일한
+  주체다(코어는 동시성 안전하지 않다). 생산자 태스크는 소켓 수신, 200 ms 틱, 프로세스 공용 pub/sub 리더(`pubsub.py`),
+  원장 future 콜백(`ledgered`, 커밋 묶음 단위로 합쳐 한 번의 `on_ledgered`), 저장 워커(`Store` 순서대로 sha256 → 암호화 →
+  오브젝트 스토어 → XADD → `LedgerBatcher.submit`). `ack` 를 보낼 때마다 `sess:{sid}` 해시에 `ack_seq/ledger_seq/
+  credit` 을 미러링한다(운영 가시성; 진실은 PostgreSQL).
+- `LedgerBatcher`(`ledger.py`)는 프로세스 전역이며 `app.state.ledger` 로 노출된다(`pending_rows()` 가 credit 입력).
+  첫 행이 창(50 ms)을 열고 500 행이면 즉시 플러시한다. 테넌트별 한 트랜잭션: 다중 VALUES `INSERT … ON CONFLICT DO
+  NOTHING` + §4.2 의 검증된 `UPDATE sessions`.
+- 드레인(`drain.py`): `ConnectionRegistry.begin()` 이 모든 연결에 `drain` 이벤트를 넣고, `routes.on_shutdown` 은
+  20 s 안에 연결이 비기를 기다린 뒤 배처를 플러시하고 pub/sub 리더를 멈춘다. WP-G 의 `ops.drain.Drainer` 가
+  `app.state.drainer` 로 있으면 `begin` 을 `on_begin` 훅으로 등록하므로 SIGTERM 이 그대로 드레인을 구동한다.
+  드레인 중인 노드는 새 WebSocket 을 `1012` 로 즉시 거절한다.

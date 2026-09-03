@@ -57,6 +57,7 @@ def build_app(settings: Settings) -> FastAPI:
             clock=SystemClock(),
             node_id=settings.node_id,
         )
+        app.state.loop = asyncio.get_running_loop()  # tests poke the runtime with call_soon_threadsafe
         await routes.on_startup(app, app.state.deps)
         try:
             yield

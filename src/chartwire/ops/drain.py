@@ -115,6 +115,11 @@ class Drainer:
             loop.add_signal_handler(sig, self.begin, sig.name)
             self._installed[sig] = loop
 
+    @property
+    def installed(self) -> bool:
+        """True while :meth:`install` owns the process's signal handlers."""
+        return bool(self._installed)
+
     def uninstall(self) -> None:
         for sig, loop in self._installed.items():
             loop.remove_signal_handler(sig)

@@ -8,14 +8,16 @@ set: a multi-row ``INSERT … ON CONFLICT DO NOTHING`` plus one ``UPDATE session
 GREATEST(ack_seq, v)``. The 50 ms window is the floor under the ack round-trip.
 
 ``ack_hint`` is the contiguous durable prefix the ingest core will hold once the row commits
-(``contig_seq`` at store time). After a failed flush the hints of the affected sessions are
-ignored until the next hello on this node (``reset_session``): the recorder reconnects, the new
-core rebuilds its prefix from the ledger, and only then are hints trustworthy again.
+(``contig_seq`` at store time). PostgreSQL does not take the hint on trust: ``sessions.ack_seq`` is
+raised to it only when the same transaction can count every row between the old ``ack_seq`` and the
+hint (§0 rule 3 enforced in SQL). A hint that skips rows of an earlier, failed batch therefore never
+moves the persisted ack, whatever the shells believe.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
 from collections import defaultdict
@@ -29,6 +31,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
+from chartwire.db.models import AudioChunk
 from chartwire.db.models import Session as SessionModel
 from chartwire.db.repo import sessions as sessions_repo
 from chartwire.db.tenant import TenantCtx, tenant_tx
@@ -79,15 +82,32 @@ class LedgerError(RuntimeError):
 
 
 def _raise_ack_stmt(hints: dict[UUID, int]) -> Any:
-    """One ``UPDATE sessions … FROM unnest(ids, acks)`` for every session of the batch."""
+    """One ``UPDATE sessions … FROM unnest(ids, acks)`` for every session of the batch.
+
+    The ack moves only if the rows ``(ack_seq, hint]`` are all present — a count over the primary key
+    of exactly the rows this batch is about to acknowledge."""
     v = select(
         func.unnest(cast(list(hints), ARRAY(PG_UUID(as_uuid=True)))).label("id"),
         func.unnest(cast(list(hints.values()), ARRAY(BigInteger))).label("ack"),
     ).subquery("v")
+    present = (
+        select(func.count())
+        .select_from(AudioChunk)
+        .where(
+            AudioChunk.session_id == SessionModel.id,
+            AudioChunk.seq > SessionModel.ack_seq,
+            AudioChunk.seq <= v.c.ack,
+        )
+        .scalar_subquery()
+    )
     return (
         update(SessionModel)
-        .where(SessionModel.id == v.c.id)
-        .values(ack_seq=func.greatest(SessionModel.ack_seq, v.c.ack), updated_at=func.now())
+        .where(
+            SessionModel.id == v.c.id,
+            v.c.ack > SessionModel.ack_seq,
+            present == v.c.ack - SessionModel.ack_seq,
+        )
+        .values(ack_seq=v.c.ack, updated_at=func.now())
     )
 
 
@@ -100,7 +120,6 @@ class LedgerBatcher:
         self._wake = asyncio.Event()
         self._task: asyncio.Task[None] | None = None
         self._closed = False
-        self._suppressed: set[UUID] = set()
         self.flushes = 0
         self.rows_committed = 0
 
@@ -128,16 +147,12 @@ class LedgerBatcher:
             return fut
         self._pending.append(_Pending(row, ack_hint, fut))
         self._set_gauge()
-        if len(self._pending) >= self._flush_rows:
-            self._wake.set()
+        if len(self._pending) == 1 or len(self._pending) >= self._flush_rows:
+            self._wake.set()  # first row: open the window; row cap: flush now
         return fut
 
     def pending_rows(self) -> int:
         return len(self._pending)
-
-    def reset_session(self, session_id: UUID) -> None:
-        """A fresh hello rebuilt the session's prefix from the ledger: hints are valid again."""
-        self._suppressed.discard(session_id)
 
     async def flush_now(self) -> None:
         """Commit everything pending right away (tests, drain)."""
@@ -157,11 +172,10 @@ class LedgerBatcher:
                 self._wake.clear()
                 await self._wake.wait()
                 continue
-            try:  # first row arrived: give the window a chance to fill, unless the row cap wakes us
-                self._wake.clear()
-                await asyncio.wait_for(self._wake.wait(), timeout=self._flush_s)
-            except TimeoutError:
-                pass
+            if len(self._pending) < self._flush_rows:  # give the window a chance to fill …
+                self._wake.clear()  # … unless the row cap (or stop) wakes us first
+                with contextlib.suppress(TimeoutError):
+                    await asyncio.wait_for(self._wake.wait(), timeout=self._flush_s)
             if self._pending:
                 await self._safe_flush(self._take())
         if self._pending:
@@ -188,7 +202,6 @@ class LedgerBatcher:
         for (tid, items), result in zip(by_tenant.items(), results, strict=True):
             if isinstance(result, BaseException):
                 log.warning("ledger flush failed", extra={"tenant_id": str(tid), "rows": len(items)})
-                self._suppressed.update(item.row.session_id for item in items)
                 for item in items:
                     if not item.future.done():
                         item.future.set_exception(LedgerError(type(result).__name__))
@@ -211,7 +224,7 @@ class LedgerBatcher:
         hints: dict[UUID, int] = {}
         for item in items:
             sid = item.row.session_id
-            if sid not in self._suppressed and item.ack_hint > hints.get(sid, 0):
+            if item.ack_hint > hints.get(sid, 0):
                 hints[sid] = item.ack_hint
         if hints:
             await session.execute(_raise_ack_stmt(hints))

@@ -42,9 +42,14 @@ log = logging.getLogger(__name__)
 HELLO_TIMEOUT_S = 5.0
 TICK_MS = 200
 REPLAY_BATCH = 100
+GAP_FILL_RETRY_S = 0.2
+"""A gap-fill replay that found nothing waits this long before reporting back, so a publisher that
+announced a final before its row was visible cannot spin the viewer through replay requests."""
 PARTIAL_Q_MAX = 256
 CRITICAL_Q_MAX = 1_024
 LAGGED_NOTICE_EVERY_S = 5.0
+CLOSE_TIMEOUT_S = 5.0
+"""A close frame to a viewer whose socket buffer is full must not hold the connection task hostage."""
 NOBODY = UUID(int=0)
 """``risk.ack.by`` for principals without a user id (dev tokens)."""
 
@@ -69,7 +74,9 @@ class _Session:
 class OutboundQueues:
     """Per-viewer isolation (§6.7). Pure asyncio, unit-tested without sockets."""
 
-    def __init__(self, *, partial_max: int = PARTIAL_Q_MAX, critical_max: int = CRITICAL_Q_MAX) -> None:
+    def __init__(self, *, partial_max: int | None = None, critical_max: int | None = None) -> None:
+        partial_max = PARTIAL_Q_MAX if partial_max is None else partial_max
+        critical_max = CRITICAL_Q_MAX if critical_max is None else critical_max
         self.partial: asyncio.Queue[Mapping[str, Any]] = asyncio.Queue(partial_max)
         self.critical: asyncio.Queue[Mapping[str, Any]] = asyncio.Queue(critical_max)
         self.dropped_partials = 0
@@ -333,9 +340,10 @@ class WatchConnection:
     def _on_pubsub(self, channel: str, msg: Mapping[str, Any]) -> None:
         self.events.put_nowait(("ctl" if channel == "ctl" else "event", msg))
 
-    async def _replay_task(self, after_seq: int) -> None:
+    async def _replay_task(self, after_seq: int, *, gap_fill: bool) -> None:
         assert self.sess is not None
         sess = self.sess
+        fetched = 0
         try:
             while True:
                 async with tenant_tx(self.rt.engine, TenantCtx.service(sess.tenant_id)) as s:
@@ -344,6 +352,7 @@ class WatchConnection:
                     )
                 if not rows:
                     break
+                fetched += len(rows)
                 self.events.put_nowait(("replay_batch", [self._final_from_row(r) for r in rows]))
                 after_seq = rows[-1].seq
                 if len(rows) < REPLAY_BATCH:
@@ -355,6 +364,8 @@ class WatchConnection:
         except SQLAlchemyError as exc:
             log.warning("replay failed", extra={"error": type(exc).__name__})
             self.events.put_nowait(("event", {"t": "viewer.degraded"}))
+        if gap_fill and fetched == 0:
+            await asyncio.sleep(GAP_FILL_RETRY_S)
         self.events.put_nowait(("replay_done", None))
 
     def _final_from_row(self, row: segments_repo.SegmentRow) -> dict[str, Any]:
@@ -407,7 +418,7 @@ class WatchConnection:
                     )
             elif isinstance(a, act.Replay):
                 self._replay = asyncio.get_running_loop().create_task(
-                    self._replay_task(a.after_seq), name="watch-replay"
+                    self._replay_task(a.after_seq, gap_fill=self._replay is not None), name="watch-replay"
                 )
             elif isinstance(a, act.Close):
                 await self._close(a.code, a.reason)
@@ -444,5 +455,8 @@ class WatchConnection:
         if self.closed:
             return
         self.closed = True
-        with contextlib.suppress(WebSocketDisconnect, RuntimeError, OSError):
-            await self.ws.close(code=code, reason=reason)
+        for task in self._tasks:  # a sender blocked on a full socket would otherwise delay the close frame
+            if task.get_name() == "watch-send":
+                task.cancel()
+        with contextlib.suppress(WebSocketDisconnect, RuntimeError, OSError, TimeoutError):
+            await asyncio.wait_for(self.ws.close(code=code, reason=reason), timeout=CLOSE_TIMEOUT_S)

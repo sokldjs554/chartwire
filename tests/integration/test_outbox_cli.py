@@ -1,5 +1,6 @@
 """``chartwire outbox stats | dlq list | dlq replay --id | bench`` through typer's runner against the
-test database, and the scenario H bench at 2 K events (the 100 K run is Phase 2, serial window).
+test database, and the scenario H bench at 2 K events with two real worker processes and a SIGKILL
+(the 100 K run is Phase 2, serial window).
 """
 
 from __future__ import annotations
@@ -74,8 +75,11 @@ async def test_bench_2k_events_two_workers_writes_report(cli_env, clean_db, tmp_
     for key in ("seed", "git_sha", "generated_at", "cpu", "ram_gb", "python", "pg_version"):
         assert key in report, "§11.1 report header"
     assert report["events"] == 2000 and report["workers"] == 2 and report["tenants"] == 5
-    assert report["events_per_s"] > 0 and report["dlq_count"] == 0
-    assert report["worker_killed"] is True and report["reclaimed"] >= 0
+    assert report["events_per_s"] > 0 and report["dlq_count"] == 0 and report["insert_s"] > 0
+    assert report["worker_killed"] is True and report["reclaimed"] >= 1, "SIGKILL left rows to reclaim"
+    assert report["worker_exit_codes"] == [-9, 0], "worker 0 SIGKILLed, survivor drained cleanly"
+    assert [w["worker"] for w in report["per_worker"]] == [1], "only the survivor reports totals"
+    assert report["reclaimed"] <= report["per_worker"][0]["processed"] <= 2000
     assert report["claim_ms_p50"] is not None and report["claim_ms_p95"] >= report["claim_ms_p50"]
     assert report["cleaned_rows"] == 2000, "bench rows are pruned after the run"
     # tenants are reused across runs (idempotent); events fully processed leaves nothing open

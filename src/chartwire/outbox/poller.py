@@ -15,6 +15,7 @@ import asyncio
 import contextlib
 import logging
 import random
+from collections import defaultdict
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any
@@ -55,6 +56,10 @@ DEFAULT_TENANT_CACHE_S = 30.0
 DEFAULT_RECLAIM_EVERY_S = 30.0
 DEFAULT_STATS_EVERY_S = 10.0
 DEFAULT_CONCURRENCY = 8
+DEFAULT_DONE_BATCH = 50
+"""``mark_done`` is written in batches (one transaction per tenant) as handlers finish, so the
+bookkeeping costs a fraction of a transaction per event instead of a whole one."""
+CLAIM_SAMPLES_KEPT = 10_000
 
 
 @dataclass(slots=True)
@@ -74,6 +79,13 @@ class PassStats:
     def executed(self) -> int:
         return self.processed + self.skipped + self.failed + self.dead
 
+    def merge(self, other: PassStats) -> None:
+        """Accumulate ``other`` into this instance (``Poller.totals``); claim samples are capped."""
+        for name in ("tenants", "claimed", "processed", "skipped", "failed", "dead", "reclaimed"):
+            setattr(self, name, getattr(self, name) + getattr(other, name))
+        self.claim_ms.extend(other.claim_ms)
+        del self.claim_ms[:-CLAIM_SAMPLES_KEPT]
+
 
 class Poller:
     def __init__(
@@ -91,10 +103,13 @@ class Poller:
         reclaim_every_s: float = DEFAULT_RECLAIM_EVERY_S,
         stats_every_s: float = DEFAULT_STATS_EVERY_S,
         concurrency: int = DEFAULT_CONCURRENCY,
+        done_batch: int = DEFAULT_DONE_BATCH,
         wake_channel: str = OUTBOX_WAKE,
+        tenants: list[UUID] | None = None,
     ) -> None:
-        if batch < 1 or concurrency < 1 or tick_s <= 0:
-            raise ValueError("batch and concurrency must be >= 1, tick_s > 0")
+        """``tenants`` pins the tenant set (bench / tests); ``None`` = every active tenant, cached."""
+        if batch < 1 or concurrency < 1 or done_batch < 1 or tick_s <= 0:
+            raise ValueError("batch, concurrency and done_batch must be >= 1, tick_s > 0")
         self._ctx = ctx
         self._engine: AsyncEngine = ctx.engine
         self._redis: Any = ctx.redis
@@ -109,11 +124,15 @@ class Poller:
         self._reclaim_every_s = reclaim_every_s
         self._stats_every_s = stats_every_s
         self._sem = asyncio.Semaphore(concurrency)
+        self._done_batch = done_batch
         self._wake_channel = wake_channel
         self._wake = asyncio.Event()
         self._accepting = True
-        self._tenants: list[UUID] = []
+        self._pinned = tenants is not None
+        self._tenants: list[UUID] = list(tenants or [])
         self._tenants_at: float | None = None
+        self.totals = PassStats()
+        """Everything this poller did since construction (``run_once`` merges each pass into it)."""
         self._reclaimed_at: float | None = None
         self._stats_at: float | None = None
         self._passes = 0
@@ -185,13 +204,44 @@ class Poller:
             stats.claim_ms.append((self._clock.monotonic() - started) * 1000.0)
         stats.claimed = len(claimed)
         if claimed:
-            outcomes = await asyncio.gather(*(self._guarded(event) for event in claimed))
-            for outcome in outcomes:
-                setattr(stats, outcome, getattr(stats, outcome) + 1)
+            await self._execute_all(claimed, stats)
         if self._due(sample_stats, self._stats_at, self._stats_every_s):
             self._stats_at = self._clock.monotonic()
             await self.sample_stats(tenants)
+        self.totals.merge(stats)
         return stats
+
+    async def _execute_all(self, claimed: list[OutboxEvent], stats: PassStats) -> None:
+        """Run the claimed events concurrently; ``mark_done`` finished ones in batches as they complete."""
+        done: dict[UUID, list[int]] = defaultdict(list)
+        pending_done = 0
+        for future in asyncio.as_completed([self._guarded(event) for event in claimed]):
+            event, outcome = await future
+            setattr(stats, outcome, getattr(stats, outcome) + 1)
+            if outcome in ("processed", "skipped"):
+                done[event.tenant_id].append(event.id)
+                pending_done += 1
+                if pending_done >= self._done_batch:
+                    await self._mark_done(done)
+                    done.clear()
+                    pending_done = 0
+        if done:
+            await self._mark_done(done)
+
+    async def _mark_done(self, done: dict[UUID, list[int]]) -> None:
+        """One transaction per tenant. A failure here is the §7.1 crash window: effects are committed,
+        the lease expires, the row is re-delivered and skipped through ``processed_events``."""
+        now = self._clock.now()
+        for tenant_id, ids in done.items():
+            try:
+                async with tenant_tx(self._engine, TenantCtx.service(tenant_id)) as session:
+                    for event_id in ids:
+                        await outbox_repo.mark_done(session, event_id, now=now)
+            except Exception:
+                log.exception(
+                    "outbox mark_done failed",
+                    extra={"worker_id": self._worker_id, "tenant_id": str(tenant_id), "count": len(ids)},
+                )
 
     def _due(self, force: bool | None, last: float | None, every_s: float) -> bool:
         if force is not None:
@@ -225,6 +275,8 @@ class Poller:
     # --- steps --------------------------------------------------------------------------------------
     async def tenants(self) -> list[UUID]:
         """Active tenant ids, cached for ``tenant_cache_s`` (ADR-0001: cross-tenant work iterates)."""
+        if self._pinned:
+            return self._tenants
         now = self._clock.monotonic()
         if self._tenants_at is None or now - self._tenants_at >= self._tenant_cache_s:
             self._tenants = await active_tenant_ids(self._engine)
@@ -267,15 +319,16 @@ class Poller:
         OUTBOX_LAG_SECONDS.set(lag)
         return {"pending": float(pending), "lag_seconds": lag}
 
-    async def _guarded(self, event: OutboxEvent) -> str:
+    async def _guarded(self, event: OutboxEvent) -> tuple[OutboxEvent, str]:
         async with self._sem:
             if self._drainer is None:
-                return await self._execute(event)
+                return event, await self._execute(event)
             async with self._drainer.track():
-                return await self._execute(event)
+                return event, await self._execute(event)
 
     async def _execute(self, event: OutboxEvent) -> str:
-        """Run one claimed event to ``done``, a retry or the DLQ; returns the ``PassStats`` field name."""
+        """Run one claimed event: handler transaction, or a retry / the DLQ on failure. Returns the
+        ``PassStats`` field name; ``processed``/``skipped`` rows are marked done by the caller."""
         spec = self._registry.lookup(event.event_type)
         started = self._clock.monotonic()
         try:
@@ -287,13 +340,6 @@ class Poller:
         except Exception as exc:
             return await self._on_failure(event, spec, exc)
         HANDLER_DURATION_SECONDS.labels(event.event_type).observe(self._clock.monotonic() - started)
-        try:
-            async with tenant_tx(self._engine, TenantCtx.service(event.tenant_id)) as session:
-                await outbox_repo.mark_done(session, event.id, now=self._clock.now())
-        except Exception:
-            # Effects are committed; the lease expires, the row is re-delivered and skipped via
-            # processed_events — exactly the crash window §7.1 describes.
-            log.exception("outbox mark_done failed", extra=self._fields(event, spec))
         return outcome
 
     async def _on_failure(self, event: OutboxEvent, spec: HandlerSpec | None, exc: BaseException) -> str:

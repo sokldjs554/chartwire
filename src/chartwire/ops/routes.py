@@ -14,7 +14,8 @@ import asyncio
 import logging
 import signal
 from collections.abc import Callable
-from typing import Any
+from types import FrameType
+from typing import Any, TypeGuard
 
 from fastapi import APIRouter, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
@@ -116,7 +117,7 @@ def on_startup(
     pool = getattr(engine, "pool", None)
     if pool is not None and hasattr(pool, "checkedout"):
         bind_db_pool(pool.checkedout)
-    if install_signals:
+    if install_signals and not drainer.installed:  # the embedded runner installs first (chain=False)
         chain_signals(drainer)
 
 
@@ -126,8 +127,12 @@ async def on_shutdown(app: FastAPI) -> None:
         drainer.uninstall()
 
 
-def chain_signals(drainer: Drainer) -> bool:
-    """Route signals to ``drainer.begin`` and re-invoke the previous handler (uvicorn) after the drain.
+def chain_signals(drainer: Drainer, *, chain: bool = True) -> bool:
+    """Route SIGTERM/SIGINT to ``drainer.begin`` and, with ``chain``, re-invoke the handler that was
+    installed before for the signal that fired — uvicorn's ``Server.handle_exit`` in the api — once the
+    drain finishes, so the server shuts down only after its drain. Processes that exit on their own after
+    ``wait_drained()`` (the worker) pass ``chain=False``: re-invoking asyncio's own SIGINT handler would
+    turn a clean drain into a ``KeyboardInterrupt``.
 
     Returns ``False`` when handlers cannot be installed (not the main thread, e.g. under TestClient).
     """
@@ -137,15 +142,20 @@ def chain_signals(drainer: Drainer) -> bool:
     except (RuntimeError, ValueError, NotImplementedError):
         log.info("signal handlers not installed (not the main thread)")
         return False
+    if not chain:
+        return True
 
-    async def finish() -> None:
+    async def finish(sig: signal.Signals) -> None:
         await drainer.wait_drained()
-        for sig, handler in previous.items():
-            if _chainable(handler):
-                handler(sig, None)
+        handler = previous.get(sig)
+        if _chainable(handler):
+            handler(sig, None)
 
     def on_begin() -> None:
-        task = asyncio.get_running_loop().create_task(finish(), name="drain-finish")
+        sig = _fired_signal(drainer.reason)
+        if sig is None:
+            return  # programmatic begin(): nothing to hand the signal back to
+        task = asyncio.get_running_loop().create_task(finish(sig), name="drain-finish")
         _BACKGROUND.add(task)
         task.add_done_callback(_BACKGROUND.discard)
 
@@ -153,10 +163,24 @@ def chain_signals(drainer: Drainer) -> bool:
     return True
 
 
+def _fired_signal(reason: str | None) -> signal.Signals | None:
+    """``Drainer.begin`` records ``sig.name`` as the reason when a signal started the drain."""
+    if reason is None:
+        return None
+    try:
+        sig = signal.Signals[reason]
+    except KeyError:
+        return None
+    return sig if sig in DEFAULT_SIGNALS else None
+
+
 _BACKGROUND: set[asyncio.Task[None]] = set()
 
 
-def _chainable(handler: object) -> bool:
+SignalHandler = Callable[[int, FrameType | None], Any]
+
+
+def _chainable(handler: object) -> TypeGuard[SignalHandler]:
     """Only a real previous handler (uvicorn's) is re-invoked — never SIG_DFL/SIG_IGN, and never
     Python's ``default_int_handler``, whose ``KeyboardInterrupt`` would abort the drained process."""
     return callable(handler) and handler is not signal.default_int_handler

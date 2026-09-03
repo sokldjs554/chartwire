@@ -21,7 +21,12 @@ from chartwire.worker import main as worker_main
 
 ROLES = ("api", "worker", "stt-worker", "all")
 
-app = typer.Typer(help="프로세스 실행: api · worker · stt-worker · all(--embedded)")
+app = typer.Typer(
+    help="프로세스 실행: api · worker · stt-worker · all(--embedded)",
+    # ``chartwire serve api --port 8000``: options may follow the role argument (click groups default to
+    # treating anything after a positional as a sub-command name).
+    context_settings={"allow_interspersed_args": True},
+)
 
 
 def _missing(module: str, wp: str) -> typer.Exit:

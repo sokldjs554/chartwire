@@ -120,3 +120,38 @@ async def test_sigterm_chain_runs_drainer_then_previous_handler():
     finally:
         drainer.uninstall()
         signal.signal(signal.SIGTERM, original)
+
+
+async def test_chain_false_and_programmatic_begin_never_reinvoke_previous_handler():
+    """The worker exits on its own after ``wait_drained()``; with ``chain=False`` (and for a programmatic
+    ``begin()``) the previous handler — asyncio's own SIGINT handler in a plain ``asyncio.run`` process —
+    is never re-invoked, so a clean drain cannot turn into a ``KeyboardInterrupt``."""
+    seen: list[int] = []
+    originals = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
+    for sig in originals:
+        signal.signal(sig, lambda s, frame: seen.append(s))
+    drainer = Drainer(deadline_s=2)
+    try:
+        assert routes.chain_signals(drainer, chain=False) is True
+        os.kill(os.getpid(), signal.SIGINT)
+        await asyncio.sleep(0.05)
+        assert drainer.draining and drainer.reason == "SIGINT" and drainer.drained
+        await asyncio.sleep(0.1)
+        assert seen == [], "chain=False: nothing handed back"
+    finally:
+        drainer.uninstall()
+        for sig, handler in originals.items():
+            signal.signal(sig, handler)
+
+    seen.clear()
+    signal.signal(signal.SIGTERM, lambda s, frame: seen.append(s))
+    drainer = Drainer(deadline_s=2)
+    try:
+        assert routes.chain_signals(drainer) is True
+        drainer.begin("test")  # not a signal name → no handler to chain
+        await asyncio.sleep(0.1)
+        assert seen == [] and routes._fired_signal("test") is None
+        assert routes._fired_signal("SIGTERM") is signal.SIGTERM
+    finally:
+        drainer.uninstall()
+        signal.signal(signal.SIGTERM, originals[signal.SIGTERM])

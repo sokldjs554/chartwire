@@ -10,6 +10,12 @@ through the same ``parse_draft → verify → decide`` path as every other provi
 Any failure — SDK error, refusal, no tool call, or the 30 s deadline — raises ``ProviderError``,
 which the service maps to ``abstained(provider_error)``. There is deliberately no fallback to the
 extractive provider: a note must say which provider wrote it.
+
+Model notes (``CHARTWIRE_ANTHROPIC_MODEL`` has no default): the forced ``tool_choice`` this module
+relies on is accepted by the Opus family (``claude-opus-5`` is what the recorded fixtures imitate)
+and rejected with HTTP 400 by models that dropped forced tool use; sampling parameters such as
+``temperature`` are likewise rejected by current models, so none are sent — determinism comes from
+the verifier, not from the sampler.
 """
 
 from __future__ import annotations
@@ -31,7 +37,8 @@ except ImportError:  # pragma: no cover - exercised only without the ``llm`` ext
 
 TOOL_NAME = "submit_note_draft"
 DEFAULT_TIMEOUT_S = 30.0
-DEFAULT_MAX_TOKENS = 4096
+DEFAULT_MAX_TOKENS = 16000
+"""Non-streaming default; a 36-statement draft with four 200-character quotes each fits comfortably."""
 
 SYSTEM_PROMPT = """당신은 정신과 진료 전사에서 SOAP 초안의 S/O/P 항목만 추출하는 보조 도구입니다.
 

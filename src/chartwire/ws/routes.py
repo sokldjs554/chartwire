@@ -87,13 +87,26 @@ def on_startup(app: Any, deps: Any) -> Awaitable[None]:
     rt.subscribers.start()
     app.state.ws_runtime = rt
     app.state.ledger = ledger
-    drainer = getattr(app.state, "drainer", None)  # WP-G ops.drain.Drainer, when the app installs one
-    if drainer is not None and hasattr(drainer, "on_begin"):
+    drainer = _drainer(app)  # SIGTERM → Drainer.begin → registry.begin (bye{drain} to every connection)
+    if drainer is not None:
         drainer.on_begin(rt.registry.begin)
     app.state.ws_heartbeat = asyncio.get_running_loop().create_task(
         _node_heartbeat(rt), name="ws-node-heartbeat"
     )
     return asyncio.sleep(0)
+
+
+def _drainer(app: Any) -> Any:
+    """The process ``ops.drain.Drainer`` (WP-G). Created here when the ws router starts first; WP-G's
+    ``ops.routes.on_startup`` reuses whatever sits at ``app.state.drainer``, so start order does not matter."""
+    drainer = getattr(app.state, "drainer", None)
+    if drainer is None:
+        try:
+            from chartwire.ops.drain import Drainer
+        except ImportError:  # pragma: no cover - ops package absent: drain is driven by on_shutdown only
+            return None
+        drainer = app.state.drainer = Drainer(deadline_s=API_DRAIN_DEADLINE_S)
+    return drainer if hasattr(drainer, "on_begin") else None
 
 
 def on_shutdown(app: Any) -> Awaitable[None]:

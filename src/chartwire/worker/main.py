@@ -18,7 +18,7 @@ import inspect
 import logging
 import os
 import socket
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterator
 from types import ModuleType
 from typing import Any
 
@@ -59,7 +59,7 @@ def load_handlers(names: tuple[str, ...] = HANDLER_MODULES) -> dict[str, ModuleT
         except ModuleNotFoundError as exc:
             if exc.name and path.startswith(exc.name):
                 loaded[name] = None
-                log.info("handler module not present; skipped", extra={"module": name})
+                log.info("handler module not present; skipped", extra={"handler_module": name})
             else:
                 raise
     return loaded
@@ -120,12 +120,35 @@ def worker_id(settings: Settings) -> str:
     return f"{settings.node_id}:{socket.gethostname()}:{os.getpid()}"
 
 
-async def _serve_http(app: Any, port: int, host: str = "0.0.0.0") -> uvicorn.Server:
-    """Start uvicorn without its signal capture (``startup``/``shutdown`` instead of ``serve``)."""
+class OpsServer(uvicorn.Server):
+    """uvicorn without its own SIGTERM/SIGINT capture: the :class:`Drainer` owns the signals and ends
+    the server with ``should_exit`` once the drain has finished."""
+
+    @contextlib.contextmanager
+    def capture_signals(self) -> Iterator[None]:
+        yield
+
+
+async def _serve_http(app: Any, port: int, host: str = "0.0.0.0") -> tuple[OpsServer, asyncio.Task[None]]:
+    """Start the ops HTTP server as a task and wait until it listens (or fails: port in use)."""
     config = uvicorn.Config(app, host=host, port=port, log_level="warning", lifespan="off")
-    server = uvicorn.Server(config)
-    await server.startup()
-    return server
+    server = OpsServer(config)
+    task = asyncio.create_task(server.serve(), name="ops-http")
+    await _wait_started(server, task)
+    return server, task
+
+
+async def _wait_started(server: uvicorn.Server, task: asyncio.Task[None]) -> None:
+    while not server.started and not task.done():  # noqa: ASYNC110 - uvicorn exposes a flag, not an event
+        await asyncio.sleep(0.05)
+    if task.done():
+        task.result()  # re-raise a startup failure (port in use, bad app)
+
+
+async def _stop_http(server: uvicorn.Server, task: asyncio.Task[None]) -> None:
+    server.should_exit = True
+    with contextlib.suppress(TimeoutError):
+        await asyncio.wait_for(task, timeout=5.0)
 
 
 async def run(
@@ -151,15 +174,15 @@ async def run(
     health = health or build_health(ctx, role="worker")
     drainer.on_begin(health.mark_draining)
     if install_signals:
-        chain_signals(drainer)
+        chain_signals(drainer, chain=False)  # run() returns after the drain; nothing to hand back
     modules = load_handlers(handler_modules)
     poller = Poller(ctx, worker_id=worker_id(settings), drainer=drainer, **(poller_kwargs or {}))
     tickers = build_tickers(ctx, modules, drainer)
     if http_port is None:
         http_port = int(os.environ.get(WORKER_PORT_ENV, DEFAULT_HTTP_PORT))
-    server = None
+    http: tuple[OpsServer, asyncio.Task[None]] | None = None
     if http_port:
-        server = await _serve_http(
+        http = await _serve_http(
             standalone_app(ctx, role="worker", drainer=drainer, health=health), http_port
         )
     log.info(
@@ -178,9 +201,8 @@ async def run(
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
-        if server is not None:
-            server.should_exit = True
-            await server.shutdown()
+        if http is not None:
+            await _stop_http(*http)
         drainer.uninstall()
         if own_ctx:
             await close_context(ctx)
@@ -209,22 +231,20 @@ async def _run_stt(settings: Settings) -> None:
         await asyncio.to_thread(entry, settings)
 
 
-async def _wait_started(server: uvicorn.Server, task: asyncio.Task[None]) -> None:
-    while not server.started and not task.done():  # noqa: ASYNC110 - uvicorn exposes a flag, not an event
-        await asyncio.sleep(0.05)
-    if task.done():
-        task.result()  # re-raise a startup failure (port in use, bad app)
-
-
 async def run_all(settings: Settings, *, host: str = "0.0.0.0", port: int = 8000) -> int:
-    """``serve all --embedded``: one process, one drainer, one pool (5), ops routes on the api port."""
+    """``serve all --embedded``: one process, one drainer, one pool (5), ops routes on the api port.
+
+    The drainer takes SIGTERM/SIGINT before uvicorn starts (``ops.routes.on_startup`` sees it installed
+    and does not re-install); after the drain the api server is told to exit, then the worker task ends.
+    """
     from chartwire.api.app import create_app  # WP-E; ImportError is the right failure here
 
     settings = settings.model_copy(update={"embedded": True})
     drainer = Drainer(deadline_s=DEFAULT_DEADLINE_S)
+    chain_signals(drainer, chain=False)
     app = create_app(settings)
-    app.state.drainer = drainer  # ops.routes.on_startup reuses it and chains uvicorn's exit
-    server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="info"))
+    app.state.drainer = drainer  # ops.routes.on_startup reuses it
+    server = OpsServer(uvicorn.Config(app, host=host, port=port, log_level="info"))
     api_task = asyncio.create_task(server.serve(), name="api")
     await _wait_started(server, api_task)
     deps = getattr(app.state, "deps", None)
@@ -236,14 +256,17 @@ async def run_all(settings: Settings, *, host: str = "0.0.0.0", port: int = 8000
     )
     stt_task = asyncio.create_task(_run_stt(settings), name="stt-worker")
     try:
-        await api_task
+        await asyncio.wait({api_task, worker_task}, return_when=asyncio.FIRST_COMPLETED)
     finally:
-        drainer.begin("api_exit")  # no-op if SIGTERM already started the drain
+        drainer.begin("api_exit")  # no-op when a signal already started the drain
+        await drainer.wait_drained()
+        await _stop_http(server, api_task)
         with contextlib.suppress(TimeoutError):
-            await asyncio.wait_for(worker_task, timeout=drainer.deadline_s + 1.0)
+            await asyncio.wait_for(worker_task, timeout=5.0)
         for task in (worker_task, stt_task):
             task.cancel()
-        await asyncio.gather(worker_task, stt_task, return_exceptions=True)
+        await asyncio.gather(api_task, worker_task, stt_task, return_exceptions=True)
+        drainer.uninstall()
         if deps is None:
             await close_context(ctx)
     return 0 if worker_task.done() and not worker_task.cancelled() and worker_task.result() == 0 else 1

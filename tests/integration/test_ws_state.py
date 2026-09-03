@@ -30,7 +30,9 @@ NOW = datetime(2026, 9, 1, 9, 0, tzinfo=UTC)
 
 async def test_ticket_is_consumed_exactly_once(redis):
     tid, uid, sid = uuid4(), uuid4(), uuid4()
-    token = await tickets.issue(redis, tenant_id=tid, user_id=uid, role="clinician", session_id=sid, kind="ingest")
+    token = await tickets.issue(
+        redis, tenant_id=tid, user_id=uid, role="clinician", session_id=sid, kind="ingest"
+    )
     assert 0 < await redis.ttl(keys.ticket(token)) <= keys.TTL_TICKET
     payload = await tickets.consume(redis, token)
     assert payload is not None and (payload.tenant_id, payload.user_id, payload.session_id) == (tid, uid, sid)
@@ -40,7 +42,9 @@ async def test_ticket_is_consumed_exactly_once(redis):
 
 
 async def test_ticket_keeps_non_uuid_dev_subject(redis):
-    token = await tickets.issue(redis, tenant_id=uuid4(), user_id="dev:recorder", role="recorder", session_id=uuid4(), kind="ingest")
+    token = await tickets.issue(
+        redis, tenant_id=uuid4(), user_id="dev:recorder", role="recorder", session_id=uuid4(), kind="ingest"
+    )
     payload = await tickets.consume(redis, token)
     assert payload is not None and payload.user_id is None and payload.sub == "dev:recorder"
 
@@ -143,7 +147,11 @@ async def test_batcher_groups_by_tenant_and_resolves_futures_after_commit(app_en
     await batcher.submit(_row(session_a.tenant_id, session_a.id, 5), ack_hint=5)
     async with tenant_tx(app_engine, TenantCtx.service(session_a.tenant_id)) as s:
         assert (await sessions_repo.get_session(s, session_a.id)).ack_seq == 10
-        rows = (await s.execute(select(AudioChunk.seq).where(AudioChunk.session_id == session_a.id))).scalars().all()
+        rows = (
+            (await s.execute(select(AudioChunk.seq).where(AudioChunk.session_id == session_a.id)))
+            .scalars()
+            .all()
+        )
         assert sorted(rows) == list(range(1, 11))
     await batcher.stop()
     with pytest.raises(LedgerError):
@@ -158,22 +166,29 @@ async def test_batcher_flushes_at_row_cap_before_the_window(app_engine, session_
     await batcher.stop()
 
 
-async def test_failed_flush_raises_and_suppresses_ack_hints(app_engine, session_a):
+async def test_failed_flush_raises_and_ack_only_moves_over_a_complete_prefix(app_engine, session_a):
+    """A failed batch raises on every future; the persisted ack never skips a hole, whatever the hint says."""
     batcher = LedgerBatcher(app_engine, flush_ms=10, flush_rows=500)
     batcher.start()
-    bad = ChunkRow(session_a.tenant_id, session_a.id, 1, -1, b"", "k", 0, 0, NOW)  # violates byte_len check? no: sha256 NOT NULL ok, use bogus session
-    bad = _row(session_a.tenant_id, uuid4(), 1)  # FK violation: unknown session
+    bad = _row(
+        session_a.tenant_id, uuid4(), 1
+    )  # FK violation: unknown session → the whole tenant batch fails
     with pytest.raises(LedgerError):
         await batcher.submit(bad, ack_hint=1)
-    # the session of the failed batch is suppressed: rows commit, ack_seq does not move until reset
-    await batcher.submit(_row(session_a.tenant_id, bad.session_id, 2), ack_hint=2) if False else None
-    await batcher.submit(_row(session_a.tenant_id, session_a.id, 1), ack_hint=1)
-    async with tenant_tx(app_engine, TenantCtx.service(session_a.tenant_id)) as s:
-        assert (await sessions_repo.get_session(s, session_a.id)).ack_seq == 1
+    tid, sid = session_a.tenant_id, session_a.id
+    await asyncio.gather(*(batcher.submit(_row(tid, sid, s), ack_hint=s) for s in (1, 2)))
+    await batcher.submit(_row(tid, sid, 5), ack_hint=5)  # a stale hint from a lost connection: 3, 4 missing
+    async with tenant_tx(app_engine, TenantCtx.service(tid)) as s:
+        assert (await sessions_repo.get_session(s, sid)).ack_seq == 2, "ack does not jump over a hole"
+    await asyncio.gather(*(batcher.submit(_row(tid, sid, s), ack_hint=5) for s in (3, 4)))
+    async with tenant_tx(app_engine, TenantCtx.service(tid)) as s:
+        assert (await sessions_repo.get_session(s, sid)).ack_seq == 5, "…and moves once the hole is filled"
     await batcher.stop()
 
 
 async def test_sessions_ack_seq_is_visible_to_app_role(app_engine, session_a):
     async with tenant_tx(app_engine, TenantCtx.service(session_a.tenant_id)) as s:
-        row = (await s.execute(select(SessionModel.ack_seq).where(SessionModel.id == session_a.id))).scalar_one()
+        row = (
+            await s.execute(select(SessionModel.ack_seq).where(SessionModel.id == session_a.id))
+        ).scalar_one()
         assert row == 0
