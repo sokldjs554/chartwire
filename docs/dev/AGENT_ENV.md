@@ -33,6 +33,32 @@ Role passwords used by `bootstrap-roles`: `CHARTWIRE_OWNER_PASSWORD` (default `c
 - Never run the load tests / bulk loader while another agent is testing (measurement is a serial phase run by the integrator).
 - Only run the tests you own plus `tests/unit` (fast). Do not run the whole suite.
 
+## Test run (integrator, 2026-09-04) — how the full suite is run green, serially
+
+One group at a time, each on the DB / Redis index its work package used (`.github/workflows/ci.yml` `integration` job runs the
+same groups in the same order). `tests/unit` and `tests/ws` need no services. Chaos tests are timing-based: run them on an idle box.
+
+```bash
+source /home/user/.venvs/proj/bin/activate; set -a; . ./.env.example; set +a
+pytest tests/unit -q                                                                       # no services
+CHARTWIRE_TEST_DB=chartwire_test_b CHARTWIRE_TEST_REDIS_DB=2 pytest tests/ws -q            # hypothesis, no services
+CHARTWIRE_TEST_DB=chartwire_test_a CHARTWIRE_TEST_REDIS_DB=1 pytest tests/rls tests/integration/test_migrations.py -q -p no:xdist
+CHARTWIRE_TEST_DB=chartwire_test_b CHARTWIRE_TEST_REDIS_DB=2 pytest tests/integration/test_ws_state.py tests/integration/test_ws_ingest.py tests/integration/test_ws_watch.py tests/integration/test_ws_drain.py -q -p no:xdist   # uvicorn 8101
+CHARTWIRE_TEST_DB=chartwire_test_c CHARTWIRE_TEST_REDIS_DB=3 pytest tests/integration/test_alerts.py tests/integration/test_stt_worker.py tests/integration/test_stt_worker_chaos.py -q -p no:xdist
+CHARTWIRE_TEST_DB=chartwire_test_d CHARTWIRE_TEST_REDIS_DB=4 pytest tests/integration/test_notes_service.py tests/integration/test_notes_rest.py -q -p no:xdist
+CHARTWIRE_TEST_DB=chartwire_test_e CHARTWIRE_TEST_REDIS_DB=5 pytest tests/integration/test_rbac_matrix.py tests/integration/test_api_*.py tests/integration/test_phi_logs.py tests/integration/test_purge_pipeline.py -q -p no:xdist
+CHARTWIRE_TEST_DB=chartwire_test_f CHARTWIRE_TEST_REDIS_DB=6 pytest tests/integration/test_seed.py tests/integration/test_bulk_small.py -q -p no:xdist
+CHARTWIRE_TEST_DB=chartwire_test_g CHARTWIRE_TEST_REDIS_DB=7 pytest tests/integration/test_outbox_*.py tests/integration/test_ops_routes.py tests/chaos -q -p no:xdist   # worker 8106
+pytest infra/cdk/tests -q                                                                  # CDK assertions, no services
+ruff check src tests scripts && ruff format --check src tests scripts
+mypy src/chartwire/ws/core.py src/chartwire/ws/codec.py src/chartwire/notes/verifier.py src/chartwire/crypto src/chartwire/outbox
+python -m pip check
+```
+
+The integrator's own scratch DB / index is `chartwire_test_i` / 9. The demo (`make demo`, `docs/dev/e2e.md`) uses the dev DB
+`chartwire` and Redis 0 on port 8000; throwaway servers use 8110. A dev DB created before a migration file was edited (for
+example the `audit_events_id_seq` GRANT) must be rebuilt: `chartwire db downgrade base && chartwire db upgrade && chartwire seed --demo`.
+
 ## Coding rules
 - Python 3.11 (no 3.12-only syntax). `ruff check` + `ruff format` clean on the files you touch (config in `pyproject.toml`). mypy strict only on the modules listed in `pyproject.toml`.
 - Own only the paths assigned to your WP. If you need a change in another WP's file, do NOT edit it: write the request in `docs/dev/handoff/<your-wp>.md` (create it) with the exact diff you need, and code against the contract in the spec.

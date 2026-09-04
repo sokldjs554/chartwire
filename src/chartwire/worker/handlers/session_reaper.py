@@ -4,13 +4,11 @@ marker is appended to its chunk stream so the stt-worker flushes and emits ``ses
 
 Last activity = ``sess:{sid}.updated_at`` in Redis when the hot hash exists, else ``sessions.updated_at``
 (Redis is a cache; a lost hash must not keep a session alive forever). The end marker goes through
-WP-B's ``SessionState.xadd_end`` (same entry shape the recorder shell writes), with a plain ``XADD``
-fallback so a partially built tree still ends sessions.
+``SessionState.xadd_end`` (same entry shape the recorder shell writes).
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import UTC, datetime
 from typing import Any
@@ -22,17 +20,13 @@ from chartwire.db.repo import sessions as sessions_repo
 from chartwire.outbox.context import HandlerContext
 from chartwire.outbox.runtime import active_tenant_ids
 from chartwire.redis import keys
+from chartwire.redis.session_state import SessionState
 
 log = logging.getLogger(__name__)
 
 INTERVAL_S = 60.0
 LIVE_STATES = ("recording", "paused")
 SCAN_LIMIT = 500
-
-try:
-    from chartwire.redis.session_state import SessionState
-except ImportError:  # WP-B module not built yet; fall back to a direct XADD
-    SessionState = None  # type: ignore[assignment,misc]
 
 
 def parse_updated_at(value: object) -> datetime | None:
@@ -69,15 +63,10 @@ async def last_activity(redis: Any, row: SessionModel) -> datetime:
 
 async def end_marker(redis: Any, session_id: UUID, epoch: int, *, maxlen: int) -> None:
     """Append ``{"end":"1","ep":epoch}`` to ``sess:{sid}:chunks``; hash ``state=ended``; publish."""
-    if SessionState is not None:
-        state = SessionState(redis, stream_maxlen=maxlen)
-        await state.xadd_end(session_id, epoch)
-        await state.set_fields(session_id, state="ended")
-        await state.publish_event(session_id, {"t": "session.state", "state": "ended"})
-        return
-    fields = {**keys.END_MARKER, "ep": str(epoch)}
-    await redis.xadd(keys.sess_chunks(session_id), fields, maxlen=maxlen, approximate=True)
-    await redis.publish(keys.sess_events(session_id), json.dumps({"t": "session.state", "state": "ended"}))
+    state = SessionState(redis, stream_maxlen=maxlen)
+    await state.xadd_end(session_id, epoch)
+    await state.set_fields(session_id, state="ended")
+    await state.publish_event(session_id, {"t": "session.state", "state": "ended"})
 
 
 async def reap(ctx: HandlerContext, tenant_id: UUID, row: SessionModel, *, idle_s: float) -> None:

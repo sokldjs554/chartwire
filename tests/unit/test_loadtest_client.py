@@ -517,12 +517,14 @@ async def test_viewer_dedups_finals_and_measures_latencies() -> None:
     viewer = make_viewer(net, clock, stats, auto_ack_alerts=True)
 
     def final(seq: int) -> dict[str, Any]:
+        # segment seq ≠ chunk seq: ``final_e2e`` is keyed by the chunk whose 200 ms window holds
+        # ``t_end_ms`` (segment 3 ends at 500 ms → chunk 3; segment 6 at 1,100 ms → chunk 6)
         return {
             "t": "transcript.final",
             "seq": seq,
             "speaker": "patient",
             "t_start_ms": 0,
-            "t_end_ms": 200,
+            "t_end_ms": {3: 500, 6: 1_100}.get(seq, 200),
             "text": "x",
             "confidence": 0.9,
             "segment_id": seq,
@@ -608,7 +610,7 @@ async def test_viewer_reconnects_with_from_seq_after_drop() -> None:
         sock.server_close(1012)
         sock2 = await net.wait_socket(1)
         hello = await sock2.next_json()
-        assert hello == {"t": "hello", "ticket": "tk-2", "from_seq": 5}
+        assert hello == {"t": "hello", "ticket": "tk-2", "from_seq": 6}
         sock2.push({"t": "welcome", "session_id": "s-1", "state": "recording", "last_final_seq": 5})
         sock2.push(
             {

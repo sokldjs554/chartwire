@@ -14,9 +14,9 @@ from tests.unit.test_notes_support import CONSULTATION, context, seg, session
 def test_sections_and_cues_on_the_consultation():
     d = build_draft(CONSULTATION)
     by_section = {s: [st for st in d.statements if st.section == s] for s in "SOP"}
-    # Only the spec's cue words count: 3 (새벽에 깸), 6 (kg), 9 (약물명만), 14 (소주) carry no cue and are
-    # left to the clinician — the grounding eval measures this as fact recall, not coverage.
-    assert [st.evidence[0].seq for st in by_section["S"]] == [2, 4, 7, 10, 11]
+    # §9.2 cues plus the §10.1 fact utterances the grounding eval measures as fact recall (WP-F request 3):
+    # 3 (깨서/자요), 6 (빠졌), 9 (mg/먹고), 14 (소주) now carry a cue; 13 (부정 답변) still has none.
+    assert [st.evidence[0].seq for st in by_section["S"]] == [2, 3, 4, 6, 7, 9, 10, 11, 14]
     assert [st.evidence[0].seq for st in by_section["O"]] == [8, 15]
     assert [st.evidence[0].seq for st in by_section["P"]] == [16, 17, 18]
     assert {st.kind for st in by_section["S"]} == {"reported"}

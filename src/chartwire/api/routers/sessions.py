@@ -211,7 +211,8 @@ async def end_session(
 async def _announce_end(deps: AppDeps, row: SessionModel) -> None:
     """Redis side of ending (idempotent, best effort): end marker, hash state, viewers, 24 h TTLs."""
     state = SessionState(
-        deps.redis, stream_maxlen=deps.settings.stream_maxlen, scripts_dir=deps.settings.scripts_dir
+        deps.redis,
+        stream_maxlen=deps.settings.stream_maxlen,  # Lua scripts are package resources
     )
     with contextlib.suppress(RedisError, OSError):
         await state.xadd_end(row.id, int(row.epoch))

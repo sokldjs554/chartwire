@@ -110,6 +110,8 @@ class SessionStats:
     final_seq: int = 0
     nacks: int = 0
     credit_min: int | None = None
+    credit_zero_at_s: float | None = None
+    """Seconds after the recorder started when credit first reached 0 (scenario B)."""
     credit_waits: int = 0
     pauses: int = 0
     reconnects: int = 0
@@ -127,7 +129,8 @@ class SessionStats:
     finals: int = 0
     final_dups: int = 0
     final_out_of_order: int = 0
-    last_final_seq: int = 0
+    last_final_seq: int = -1
+    """Highest final seq seen; segments are 0-based (stt-worker contract), so ``-1`` = none yet."""
     alerts: int = 0
     alerts_acked: int = 0
     escalations: int = 0
@@ -144,8 +147,10 @@ class SessionStats:
         """Seqs sent that the server never acknowledged (must be 0 after ``bye{ended}``)."""
         return max(0, self.final_seq - self.ack_seq) if self.final_seq else max(0, self.sent - self.ack_seq)
 
-    def observe_credit(self, credit: int) -> None:
+    def observe_credit(self, credit: int, *, elapsed_s: float | None = None) -> None:
         self.credit_min = credit if self.credit_min is None else min(self.credit_min, credit)
+        if credit <= 0 and self.credit_zero_at_s is None and elapsed_s is not None:
+            self.credit_zero_at_s = elapsed_s
 
     def summary(self) -> dict[str, Any]:
         return {
@@ -158,6 +163,7 @@ class SessionStats:
             "loss": self.loss,
             "nacks": self.nacks,
             "credit_min": self.credit_min,
+            "credit_zero_at_s": self.credit_zero_at_s,
             "credit_waits": self.credit_waits,
             "pauses": self.pauses,
             "reconnects": self.reconnects,
@@ -295,6 +301,7 @@ class RecorderClient:
         self._finished = asyncio.Event()
         self._extra_delay_s = 0.0
         self._background: set[asyncio.Future[None]] = set()
+        self._started_at: float | None = None
 
     # ---- chaos / control hooks -------------------------------------------------------------
     def abort_connection(self) -> None:
@@ -320,8 +327,14 @@ class RecorderClient:
     def outstanding(self) -> int:
         return self._last_sent_seq - self.stats.ack_seq
 
+    def _observe_credit(self, credit: int) -> None:
+        self._credit = credit
+        elapsed = None if self._started_at is None else self._clock.monotonic() - self._started_at
+        self.stats.observe_credit(credit, elapsed_s=elapsed)
+
     # ---- main loop ---------------------------------------------------------------------------
     async def run(self) -> SessionStats:
+        self._started_at = self._clock.monotonic()
         while not self._done:
             try:
                 ws = await self._connect(self.cfg.ingest_url)
@@ -515,8 +528,7 @@ class RecorderClient:
     def _on_welcome(self, msg: dict[str, Any], resume: bool) -> None:
         self._epoch = int(msg.get("epoch", 0))
         self.stats.epochs.append(self._epoch)
-        self._credit = int(msg.get("credit", 0))
-        self.stats.observe_credit(self._credit)
+        self._observe_credit(int(msg.get("credit", 0)))
         self._advance_ack(int(msg.get("ack_seq", 0)))
         missing = [(int(a), int(b)) for a, b in msg.get("missing", [])]
         if resume:
@@ -528,15 +540,13 @@ class RecorderClient:
     def _on_message(self, ws: WsTransport, msg: dict[str, Any]) -> None:
         kind = msg.get("t")
         if kind == "ack":
-            self._credit = int(msg["credit"])
-            self.stats.observe_credit(self._credit)
+            self._observe_credit(int(msg["credit"]))
             self._advance_ack(int(msg["ack_seq"]))
         elif kind == "nack":
             self.stats.nacks += 1
             self._queue_resends(expand_ranges(msg.get("missing", [])))
         elif kind == "credit":
-            self._credit = int(msg["credit"])
-            self.stats.observe_credit(self._credit)
+            self._observe_credit(int(msg["credit"]))
         elif kind == "pause":
             self.stats.pauses += 1
             self._pause_until = self._clock.monotonic() + int(msg.get("retry_ms", 1000)) / 1000.0
@@ -610,6 +620,8 @@ class ViewerConfig:
     session_id: str
     watch_url: str
     from_seq: int | None = None
+    chunk_ms: int = 200
+    """Recorder chunk width — maps a final's ``t_end_ms`` back to the chunk seq that carried it."""
     per_message_delay_s: float = 0.0
     """Scenario C: a slow viewer sleeps this long after every message."""
     auto_ack_alerts: bool = False
@@ -724,7 +736,8 @@ class ViewerClient:
         elif kind == "bye":
             if msg.get("reason") == "ended" and self.cfg.stop_on_bye_ended:
                 self._done = True
-            self._from_seq = self.stats.last_final_seq
+            # reconnect asks for the *next* final (same rule as the console: ``lastFinalSeq + 1``)
+            self._from_seq = self.stats.last_final_seq + 1 if self.stats.last_final_seq >= 0 else None
 
     def _on_final(self, msg: dict[str, Any]) -> None:
         seq = int(msg["seq"])
@@ -736,9 +749,20 @@ class ViewerClient:
             return
         self.stats.last_final_seq = seq
         self.stats.finals += 1
-        sent = self.stats.sent_at.get(seq)
+        # §11.2: chunk sent → viewer final for *that utterance's last chunk*. Segment seqs (0-based)
+        # and chunk seqs (1-based) are different axes; the simulator releases a final on the chunk
+        # whose window contains ``t_end_ms`` (same rule as the console: ``t_end_ms → seq``).
+        chunk_seq = last_chunk_seq(msg.get("t_end_ms"), self.cfg.chunk_ms)
+        sent = None if chunk_seq is None else self.stats.sent_at.get(chunk_seq)
         if sent is not None:
             self.stats.final_e2e_ms.append((self._clock.monotonic() - sent) * 1000.0)
+
+
+def last_chunk_seq(t_end_ms: object, chunk_ms: int) -> int | None:
+    """Chunk seq (1-based) whose ``[offset, offset + chunk_ms)`` window contains ``t_end_ms``."""
+    if not isinstance(t_end_ms, int | float) or isinstance(t_end_ms, bool) or chunk_ms <= 0:
+        return None
+    return int(t_end_ms) // chunk_ms + 1
 
 
 def parse_iso(value: object) -> float | None:

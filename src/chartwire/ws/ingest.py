@@ -30,13 +30,12 @@ import orjson
 from fastapi import WebSocket, WebSocketDisconnect
 from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from chartwire.audit import service as audit
 from chartwire.consent import gates
+from chartwire.consent.service import active_scopes_for_patient
 from chartwire.crypto import CryptoError, DekDestroyedError, Envelope, aad
 from chartwire.db.models import Tenant
-from chartwire.db.repo import patients as patients_repo
 from chartwire.db.repo import sessions as sessions_repo
 from chartwire.db.tenant import TenantCtx, tenant_tx
 from chartwire.objectstore import chunk_key
@@ -90,16 +89,6 @@ class _Session:
     kek_ref: str
     dek_wrapped: bytes | None
     scopes: set[str] = field(default_factory=set)
-
-
-async def active_scopes_for_patient(session: AsyncSession, patient_id: UUID) -> set[str]:
-    """WP-E's DB-backed helper when present, else the pure gate over the consent rows."""
-    try:
-        from chartwire.consent.service import active_scopes_for_patient as impl
-    except ImportError:
-        rows = await patients_repo.list_consents(session, patient_id)
-        return gates.active_scopes(rows)
-    return await impl(session, patient_id)
 
 
 class IngestConnection:

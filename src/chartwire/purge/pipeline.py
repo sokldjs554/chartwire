@@ -31,6 +31,7 @@ from chartwire.db.repo import patients as patients_repo
 from chartwire.db.repo import purge as purge_repo
 from chartwire.db.repo import sessions as sessions_repo
 from chartwire.objectstore.base import session_prefix
+from chartwire.ops import metrics
 from chartwire.outbox import writer
 from chartwire.outbox.context import HandlerContext
 from chartwire.outbox.registry import PURGE_COMPLETED
@@ -279,8 +280,4 @@ async def create_job(
 
 
 def _observe(seconds: float) -> None:
-    try:
-        from chartwire.ops import metrics
-    except ImportError:  # pragma: no cover - ops package absent
-        return
     metrics.PURGE_DURATION_SECONDS.observe(seconds)

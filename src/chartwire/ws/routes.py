@@ -17,6 +17,7 @@ from typing import Any
 from fastapi import APIRouter, WebSocket
 from redis.exceptions import RedisError
 
+from chartwire.ops.drain import Drainer
 from chartwire.redis import keys
 from chartwire.redis.session_state import SessionState
 from chartwire.ws.actions import CloseCode
@@ -99,10 +100,6 @@ def _drainer(app: Any) -> Any:
     ``ops.routes.on_startup`` reuses whatever sits at ``app.state.drainer``, so start order does not matter."""
     drainer = getattr(app.state, "drainer", None)
     if drainer is None:
-        try:
-            from chartwire.ops.drain import Drainer
-        except ImportError:  # pragma: no cover - ops package absent: drain is driven by on_shutdown only
-            return None
         drainer = app.state.drainer = Drainer(deadline_s=API_DRAIN_DEADLINE_S)
     return drainer if hasattr(drainer, "on_begin") else None
 

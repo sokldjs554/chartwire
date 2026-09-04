@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from chartwire.auth import passwords
 from chartwire.consent.scopes import SCOPE_ORDER
+from chartwire.consent.service import policy_hash
 from chartwire.core.config import Settings
 from chartwire.core.ids import uuid7
 from chartwire.crypto.blind_index import blind_index
@@ -209,8 +210,11 @@ async def _ensure_patients(
     patients: list[Patient] = []
     for n in range(1, N_PATIENTS + 1):
         pseudonym = v.pseudonym(n)
-        # draw the synthetic identity even when the row exists so later patients stay deterministic
-        name, phone = v.synth_name(rng), v.synth_phone(rng)
+        # draw the synthetic identity even when the row exists so later patients stay deterministic;
+        # the demo patient's *name* is its pseudonym (spec §0.1: every generated patient is
+        # ``가상환자-NNNN``), so the console's exact-match lookup ``GET /v1/patients?name=가상환자-0001`` works
+        _unused_name, phone = v.synth_name(rng), v.synth_phone(rng)
+        name = pseudonym
         birth_year, sex = rng.randint(1958, 2006), rng.choice(("F", "M"))
         patient = by_pseudonym.get(pseudonym)
         if patient is None:
@@ -255,10 +259,6 @@ async def _ensure_consents(
 
 
 def _policy_hash(scopes: list[str], channel: str) -> bytes | None:
-    try:
-        from chartwire.consent.service import policy_hash
-    except ImportError:  # consent service not built yet: the column is nullable
-        return None
     return policy_hash(scopes, channel)
 
 

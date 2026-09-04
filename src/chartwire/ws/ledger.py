@@ -35,11 +35,7 @@ from chartwire.db.models import AudioChunk
 from chartwire.db.models import Session as SessionModel
 from chartwire.db.repo import sessions as sessions_repo
 from chartwire.db.tenant import TenantCtx, tenant_tx
-
-try:  # metrics are optional at import time (ops package is WP-G)
-    from chartwire.ops import metrics as _metrics
-except ImportError:  # pragma: no cover
-    _metrics = None  # type: ignore[assignment]
+from chartwire.ops import metrics as _metrics
 
 log = logging.getLogger(__name__)
 
@@ -211,9 +207,8 @@ class LedgerBatcher:
                     if not item.future.done():
                         item.future.set_result(None)
         self.flushes += 1
-        if _metrics is not None:
-            _metrics.LEDGER_FLUSH_SECONDS.observe(time.perf_counter() - started)
-            _metrics.LEDGER_FLUSH_ROWS.observe(len(batch))
+        _metrics.LEDGER_FLUSH_SECONDS.observe(time.perf_counter() - started)
+        _metrics.LEDGER_FLUSH_ROWS.observe(len(batch))
 
     async def _flush_tenant(self, tenant_id: UUID, items: list[_Pending]) -> None:
         async with tenant_tx(self._engine, TenantCtx.service(tenant_id)) as session:
@@ -230,5 +225,4 @@ class LedgerBatcher:
             await session.execute(_raise_ack_stmt(hints))
 
     def _set_gauge(self) -> None:
-        if _metrics is not None:
-            _metrics.LEDGER_PENDING_ROWS.set(len(self._pending))
+        _metrics.LEDGER_PENDING_ROWS.set(len(self._pending))

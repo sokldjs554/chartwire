@@ -1,5 +1,5 @@
-# CI 골격 (spec §12.3). lint → unit → integration → migrations 는 WP-A 가 정의했고,
-# eval-smoke / load-smoke / cdk / docker / frozen-artifacts 는 WP-H 가 아래 표시된 자리에 추가한다.
+# CI (spec §12.3). lint → unit → integration → migrations (WP-A) → eval-smoke → load-smoke → cdk → docker →
+# frozen-artifacts (WP-H). integration 은 통합자가 정한 직렬 그룹 그대로(docs/dev/AGENT_ENV.md "Test run").
 name: ci
 
 on:
@@ -85,14 +85,30 @@ jobs:
       - run: pip install -e ".[dev]"
       - name: bootstrap roles + databases (idempotent, superuser)
         run: chartwire db bootstrap-roles
-      - name: integration / ws / rls (serial — RLS suites share one database)
-        run: pytest tests/integration tests/ws tests/rls -q -p no:cacheprovider -p no:xdist --junitxml=junit-integration.xml
-      # WP-H: tests/chaos 는 SIGKILL 테스트가 준비되면 위 명령에 추가한다.
+      # Serial, one suite group at a time, each on its own database / Redis index — exactly how the
+      # integrator ran them (docs/dev/AGENT_ENV.md "Test run"). Groups mirror the work packages; the
+      # migrated_db fixture creates/migrates the database named by CHARTWIRE_TEST_DB.
+      - name: rls + migrations (A)
+        run: CHARTWIRE_TEST_DB=chartwire_test_a CHARTWIRE_TEST_REDIS_DB=1 pytest tests/rls tests/integration/test_migrations.py -q -p no:cacheprovider -p no:xdist --junitxml=junit-a.xml
+      - name: ws protocol cores (B, no services)
+        run: CHARTWIRE_TEST_DB=chartwire_test_b CHARTWIRE_TEST_REDIS_DB=2 pytest tests/ws -q -p no:cacheprovider -p no:xdist --junitxml=junit-b0.xml
+      - name: ws ingest/watch/drain e2e (B, uvicorn 8101)
+        run: CHARTWIRE_TEST_DB=chartwire_test_b CHARTWIRE_TEST_REDIS_DB=2 pytest tests/integration/test_ws_state.py tests/integration/test_ws_ingest.py tests/integration/test_ws_watch.py tests/integration/test_ws_drain.py -q -p no:cacheprovider -p no:xdist --junitxml=junit-b1.xml
+      - name: stt-worker + alerts (C, incl. SIGSTOP chaos)
+        run: CHARTWIRE_TEST_DB=chartwire_test_c CHARTWIRE_TEST_REDIS_DB=3 pytest tests/integration/test_alerts.py tests/integration/test_stt_worker.py tests/integration/test_stt_worker_chaos.py -q -p no:cacheprovider -p no:xdist --junitxml=junit-c.xml
+      - name: notes service + REST (D)
+        run: CHARTWIRE_TEST_DB=chartwire_test_d CHARTWIRE_TEST_REDIS_DB=4 pytest tests/integration/test_notes_service.py tests/integration/test_notes_rest.py -q -p no:cacheprovider -p no:xdist --junitxml=junit-d.xml
+      - name: REST / RBAC / middleware / PHI logs / purge (E)
+        run: CHARTWIRE_TEST_DB=chartwire_test_e CHARTWIRE_TEST_REDIS_DB=5 pytest tests/integration/test_rbac_matrix.py tests/integration/test_api_auth_users.py tests/integration/test_api_middleware.py tests/integration/test_api_patients_consents.py tests/integration/test_api_sessions.py tests/integration/test_phi_logs.py tests/integration/test_purge_pipeline.py -q -p no:cacheprovider -p no:xdist --junitxml=junit-e.xml
+      - name: seed + bulk/perf study (F)
+        run: CHARTWIRE_TEST_DB=chartwire_test_f CHARTWIRE_TEST_REDIS_DB=6 pytest tests/integration/test_seed.py tests/integration/test_bulk_small.py -q -p no:cacheprovider -p no:xdist --junitxml=junit-f.xml
+      - name: outbox poller / tickers / cli / ops routes + worker SIGKILL chaos (G)
+        run: CHARTWIRE_TEST_DB=chartwire_test_g CHARTWIRE_TEST_REDIS_DB=7 pytest tests/integration/test_outbox_poller.py tests/integration/test_outbox_tickers.py tests/integration/test_outbox_cli.py tests/integration/test_ops_routes.py tests/chaos -q -p no:cacheprovider -p no:xdist --junitxml=junit-g.xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: junit-integration
-          path: junit-integration.xml
+          path: junit-*.xml
 
   migrations:
     needs: lint
@@ -127,12 +143,147 @@ jobs:
         run: chartwire db schema-dump --check
 
   # ---------------------------------------------------------------------------------
-  # WP-H adds the remaining jobs here (spec §12.3). Names and order are fixed so badges and
-  # `needs:` chains stay stable:
-  #
-  #   eval-smoke:        needs: [unit]        — `chartwire eval all --seed 42 --out /tmp/eval --smoke`, upload JSON
-  #   load-smoke:        needs: [integration] — `chartwire loadtest A --sessions 5 --duration 10`, upload JSON
-  #   cdk:               needs: [lint]        — Node 22, `npx aws-cdk@<pinned> synth`, cdk-nag, `git diff --exit-code infra/cdk/cdk.out`
-  #   docker:            needs: [lint]        — `docker build .`, `docker compose config -q`
-  #   frozen-artifacts:  needs: [lint]        — sha256 of eval/data/* against eval/data/FROZEN.txt (§11.3)
+  # WP-H (spec §11.1 eval-smoke, §11.2 load-smoke, §12.1 cdk, §12.2 docker, §11.3 frozen-artifacts)
   # ---------------------------------------------------------------------------------
+
+  eval-smoke:
+    # seed 7, 20 scripts (§11.1): held-out recall ≥ 0.6, injection leaks 0, paraphrase false-rejection ≤ 5 %,
+    # purge residual 0 (skipped when var/eval/purge.json is absent — the purge eval runs in the measurement
+    # window). The thresholds are asserted by `chartwire eval all --check` (SMOKE_THRESHOLDS); a miss fails
+    # the job on purpose — nothing here lowers a threshold to go green.
+    needs: unit
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: frozen held-out set (the eval refuses a changed file)
+        run: cd src/chartwire/eval/data && sha256sum -c FROZEN.txt
+      - name: chartwire eval all --seed 7 --n 20 --check
+        run: chartwire eval all --seed 7 --n 20 --per-class 20 --check --out "$RUNNER_TEMP/eval"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-smoke
+          path: ${{ runner.temp }}/eval/*.json
+
+  load-smoke:
+    # scenario A, N=20, 30 s (§11.2): api / worker / stt-worker as separate processes, thresholds generous
+    # (ack p95 < 1 s, loss 0). Not pinned (--no-pin): hosted runners do not guarantee 4 cores. The JSON is an
+    # artifact, never a README number (README numbers come from the serial measurement window, §0).
+    needs: integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      CHARTWIRE_SUPERUSER_URL: postgresql://postgres@localhost:5432/postgres
+      CHARTWIRE_DATABASE_URL: postgresql+asyncpg://chartwire_app:chartwire_app@localhost:5432/chartwire_load
+      CHARTWIRE_DATABASE_OWNER_URL: postgresql+psycopg://chartwire_owner:chartwire_owner@localhost:5432/chartwire_load
+      CHARTWIRE_REDIS_URL: redis://localhost:6379/8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: chartwire loadtest A --sessions 20 --duration 30 (creates + migrates chartwire_load itself)
+        run: >-
+          chartwire loadtest A --sessions 20 --duration 30 --no-pin --tail-wait 15
+          --out "$RUNNER_TEMP/loadtest" --eval-dir "$RUNNER_TEMP/loadtest" --workdir "$RUNNER_TEMP/loadtest/work"
+      - name: thresholds — ack p95 < 1000 ms, loss 0, every session ended
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          run = next(r for r in json.load(open(os.environ["RUNNER_TEMP"] + "/loadtest/A.json"))["runs"] if r["n"] == 20)
+          bad = []
+          if run["ack_p95_ms"] is None or run["ack_p95_ms"] >= 1000: bad.append(f"ack p95 {run['ack_p95_ms']} ms")
+          if run["loss"] != 0: bad.append(f"loss {run['loss']}")
+          if run["db"]["sessions_ended"] != run["n"]: bad.append(f"ended {run['db']['sessions_ended']}/{run['n']}")
+          print({k: run[k] for k in ("n", "ack_p50_ms", "ack_p95_ms", "final_e2e_p95_ms", "chunks_per_s", "loss", "dup")})
+          sys.exit(f"load-smoke thresholds missed: {bad}" if bad else 0)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-smoke
+          path: |
+            ${{ runner.temp }}/loadtest/*.json
+            ${{ runner.temp }}/loadtest/results.md
+            ${{ runner.temp }}/loadtest/work/logs/*.log
+
+  cdk:
+    # §12.1: synth + cdk-nag (AwsSolutionsChecks errors fail app.py), template assertions, committed template
+    # unchanged. The Python app runs the same synth `npx aws-cdk@2 synth` would (cdk.json → `python app.py`);
+    # the CLI is exercised too so the committed template is what a `cdk deploy` would use.
+    needs: lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install -e ".[dev,infra]"
+      - name: synth + cdk-nag (python)
+        run: cd infra/cdk && python app.py
+      - name: template assertions
+        run: pytest infra/cdk/tests -q -p no:cacheprovider
+      - name: synth via the CDK CLI (pinned major)
+        run: cd infra/cdk && npx --yes aws-cdk@2 synth --quiet
+      - name: committed template unchanged
+        run: git diff --exit-code -- infra/cdk/cdk.out/ChartwireStack.template.json
+
+  docker:
+    needs: lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker build
+        run: docker build -t chartwire:local .
+      - name: image starts and answers --version as the non-root user
+        run: docker run --rm chartwire:local chartwire --version
+      - name: compose config (default + drain profile)
+        run: |
+          docker compose config -q
+          docker compose --profile drain config -q
+
+  frozen-artifacts:
+    # §11.3: the held-out set hash, README markers in sync with the committed JSON reports, schema dump.
+    # `readme_numbers.py --check` exits 1 while any <!-- row --> in README.md is unmeasured — that is the
+    # intended signal until the serial measurement window has run `--write` (§0 rule 2).
+    needs: lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: held-out risk set unchanged
+        run: cd src/chartwire/eval/data && sha256sum -c FROZEN.txt
+      - name: README numbers in sync with docs/{eval,loadtest,perf}/*.json (stdlib only)
+        run: python scripts/readme_numbers.py --check
+      - name: docs/loadtest/results.md is the rendered form of the JSON reports
+        run: |
+          pip install -e . -q
+          mkdir -p "$RUNNER_TEMP/lt" && cp docs/loadtest/*.json "$RUNNER_TEMP/lt/" 2>/dev/null || true
+          chartwire loadtest results --out "$RUNNER_TEMP/lt" >/dev/null
+          diff -u docs/loadtest/results.md "$RUNNER_TEMP/lt/results.md" || { echo "stale: run \`chartwire loadtest results\`"; exit 1; }

@@ -44,7 +44,9 @@ SPEC_NAMES = {
 
 
 def test_all_names_cover_the_spec_exactly_plus_partition_gauge() -> None:
-    assert set(metrics.ALL_NAMES) - SPEC_NAMES == {"segments_default_partition_rows"}
+    # two names beyond the spec list: §7.2 names no gauge for the default partition, and scenario D's
+    # ``rebuild_count`` (§11.2) is read from ``stt_rebuilds_total`` (WP-C request 6)
+    assert set(metrics.ALL_NAMES) - SPEC_NAMES == {"segments_default_partition_rows", "stt_rebuilds_total"}
     assert set(metrics.ALL_NAMES) >= SPEC_NAMES
     assert len(metrics.ALL_NAMES) == len(set(metrics.ALL_NAMES))
 

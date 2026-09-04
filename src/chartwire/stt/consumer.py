@@ -38,9 +38,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from chartwire.audit import service as audit
 from chartwire.consent import gates
+from chartwire.consent.service import active_scopes_for_patient
 from chartwire.crypto.envelope import Envelope, aad
 from chartwire.crypto.errors import DecryptError, DekDestroyedError
-from chartwire.db.repo import patients as patients_repo
 from chartwire.db.repo import search as search_repo
 from chartwire.db.repo import segments as segments_repo
 from chartwire.db.repo import sessions as sessions_repo
@@ -122,16 +122,6 @@ class ConsumerStats:
     alerts: int = 0
     lag: int = 0
     outcome: str | None = None
-
-
-async def active_scopes_for_patient(session: AsyncSession, patient_id: UUID) -> set[str]:
-    """WP-E's DB-backed helper when present, else the pure gate over the consent rows."""
-    try:
-        from chartwire.consent.service import active_scopes_for_patient as impl
-    except ImportError:
-        rows = await patients_repo.list_consents(session, patient_id)
-        return gates.active_scopes(rows)
-    return set(await impl(session, patient_id))
 
 
 def chunk_aad(tenant_id: UUID, session_id: UUID, seq: int) -> str:
@@ -416,9 +406,7 @@ class SessionConsumer:
         ingest has not ledgered the row yet — wait ``rebuild_wait_s`` and look again (§7.4)."""
         f = self.facts
         self.stats.rebuilds += 1
-        rebuilds = getattr(metrics, "STT_REBUILDS_TOTAL", None)  # registered by WP-G on request (§11.2 D)
-        if rebuilds is not None:
-            rebuilds.inc()
+        metrics.STT_REBUILDS_TOTAL.inc()  # scenario D ``rebuild_count`` (§11.2)
         log.warning(
             "rebuild", extra={"session_id": str(f.session_id), "from_seq": from_seq, "to_seq": to_seq}
         )

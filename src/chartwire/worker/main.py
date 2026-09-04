@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 import importlib
-import inspect
 import logging
 import os
 import socket
@@ -218,17 +218,19 @@ def main(settings: Settings) -> int:
 # --- embedded: api + worker + stt-worker in one process (§12.2 render.yaml) --------------------------
 
 
-async def _run_stt(settings: Settings) -> None:
+async def _run_stt(settings: Settings, *, ctx: HandlerContext, drainer: Drainer) -> int:
+    """The embedded stt-worker: same loop, same pool/context, same drainer, no ops port of its own
+    (the api's ``/metrics`` and ``/readyz`` cover it). Running ``stt_worker.main`` in a thread would give
+    it a private event loop and a drainer nobody signals — SIGTERM would leave the process alive."""
     try:
         stt_worker = importlib.import_module("chartwire.stt.worker")
     except ModuleNotFoundError:
         log.warning("stt worker module not present; embedded stt-worker skipped")
-        return
-    entry = stt_worker.main
-    if inspect.iscoroutinefunction(entry):
-        await entry(settings)
-    else:
-        await asyncio.to_thread(entry, settings)
+        await drainer.wait_drained()
+        return 0
+    cfg = dataclasses.replace(stt_worker.SttWorkerConfig.from_env(settings), http_port=0)
+    result = await stt_worker.run(settings, cfg=cfg, ctx=ctx, drainer=drainer, install_signals=False)
+    return int(result)
 
 
 async def run_all(settings: Settings, *, host: str = "0.0.0.0", port: int = 8000) -> int:
@@ -254,19 +256,24 @@ async def run_all(settings: Settings, *, host: str = "0.0.0.0", port: int = 8000
         run(settings, ctx=ctx, drainer=drainer, health=health, http_port=0, install_signals=False),
         name="worker",
     )
-    stt_task = asyncio.create_task(_run_stt(settings), name="stt-worker")
+    stt_task = asyncio.create_task(_run_stt(settings, ctx=ctx, drainer=drainer), name="stt-worker")
     try:
-        await asyncio.wait({api_task, worker_task}, return_when=asyncio.FIRST_COMPLETED)
+        # any of the three ending (signal drain, crash, port clash) ends the process as a whole
+        await asyncio.wait({api_task, worker_task, stt_task}, return_when=asyncio.FIRST_COMPLETED)
     finally:
         drainer.begin("api_exit")  # no-op when a signal already started the drain
         await drainer.wait_drained()
         await _stop_http(server, api_task)
         with contextlib.suppress(TimeoutError):
-            await asyncio.wait_for(worker_task, timeout=5.0)
+            await asyncio.wait_for(asyncio.gather(worker_task, stt_task, return_exceptions=True), timeout=5.0)
         for task in (worker_task, stt_task):
             task.cancel()
         await asyncio.gather(api_task, worker_task, stt_task, return_exceptions=True)
         drainer.uninstall()
         if deps is None:
             await close_context(ctx)
-    return 0 if worker_task.done() and not worker_task.cancelled() and worker_task.result() == 0 else 1
+    return 0 if all(_clean_exit(t) for t in (worker_task, stt_task)) else 1
+
+
+def _clean_exit(task: asyncio.Task[int]) -> bool:
+    return task.done() and not task.cancelled() and task.exception() is None and task.result() == 0
