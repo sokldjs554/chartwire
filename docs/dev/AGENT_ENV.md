@@ -11,11 +11,15 @@
 - PostgreSQL 16 on `localhost:5432` (pg_trgm, pgcrypto, pg_stat_statements, pgstattuple available; `shared_buffers=2GB`).
   Superuser URL (for `chartwire db bootstrap-roles`, the superuser-leak test and the perf study only):
   `postgresql://app:app@localhost:5432/postgres` (role `app` is a SUPERUSER; password `app`). `su postgres -c psql` also works.
+  **This URL is specific to this box and is NOT in `.env.example`** — that file ships the stock
+  `postgresql://postgres@localhost:5432/postgres` (the value CI uses), which does not work here because
+  `pg_hba.conf` requires a password over TCP for `postgres`. The box value lives in the untracked `.env`
+  (which `scripts/dev_up.sh` prefers), so every command below sources **both** files.
 - Redis 7 on `localhost:6379`.
 
 ## Canonical env vars (also in `.env.example`)
 ```
-CHARTWIRE_SUPERUSER_URL=postgresql://app:app@localhost:5432/postgres
+CHARTWIRE_SUPERUSER_URL=postgresql://app:app@localhost:5432/postgres   # 이 박스 전용 — 추적되지 않는 .env 에 있다
 CHARTWIRE_DATABASE_URL=postgresql+asyncpg://chartwire_app:chartwire_app@localhost:5432/chartwire
 CHARTWIRE_DATABASE_OWNER_URL=postgresql+psycopg://chartwire_owner:chartwire_owner@localhost:5432/chartwire
 CHARTWIRE_REDIS_URL=redis://localhost:6379/0
@@ -39,7 +43,7 @@ One group at a time, each on the DB / Redis index its work package used (`.githu
 same groups in the same order). `tests/unit` and `tests/ws` need no services. Chaos tests are timing-based: run them on an idle box.
 
 ```bash
-source /home/user/.venvs/proj/bin/activate; set -a; . ./.env.example; set +a
+source /home/user/.venvs/proj/bin/activate; set -a; . ./.env.example; . ./.env; set +a   # .env 가 슈퍼유저 URL 을 덮는다
 pytest tests/unit -q                                                                       # no services
 CHARTWIRE_TEST_DB=chartwire_test_b CHARTWIRE_TEST_REDIS_DB=2 pytest tests/ws -q            # hypothesis, no services
 CHARTWIRE_TEST_DB=chartwire_test_a CHARTWIRE_TEST_REDIS_DB=1 pytest tests/rls tests/integration/test_migrations.py -q -p no:xdist

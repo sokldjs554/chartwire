@@ -73,15 +73,6 @@ async def list_open(
     ).all()
 
 
-async def list_for_session(session: AsyncSession, session_id: UUID) -> Sequence[RiskEvent]:
-    stmt = (
-        select(RiskEvent)
-        .where(RiskEvent.session_id == session_id)
-        .order_by(RiskEvent.detected_at, RiskEvent.id)
-    )
-    return (await session.scalars(stmt)).all()
-
-
 async def acknowledge(
     session: AsyncSession, event_id: int, *, by: UUID | None, now: datetime
 ) -> RiskEvent | None:

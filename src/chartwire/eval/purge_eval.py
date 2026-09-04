@@ -33,7 +33,7 @@ from sqlalchemy import select
 from chartwire.core.config import Settings
 from chartwire.crypto.envelope import Envelope
 from chartwire.crypto.errors import DecryptError
-from chartwire.db.models import Note
+from chartwire.db.models import Note, Patient
 from chartwire.db.repo import purge as purge_repo
 from chartwire.db.tenant import TenantCtx, tenant_tx
 from chartwire.eval.harness_env import EvalEnv, eval_env, fixtures
@@ -108,11 +108,27 @@ async def _purge_and_verify(env: EvalEnv, tenant_id: UUID, subject_type: str, su
 
 
 async def _residuals(env: EvalEnv, tenant_id: UUID, session_ids: list[UUID]) -> dict[str, int]:
-    """An independent sweep after every job: rows, objects and Redis keys that must not exist."""
+    """An independent sweep after every job: rows, objects and Redis keys that must not exist.
+
+    The row sweep covers the *patient* identifiers too, not only session-scoped data: the blind index
+    ``patients.name_hmac`` is keyed from the KEK master rather than the patient DEK, so a crypto-shred
+    leaves it intact unless the purge nulls it — and a surviving digest keeps the patient's real name
+    confirmable through ``GET /v1/patients?name=`` after the receipt says it is destroyed."""
     rows = objects = redis_keys = 0
     async with tenant_tx(env.app_engine, TenantCtx.service(tenant_id)) as s:
         for sid in session_ids:
             rows += sum((await purge_repo.count_session_data(s, sid)).values())
+        rows += len(
+            list(
+                (
+                    await s.scalars(
+                        select(Patient.id).where(
+                            Patient.consent_state == "purged", Patient.name_hmac.is_not(None)
+                        )
+                    )
+                ).all()
+            )
+        )
     for sid in session_ids:
         objects += len(await env.objectstore.list(session_prefix(tenant_id, sid)))
         redis_keys += len([k async for k in env.redis.scan_iter(match=keys.sess_pattern(sid), count=200)])

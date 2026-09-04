@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from chartwire.audit import service as audit
 from chartwire.db.models import RiskEvent
 from chartwire.db.repo import risk as risk_repo
+from chartwire.db.repo import sessions as sessions_repo
 from chartwire.db.tenant import TenantCtx, tenant_tx
 from chartwire.ops import metrics
 from chartwire.outbox.runtime import active_tenant_ids
@@ -164,16 +165,28 @@ async def acknowledge_in_tx(
     actor_role: str,
     now: datetime | None = None,
     via: str = "rest",
+    require_own_session: bool = False,
 ) -> RiskEvent | None:
     """DB half of an ack in the caller's transaction: idempotent update + audit ``alert.acked``.
 
     Returns ``None`` when the event is not visible under the caller's tenant context (RLS) — the
     caller answers 404. An already-acknowledged event is returned unchanged and audited again only
     when this call actually acknowledged it.
+
+    ``require_own_session`` applies the "clinician (own)" row rule of ``sessions.clinician_id`` that
+    ``GET /v1/alerts`` already applies, inside this transaction so there is no TOCTOU. RLS scopes
+    ``risk_events`` to the tenant and nothing further, and ``risk_events.id`` is a guessable bigint
+    identity — so without it any clinician could walk the id space and irreversibly acknowledge (and
+    read the ``patient_id``/``category`` of) another clinician's patients' suicide-risk alerts, while
+    ``ZREM alerts:sla`` silently disarmed the escalation for them.
     """
     before = await risk_repo.get_event(session, risk_event_id)
     if before is None:
         return None
+    if require_own_session:
+        owner = await sessions_repo.get_session(session, before.session_id)
+        if owner is None or by is None or owner.clinician_id != by:
+            return None
     if before.acknowledged_at is not None:
         return before
     event = await risk_repo.acknowledge(session, risk_event_id, by=by, now=now or datetime.now(tz=UTC))
@@ -200,12 +213,14 @@ async def ack(
     by: UUID | None,
     actor_role: str = "clinician",
     via: str = "rest",
+    require_own_session: bool = False,
 ) -> RiskEvent | None:
     """Acknowledge an alert end to end: tenant transaction (update + audit) under the actor's own
     role, then ``ZREM alerts:sla`` and ``PUBLISH risk.ack{risk_event_id, by}``.
 
     ``ctx`` needs ``engine``, ``redis`` and ``clock`` (``HandlerContext`` or the api's ``AppDeps``).
-    Returns the event, or ``None`` when it is not visible to this tenant/role.
+    Returns the event, or ``None`` when it is not visible to this tenant/role — including, with
+    ``require_own_session``, an alert on another clinician's session.
     """
     async with tenant_tx(ctx.engine, TenantCtx(tenant_id=tenant_id, user_id=by, role=actor_role)) as s:
         event = await acknowledge_in_tx(
@@ -216,6 +231,7 @@ async def ack(
             actor_role=actor_role,
             now=ctx.clock.now(),
             via=via,
+            require_own_session=require_own_session,
         )
     if event is None:
         return None

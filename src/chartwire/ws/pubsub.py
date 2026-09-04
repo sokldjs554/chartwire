@@ -30,16 +30,26 @@ Callback = Callable[[str, Mapping[str, Any]], None]
 
 DEGRADED: Mapping[str, Any] = {"t": "viewer.degraded"}
 RECONNECT_BACKOFF_S = (0.1, 0.5, 1.0, 2.0, 5.0)
+SUBSCRIBE_ACK_TIMEOUT_S = 2.0
+"""Bound on waiting for Redis to confirm a SUBSCRIBE. On timeout the caller proceeds anyway: the
+viewer's ``_pending`` gap-fill replay and its reconnect are the second line of defence, and blocking
+a connect on a sick Redis is worse than the residual race."""
 
 
 class SubscriberManager:
     def __init__(self, redis: Redis) -> None:
         self._redis = redis
         self._callbacks: dict[UUID, set[Callback]] = defaultdict(set)
-        self._pubsub = redis.pubsub(ignore_subscribe_messages=True)
+        # ignore_subscribe_messages=False: redis-py's handle_message drops subscribe/unsubscribe
+        # frames when *either* the constructor flag or the per-call flag is set, and
+        # :meth:`subscribe` needs to see them. ``_read_loop`` filters them out itself.
+        self._pubsub = redis.pubsub(ignore_subscribe_messages=False)
+        self._acks: dict[str, asyncio.Event] = {}
+        """channel → event set when Redis's SUBSCRIBE confirmation for it is read (see :meth:`subscribe`)."""
         self._task: asyncio.Task[None] | None = None
         self._closed = False
         self.degraded_events = 0
+        self.subscribe_timeouts = 0
 
     def start(self) -> None:
         if self._task is None:
@@ -60,12 +70,41 @@ class SubscriberManager:
         return len(self._callbacks)
 
     async def subscribe(self, sid: UUID, callback: Callback) -> None:
-        """Register ``callback`` for the session; subscribes the channels on first use. Awaiting this
-        returns only after Redis confirmed the subscription, so a following DB replay cannot miss a live event."""
+        """Register ``callback`` for the session; subscribes the channels on first use.
+
+        Awaiting this returns only after Redis *confirmed* the subscription. redis-py's
+        ``PubSub.subscribe`` only writes the SUBSCRIBE bytes and never reads a reply, so without the
+        wait below a viewer could return here while the command was still in flight, have Redis
+        process a PUBLISH before it, and then take a DB replay snapshot older than that publish — the
+        final would appear in neither and be invisible until the next gap-fill or reconnect. The reader
+        task is the only socket reader, so the confirmation frames are resolved there
+        (:meth:`_confirm`) and the waiters are armed *before* the command is written.
+        """
         first = not self._callbacks[sid]
         self._callbacks[sid].add(callback)
         if first:
-            await self._pubsub.subscribe(keys.sess_events(sid), keys.ctl(sid))
+            channels = (keys.sess_events(sid), keys.ctl(sid))
+            waiters = [self._acks.setdefault(c, asyncio.Event()) for c in channels]
+            try:
+                await self._pubsub.subscribe(*channels)
+                await self._await_acks(waiters)
+            finally:
+                for channel in channels:
+                    self._acks.pop(channel, None)
+
+    async def _await_acks(self, waiters: list[asyncio.Event]) -> None:
+        try:
+            async with asyncio.timeout(SUBSCRIBE_ACK_TIMEOUT_S):
+                for waiter in waiters:
+                    await waiter.wait()
+        except TimeoutError:
+            self.subscribe_timeouts += 1
+            log.warning("subscribe confirmation timed out", extra={"channels": len(waiters)})
+
+    def _confirm(self, channel: str) -> None:
+        event = self._acks.get(channel)
+        if event is not None:
+            event.set()
 
     async def unsubscribe(self, sid: UUID, callback: Callback) -> None:
         callbacks = self._callbacks.get(sid)
@@ -97,15 +136,24 @@ class SubscriberManager:
             if not self._pubsub.subscribed:
                 await asyncio.sleep(0.05)
                 continue
-            message = await self._pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
-            if message is None or message.get("type") != "message":
+            message = await self._pubsub.get_message(ignore_subscribe_messages=False, timeout=1.0)
+            if message is None:
+                continue
+            kind = message.get("type")
+            if kind in ("subscribe", "unsubscribe"):  # the reply `subscribe()` waits for
+                self._confirm(str(message["channel"]))
+                continue
+            if kind != "message":
                 continue
             self._dispatch(str(message["channel"]), message["data"])
 
     async def _resubscribe(self) -> None:
+        """Re-arm every channel after a reconnect. This runs in the reader task itself, so it cannot
+        wait for confirmations (nothing would read them); viewers were already told ``viewer.degraded``
+        and recover through the gap-fill replay."""
         with contextlib.suppress(RedisError, OSError):
             await self._pubsub.aclose()
-        self._pubsub = self._redis.pubsub(ignore_subscribe_messages=True)
+        self._pubsub = self._redis.pubsub(ignore_subscribe_messages=False)
         channels = [c for sid in self._callbacks for c in (keys.sess_events(sid), keys.ctl(sid))]
         if channels:
             with contextlib.suppress(RedisError, OSError):

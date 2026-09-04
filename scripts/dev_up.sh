@@ -4,8 +4,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-if [ -f .env ]; then set -a; . ./.env; set +a; elif [ -f .env.example ]; then set -a; . ./.env.example; set +a; fi
-: "${CHARTWIRE_SUPERUSER_URL:=postgresql://postgres@/postgres}"
+# .env.example 이 기본값, 추적되지 않는 .env 가 그 위를 덮는다 (박스마다 다른 슈퍼유저 역할 등).
+# 순서가 반대면 .env 에 한 줄만 적어 둔 박스에서 나머지 기본값이 통째로 사라진다.
+if [ -f .env.example ]; then set -a; . ./.env.example; set +a; fi
+if [ -f .env ]; then set -a; . ./.env; set +a; fi
+: "${CHARTWIRE_SUPERUSER_URL:=postgresql://postgres@localhost:5432/postgres}"
 export CHARTWIRE_SUPERUSER_URL
 
 log() { printf '\033[1;34m[dev_up]\033[0m %s\n' "$*"; }

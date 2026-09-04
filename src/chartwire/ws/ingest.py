@@ -338,7 +338,7 @@ class IngestConnection:
             metrics.WS_CHUNKS_TOTAL.labels("duplicate").inc()
         elif stats.dropped > before[1] or stats.reordered > before[2]:
             metrics.WS_CHUNKS_TOTAL.labels("reordered").inc()
-        if stats.duplicates > before[0] or stats.dropped > before[1]:
+        if (stats.duplicates > before[0] or stats.dropped > before[1]) and not self.core.buffered(header.seq):
             self._payloads.pop(header.seq, None)  # the core did not keep it either
         await self._run(actions)
 
@@ -473,11 +473,16 @@ class IngestConnection:
                 return
             if isinstance(a, act.Store):
                 payload = self._payloads.pop(a.seq, None)
-                if (
-                    payload is None
-                ):  # cannot happen for a well-behaved core; treat as lost and let nack recover
+                if payload is None:
+                    # Invariant (IngestCore.buffered): the shell holds bytes for exactly the seqs the
+                    # core may still Store. A miss is unrecoverable — the seq is already inside
+                    # ``contig_seq`` so ``missing`` can never nack it again — so it is a bug, not a
+                    # recoverable loss. Fail the connection and let the recorder resume from ack_seq.
                     log.error("store without payload", extra={"seq": a.seq})
-                    continue
+                    await self._fail(
+                        CloseCode.DEPENDENCY_UNAVAILABLE, "store without payload", retryable=True
+                    )
+                    return
                 self._receipts.append((a.seq, self.rt.clock.monotonic()))
                 self.store_q.put_nowait(_StoreJob(a.seq, a.offset_ms, a.flags, payload))
             elif isinstance(a, act.Ack):

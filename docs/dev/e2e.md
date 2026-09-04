@@ -52,13 +52,17 @@ SID=$(curl -s "$A/v1/sessions?state=drafted&limit=1" -H "$H" | jq -r '.items[0].
 
 curl -s $A/v1/sessions/$SID -H "$H" | jq '{state, ack_seq, final_seq}'                    # drafted, 757, 757
 curl -s "$A/v1/sessions/$SID/segments?limit=500" -H "$H" | jq 'length'                    # 50 (seq 0..49, 복호화된 text)
+# 경보 id 와 statement id 는 DB identity 값이라 시드를 다시 하지 않는 한 1 부터 시작하지 않는다 — 항상 응답에서 뽑는다
+# (scripts/e2e_check.sh 가 하는 것과 같다: `.statements[-1]` / `.statements[-2]`).
+AID=$(curl -s "$A/v1/alerts?open=1" -H "$H" | jq -r --arg s "$SID" '[.[] | select(.session_id==$s)][0].id')
 curl -s "$A/v1/alerts?open=1" -H "$H" | jq '.[0] | {id, category, severity, segment_seq, sla_deadline_at}'
-curl -s -X POST $A/v1/alerts/1/ack -H "$H" | jq '{acknowledged_at}'
-NID=$(curl -s $A/v1/sessions/$SID/notes/latest -H "$H" | jq -r .id)
-curl -s $A/v1/sessions/$SID/notes/latest -H "$H" | jq '{status, provider, coverage, statement_count, unsupported_count}'   # verified, extractive, 1.0, 14, 0
+curl -s -X POST $A/v1/alerts/$AID/ack -H "$H" | jq '{acknowledged_at}'
+NOTE=$(curl -s $A/v1/sessions/$SID/notes/latest -H "$H"); NID=$(jq -r .id <<<"$NOTE")
+LAST=$(jq -r '.statements[-1].id' <<<"$NOTE"); PREV=$(jq -r '.statements[-2].id' <<<"$NOTE")
+jq '{status, provider, coverage, statement_count, unsupported_count}' <<<"$NOTE"   # verified, extractive, 1.0, <스크립트마다 다름>, 0
 curl -s -X POST $A/v1/notes/$NID/sign -H "$H" | jq '{status, code}'                        # 409 CW-4092 (평가 없음)
-curl -s -X POST $A/v1/notes/$NID/statements/14/decision -H "$H" -H 'content-type: application/json' -d '{"decision":"reject"}' > /dev/null
-curl -s -X POST $A/v1/notes/$NID/statements/13/decision -H "$H" -H 'content-type: application/json' -d '{"decision":"edit","edited_text":"2주 뒤 재진 예정"}' > /dev/null
+curl -s -X POST $A/v1/notes/$NID/statements/$LAST/decision -H "$H" -H 'content-type: application/json' -d '{"decision":"reject"}' > /dev/null
+curl -s -X POST $A/v1/notes/$NID/statements/$PREV/decision -H "$H" -H 'content-type: application/json' -d '{"decision":"edit","edited_text":"2주 뒤 재진 예정"}' > /dev/null
 curl -s -X PUT  $A/v1/notes/$NID/assessment -H "$H" -H 'content-type: application/json' -d '{"text":"임상가 평가(합성 데모)"}' > /dev/null
 curl -s -X POST $A/v1/notes/$NID/sign -H "$H" | jq '{status, legal_hold, retention_until}'  # signed, medical_record, +10년
 

@@ -96,6 +96,12 @@ class IngestCore:
             self._reorder[seq] = (offset_ms, flags)
         return self._nack()
 
+    def buffered(self, seq: int) -> bool:
+        """True while ``seq`` still sits in the reorder buffer, i.e. a later :class:`~chartwire.ws.actions.Store`
+        for it is still possible. The shell holds the bytes for exactly the seqs this returns True for:
+        a duplicate of a *buffered* seq must not evict the payload the eventual ``Store`` will need."""
+        return seq in self._reorder
+
     def on_stored(self, seq: int) -> list[Action]:
         self.stats.stored += 1
         return []

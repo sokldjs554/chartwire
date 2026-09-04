@@ -27,4 +27,4 @@
   같은 쿼리를 superuser 로 실행해 두 테넌트가 보이는 것(픽스처가 진짜 비우회 역할임)을 증명한다.
 - 비용: 테넌트별 폴링. 테넌트 N개면 1초마다 N번의 짧은 트랜잭션. 300 의원 규모의 비용은 시나리오 H 로 **측정**해 README 에 싣는다(추정치 금지).
 - 비용: RLS 정책 안에서는 leakproof 가 아닌 연산자(`ILIKE`, `similarity` 등)에 인덱스를 못 쓴다(§4.6 Q2b). 그래서 검색은 SECURITY DEFINER 경계 뒤로 옮겼다.
-- 관리형 PG(단일 역할, `CHARTWIRE_DB_SINGLE_ROLE=1`)에서는 owner 가 곧 app 이지만 `FORCE` 덕분에 격리는 유지된다. 대신 `segment_search` 의 owner 면제가 사라져 검색이 RLS 경로로 떨어진다(느림, 문서화).
+- 관리형 PG(단일 역할: `chartwire_app` 역할이 없어 `helpers.app_role_exists()` 가 False)에서는 owner 가 곧 app 이지만 `FORCE` 덕분에 격리는 유지된다. `segment_search` 도 이 모드에서만 0006 이 `FORCE` 를 걸므로 owner 면제가 사라져 검색이 RLS 경로로 떨어진다(느림, 문서화). 두 역할 배포에서는 `segment_search` 가 `ENABLE` 만이고 런타임이 소유자가 아니라는 §0.7 이 그 면제를 좁게 유지한다.

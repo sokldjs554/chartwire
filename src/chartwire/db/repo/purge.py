@@ -152,12 +152,25 @@ async def destroy_session_dek(
 
 
 async def destroy_patient_dek(session: AsyncSession, patient_id: UUID, *, now: datetime) -> Patient | None:
+    """Crypto-shred the patient DEK and null every identifier derived from the name — including the
+    blind index.
+
+    ``name_hmac`` is keyed from the *global* KEK master (``HKDF(master, "bidx:{tenant}")``), not from
+    the patient DEK, so destroying the DEK does not touch it: ``GET /v1/patients?name=김철수``
+    recomputes the same digest and ``find_patients_by_name_hmac`` filters on ``(tenant_id, name_hmac)``
+    only, so the purged row would still come back and *confirm* that a person with that exact name was
+    a patient here. The name would remain a queryable identifier after the 파기 영수증 said it was
+    gone. NULL is the fix rather than a query change: ``name_hmac == :digest`` never matches SQL NULL,
+    so purged patients drop out of Q6 for free."""
     stmt = (
         update(Patient)
         .where(Patient.id == patient_id)
         .values(
             name_enc=None,
             phone_enc=None,
+            name_hmac=None,
+            birth_year=None,
+            sex=None,
             dek_wrapped=None,
             dek_destroyed_at=now,
             consent_state="purged",

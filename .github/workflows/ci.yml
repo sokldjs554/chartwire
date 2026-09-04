@@ -268,6 +268,22 @@ jobs:
         run: |
           docker compose config -q
           docker compose --profile drain config -q
+      # `config -q` cannot see a runtime failure: the named `scripts` volume used to be created
+      # root:root while the container runs as uid 10001, so `migrate` died writing the demo scripts and
+      # every service that waits on it never started. Bring the stack up for real and hit the console.
+      - name: compose up (the README's zero-prerequisite path)
+        run: docker compose up -d --build --wait --wait-timeout 300
+      - name: api serves the console and reports ready
+        run: |
+          curl -fsS http://127.0.0.1:8000/readyz
+          curl -fsS http://127.0.0.1:8000/console | grep -q SYNTHETIC
+          docker compose ps            # --wait already required every healthcheck to pass
+      - name: compose logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail 200
+      - name: compose down
+        if: always()
+        run: docker compose down -v
 
   frozen-artifacts:
     # §11.3: the held-out set hash, README markers in sync with the committed JSON reports, schema dump.

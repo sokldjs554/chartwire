@@ -334,6 +334,20 @@ class RecorderClient:
 
     # ---- main loop ---------------------------------------------------------------------------
     async def run(self) -> SessionStats:
+        """Drive one recorder to completion. An unexpected exception is recorded in the stats rather
+        than propagated: a recorder that dies (a ``hello`` that timed out at the knee, say) must show
+        up in ``errors`` and in ``outcome`` at measurement time. Leaving it at the initial
+        ``"running"`` is how a run where 42 of 200 sessions never started once read as loss 0/dup 0."""
+        try:
+            return await self._run()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            self.stats.errors.append((0, f"crashed: {type(exc).__name__}"))
+            self.stats.outcome = f"crashed:{type(exc).__name__}"
+            return self.stats
+
+    async def _run(self) -> SessionStats:
         self._started_at = self._clock.monotonic()
         while not self._done:
             try:

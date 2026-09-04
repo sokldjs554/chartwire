@@ -263,9 +263,14 @@ def test_reports_resolve_through_readme_numbers_registry(tmp_path: Path) -> None
         k for k in rn.KEYS if k.startswith(("load.A", "load.B", "load.C", "load.D", "eval.alert_latency"))
     ]
     unresolved = [k for k in load_keys if values[k] is None]
-    # legitimately null in this fixture: credit never hit 0 (B) and nothing reconnected (D) — the README
-    # rows for those two keys are deleted instead of guessed; every other key resolves
-    assert unresolved == ["load.B.credit_zero_at_s", "load.D.resume_success_pct"], unresolved
+    # legitimately null in this fixture: credit never hit 0 (B), nothing reconnected (D), and every session
+    # reached `ended` so `clients.outcomes` has no `running` bucket (A n=200). The README rows for those
+    # keys are deleted instead of guessed; every other key resolves.
+    assert unresolved == [
+        "load.A.n200.sessions_never_started",
+        "load.B.credit_zero_at_s",
+        "load.D.resume_success_pct",
+    ], unresolved
     assert values["load.A.n200.ack_p95_ms"] == "120" and values["load.D.loss"] == "0"
 
 

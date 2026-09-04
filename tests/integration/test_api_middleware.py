@@ -76,10 +76,17 @@ async def test_idempotency_key_replays_the_first_response(
     mismatch = await api.post("/v1/sessions", json={**body, "script_ref": "s03"}, headers={**clin, **key})
     assert mismatch.status_code == 422 and mismatch.json()["code"] == "CW-4222"
 
+    # The keyspace stays per tenant (§5 ``idem:{tenant}:{key}``), but a record is only ever replayed
+    # to the principal that produced it: a replay never runs the route and therefore never runs
+    # ``rbac.require``, so replaying across principals would hand a role the matrix forbids someone
+    # else's response body (an admin's purge receipt, say) with its 202 intact.
     other_principal = headers(settings, tenant_id=tenant_a.id, role="staff")
     shared = await api.post("/v1/sessions", json=body, headers={**other_principal, **key})
-    assert shared.status_code == 201 and shared.headers.get("idempotent-replayed") == "true"
-    assert shared.json() == first.json(), "keys are scoped per tenant (§5 idem:{tenant}:{key})"
+    assert shared.status_code == 422 and shared.json()["code"] == "CW-4222"
+    assert "idempotent-replayed" not in shared.headers
+    async with tenant_tx(app_engine, TenantCtx.service(tenant_a.id)) as s:
+        count = (await s.execute(select(func.count()).select_from(SessionModel))).scalar_one()
+    assert count == 1, "the rejected cross-principal replay neither replayed nor ran the route"
 
     failed = await api.post(
         "/v1/sessions", json={"patient_id": str(tenant_a.id)}, headers={**clin, "Idempotency-Key": "create-2"}

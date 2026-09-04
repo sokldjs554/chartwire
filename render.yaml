@@ -2,9 +2,13 @@
 # 모든 데이터는 합성(SYNTHETIC)입니다 — 실제 환자 정보 없음.
 #
 # 한 웹 서비스가 `chartwire serve all --embedded` 로 api + worker + stt-worker 태스크를 한 프로세스에서 돌린다
-# (PostgreSQL 풀 5, STT 시뮬레이터 전용). Render 관리형 Postgres 는 역할을 하나만 주므로
-# CHARTWIRE_DB_SINGLE_ROLE=1 로 마이그레이션과 런타임이 같은 역할을 쓴다(RLS 는 여전히 강제 —
-# 이 역할은 테이블 소유자가 아니며 FORCE ROW LEVEL SECURITY 가 적용된다; docs/limitations.md 참고).
+# (PostgreSQL 풀 5, STT 시뮬레이터 전용). Render 관리형 Postgres 는 역할을 하나만 주므로 아래에서
+# CHARTWIRE_DATABASE_URL 과 CHARTWIRE_DATABASE_OWNER_URL 을 같은 connectionString 에 묶는다 —
+# 마이그레이션과 런타임이 같은 역할(= 테이블 소유자)로 접속한다. 단일 역할 적응은 환경변수가 아니라
+# 카탈로그 조회로 동작한다: `migrations/helpers.app_role_exists()` 가 `chartwire_app` 이 없는 것을 보고
+# GRANT 를 건너뛰고, 0006 이 `segment_search` 에도 FORCE ROW LEVEL SECURITY 를 건다. FORCE 덕분에
+# 소유자로 접속해도 테넌트 격리는 유지되지만, `search_segments()` 의 owner 면제가 사라져 검색이 느린
+# RLS 경로(§4.6 Q2b)로 떨어진다 — docs/limitations.md 에 적어 두었다.
 # 무료 티어 한계(콜드 스타트, 무료 DB 만료)는 docs/limitations.md 에 적혀 있고 README 는 동작할 때만 URL 을 보여준다.
 services:
   - type: web
@@ -21,8 +25,6 @@ services:
       - key: CHARTWIRE_ROLE
         value: all
       - key: CHARTWIRE_EMBEDDED
-        value: "1"
-      - key: CHARTWIRE_DB_SINGLE_ROLE
         value: "1"
       - key: CHARTWIRE_DATABASE_URL
         fromDatabase:

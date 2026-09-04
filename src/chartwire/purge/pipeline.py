@@ -21,6 +21,7 @@ from datetime import datetime
 from typing import Any, Final
 from uuid import UUID
 
+import orjson
 from redis.exceptions import RedisError
 
 from chartwire.audit import service as audit
@@ -152,7 +153,7 @@ class _Run:
 
     async def _purge_redis(self, sid: UUID) -> dict[str, int]:
         redis = self.ctx.redis
-        await redis.publish(keys.ctl(sid), '{"t":"purge"}')
+        await redis.publish(keys.ctl(sid), orjson.dumps(CTL_PURGE).decode())
         removed = int(await redis.srem(keys.STT_ACTIVE, str(sid)))
         deleted = 0
         async for key in redis.scan_iter(match=keys.sess_pattern(sid), count=200):

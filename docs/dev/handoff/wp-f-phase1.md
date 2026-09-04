@@ -71,6 +71,10 @@ mypy src/chartwire/synth src/chartwire/eval src/chartwire/perf scripts/readme_nu
 
 ## 3. 실제로 돌려 본 결과 (스크래치 경로, README 용 아님 — Phase 2 에서 `docs/eval` 로 재실행)
 
+> **이 표의 값은 전부 낡았다 (Phase 1 스냅샷).** 배포된 값은 `docs/eval/*.json` 과 README 표 ③ 에 있고, 여기 적힌 것보다 좋다
+> (예: held-out P/R/F1 0.699/0.468/0.560 → 0.76/0.57/0.65; 자살사고 재현율 0.50 → 0.61; fact_recall 0.23 → 0.58;
+> `injection_leaks` 4 → 0). 이 절은 "무엇이 왜 바뀌었는지" 의 기록으로만 읽어야 한다.
+
 `chartwire eval all --seed 42` (200 스크립트, 10,313 발화, ≈40 s):
 
 | 리포트 | 값 | 읽는 법 |

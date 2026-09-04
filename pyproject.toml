@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "정신과 진료실 실시간 음성차팅의 밑바닥 — 무손실 WebSocket 스트리밍, RLS 테넌시, 파기 영수증, 근거 검증형 SOAP 초안"
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [{ name = "sokldjs554" }]
 dependencies = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
@@ -27,6 +28,10 @@ dependencies = [
   "psutil>=5.9",
   "httpx>=0.27",
 ]
+
+[project.urls]
+Homepage = "https://github.com/sokldjs554/chartwire"
+Repository = "https://github.com/sokldjs554/chartwire"
 
 [project.optional-dependencies]
 aws = ["boto3>=1.34", "amazon-transcribe>=0.6"]

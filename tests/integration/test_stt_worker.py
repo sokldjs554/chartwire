@@ -191,10 +191,14 @@ class Producer:
         if ledger:
             await self.ledger(seqs)
 
-    async def end(self, final_seq: int = T01_CHUNKS) -> None:
-        """What the recorder shell does on ``end``: marker first, then ``state='ended'`` (§6.4 rule 6)."""
+    async def end(self, final_seq: int = T01_CHUNKS, *, marker: bool = True) -> None:
+        """What the recorder shell does on ``end``: marker first, then ``state='ended'`` (§6.4 rule 6).
+
+        ``marker=False`` is the state a Redis flush leaves behind when it lands between the two: the
+        session is ``ended`` in PostgreSQL and the marker no longer exists anywhere."""
         s = self.seeded
-        await self.state.xadd_end(s.session_id, self.epoch)
+        if marker:
+            await self.state.xadd_end(s.session_id, self.epoch)
         async with tenant_tx(self.deps.engine, TenantCtx.service(s.tenant_id)) as db:
             await sessions_repo.set_state(db, s.session_id, "ended", now=utcnow())
             await sessions_repo.update_session(db, s.session_id, final_seq=final_seq)
@@ -577,3 +581,75 @@ __all__ = [
     "state_of",
     "wait_for",
 ]
+
+
+async def test_discovery_survives_a_failing_pass(factories, app_engine, redis, settings, tmp_path):
+    """One transient Redis/DB error in ``run_once`` must not kill discovery.
+
+    It used to propagate out of the ``while drainer.accepting`` loop straight into ``shutdown()``,
+    which released every lease — while the process stayed up and ``/readyz`` went back to 200 as soon
+    as Redis recovered. No session was ever discovered again and nothing looked unhealthy. Same guard
+    ``outbox.poller.Poller.run`` has ("a failed pass (DB blip) must not kill the worker").
+    """
+    seeded = await seed(factories, app_engine, settings)
+    deps = make_deps(app_engine, redis, settings, tmp_path / "objects")
+    cfg = worker_config()
+    async with RunningWorker(deps, cfg, "w1") as worker:
+        real_run_once = worker.run_once
+        calls = {"n": 0}
+
+        async def flaky() -> list[UUID]:
+            calls["n"] += 1
+            if calls["n"] <= 2:
+                raise ConnectionError("redis failover")
+            return await real_run_once()
+
+        worker.run_once = flaky  # type: ignore[method-assign]
+        await redis.sadd(keys.STT_ACTIVE, str(seeded.session_id))
+        await wait_for(
+            lambda: _acquired(worker, seeded.session_id),
+            timeout_s=15,
+            what="discovery to recover after two failing passes",
+        )
+        assert calls["n"] > 2
+
+
+async def _acquired(worker: SttWorker, sid: UUID) -> bool:
+    return sid in worker.tasks
+
+
+async def test_flush_after_the_end_marker_still_transcribes(factories, app_engine, redis, settings, tmp_path):
+    """A Redis flush between the recorder's end marker and its delivery must not strand the session.
+
+    The marker is XADDed *before* ``state='ended'`` commits, so a flush right after can take the marker
+    with it. ``_recover_group`` recreates the group at ``$`` — the marker is gone for good, and the
+    ledger rebuild does not replace it. Re-arming the stream would then pin the session forever:
+    ``ended`` is not in ``TERMINAL_STATES``, ``_idle_should_exit`` only exits when the session is absent
+    from ``stt:active`` (which the recovery itself re-populated), and ``session_reaper`` only scans
+    ``recording``/``paused``. So the state stayed ``ended``, no ``session.transcribed`` was ever
+    emitted, no SOAP draft was ever produced, and the lease plus a ``max_sessions`` slot leaked.
+    """
+    seeded = await seed(factories, app_engine, settings)
+    deps = make_deps(app_engine, redis, settings, tmp_path / "objects")
+    producer = Producer(deps, seeded)
+    await producer.hello()
+    await producer.produce(range(1, 16))
+
+    async def at_15() -> bool:
+        return (await offsets_of(app_engine, seeded))[0] >= 15
+
+    async with RunningWorker(deps, worker_config(), "w1") as worker:
+        await wait_for(at_15, timeout_s=20, what="seq 15")
+        await producer.produce(range(16, T01_CHUNKS + 1), stream=False)  # ledgered, never streamed
+        # the recorder finished, and the flush landed between the marker and its delivery: `ended`
+        # is committed in PostgreSQL, and nothing in Redis remembers the marker any more
+        await producer.end(marker=False)
+        await redis.flushdb()
+        await wait_for(transcribed(app_engine, seeded), timeout_s=25, what="transcribed without a marker")
+
+    rows = await segments_of(app_engine, seeded)
+    assert [r.seq for r in rows] == list(range(T01_FINALS)), "the ledger rebuild still produced every final"
+    assert not await redis.sismember(keys.STT_ACTIVE, str(seeded.session_id)), "the slot was released"
+    async with tenant_tx(app_engine, TenantCtx.service(seeded.tenant_id)) as s:
+        assert list((await s.scalars(select(OutboxEvent.event_type))).all()) == ["session.transcribed"]
+    assert worker.outcomes[seeded.session_id] == "transcribed"

@@ -26,7 +26,7 @@
 
 ## 2. 실측 수치
 
-세 표 모두 `scripts/readme_numbers.py --write` 가 `docs/{loadtest,perf,eval}/*.json` 에서 채웁니다(spec §11.4). 측정되지 않은 행은 **삭제**되며, 손으로 적은 숫자는 없습니다. 각 JSON 에는 `{seed, git_sha, generated_at, cpu, ram_gb, python, pg_version}` 헤더가 있습니다.
+세 표 모두 `scripts/readme_numbers.py --write` 가 `docs/{loadtest,perf,eval}/*.json` 에서 채웁니다(spec §11.4). 측정되지 않은 행은 **삭제**되며, 손으로 적은 숫자는 없습니다. 각 JSON 에는 `{seed, git_sha, generated_at, cpu, ram_gb, python, pg_version}` 헤더가 있습니다 — `git_sha` 가 무엇을 뜻하는지는 §2 끝의 **출처(provenance)** 문단을 읽어 주세요.
 
 ### ① 프로토콜 · 부하 — *same host, 4 vCPU, loopback, STT simulator, client-confounded*
 
@@ -48,9 +48,13 @@ api / worker / stt-worker / PostgreSQL / Redis / 부하 클라이언트가 **한
 <!-- /row -->
 <!-- row:load.A.n200.rate -->| A N=200 | **실측** chunk/s · credit 최솟값 | <!-- num:load.A.n200.chunks_per_s -->790<!-- /num --> chunk/s · <!-- num:load.A.n200.credit_min -->17<!-- /num --> |
 <!-- /row -->
+<!-- row:load.A.n200.sessions -->| A N=200 | **끝까지 간 세션 / 시도** | <!-- num:load.A.n200.sessions_ended -->158<!-- /num --> / <!-- num:load.A.n200.sessions_attempted -->200<!-- /num --> |
+<!-- /row -->
+<!-- row:load.A.n200.shed -->| A N=200 | 청크를 한 개도 못 보낸 세션 (`clients.outcomes.running`) | <!-- num:load.A.n200.sessions_never_started -->42<!-- /num --> |
+<!-- /row -->
 <!-- row:load.B -->| B SlowStt 400 ms, N=50 | credit → 0 도달 시각 · `pause` 수 · 스트림 길이 최대 · api RSS 기울기 · loss | <!-- num:load.B.credit_zero_at_s -->39.5<!-- /num --> s · <!-- num:load.B.pause_count -->90<!-- /num --> · <!-- num:load.B.stream_len_max -->301<!-- /num --> · <!-- num:load.B.api_rss_slope_mb_per_min -->2.47<!-- /num --> MB/min · <!-- num:load.B.loss -->0<!-- /num --> |
 <!-- /row -->
-<!-- row:load.C -->| C 느린 뷰어 20 %, N=100 | 녹음기 ack p95 · A 대비 변화 · 폐기된 partial | <!-- num:load.C.ack_p95_ms -->356<!-- /num --> ms · <!-- num:load.C.ack_p95_delta_pct -->-20.9<!-- /num --> % · <!-- num:load.C.dropped_partials -->0<!-- /num --> |
+<!-- row:load.C -->| C 느린 뷰어 20 %, N=100 | 녹음기 ack p95 · A 대비 변화 · 폐기된 partial † | <!-- num:load.C.ack_p95_ms -->356<!-- /num --> ms · <!-- num:load.C.ack_p95_delta_pct -->-20.9<!-- /num --> % · <!-- num:load.C.dropped_partials -->0<!-- /num --> |
 <!-- /row -->
 <!-- row:load.D -->| D 카오스 (소켓 kill 10 %/10 s · Redis flush · stt SIGSTOP 15 s), N=100 | resume 성공률 · superseded 종료 · 원장 rebuild · loss / dup | <!-- num:load.D.resume_success_pct -->100.0<!-- /num --> % · <!-- num:load.D.superseded_closes -->0<!-- /num --> · <!-- num:load.D.rebuild_count -->57<!-- /num --> · <!-- num:load.D.loss -->0<!-- /num --> / <!-- num:load.D.dup -->0<!-- /num --> |
 <!-- /row -->
@@ -60,8 +64,10 @@ api / worker / stt-worker / PostgreSQL / Redis / 부하 클라이언트가 **한
 <!-- /row -->
 
 
-<!-- row:load.A.knee -->**무릎(knee)을 숨기지 않습니다.** ack p95 는 N=50 <!-- num:load.A.n50.ack_p95_ms -->223<!-- /num --> ms → N=100 <!-- num:load.A.n100.ack_p95_ms -->449<!-- /num --> ms 까지 완만하다가 N=200 에서 <!-- num:load.A.n200.ack_p95_ms -->9036<!-- /num --> ms 로 무너지고, 의도한 1,000 chunk/s 대신 <!-- num:load.A.n200.chunks_per_s -->790<!-- /num --> chunk/s 만 나옵니다. 병목은 저장소가 아니라 **파이썬 프로세스 하나가 코어 하나를 넘지 못하는 것**입니다(api 이벤트 루프와 stt-worker 가 각자 프로세스 CPU 천장에 붙고, PostgreSQL·Redis 는 한가합니다 — `docs/loadtest/results.md` 의 자원 표, 코어 핀을 풀어도 같음). 그 지점에서도 `loss` <!-- num:load.A.n200.loss -->0<!-- /num --> · `dup` <!-- num:load.A.n200.dup -->0<!-- /num --> 이고 credit 최솟값은 <!-- num:load.A.n200.credit_min -->17<!-- /num --> 입니다 — **과부하에서 떨어뜨리지 않고 느려집니다**. 수평 확장(api 다중 프로세스 · stt-worker 다중 인스턴스)은 **미실행**이고, 스펙이 시나리오 E 로 남겨 둔 drain 측정도 실행하지 않았습니다.
+<!-- row:load.A.knee -->**무릎(knee)을 숨기지 않습니다.** ack p95 는 N=50 <!-- num:load.A.n50.ack_p95_ms -->223<!-- /num --> ms → N=100 <!-- num:load.A.n100.ack_p95_ms -->449<!-- /num --> ms 까지 완만하다가 N=200 에서 <!-- num:load.A.n200.ack_p95_ms -->9036<!-- /num --> ms 로 무너지고, 의도한 1,000 chunk/s 대신 <!-- num:load.A.n200.chunks_per_s -->790<!-- /num --> chunk/s 만 나옵니다. 병목은 저장소가 아니라 **파이썬 프로세스 하나가 코어 하나를 넘지 못하는 것**입니다(api 이벤트 루프와 stt-worker 가 각자 프로세스 CPU 천장에 붙고, PostgreSQL·Redis 는 한가합니다 — `docs/loadtest/results.md` 의 자원 표, 코어 핀을 풀어도 같음). 그 지점에서도 `loss` <!-- num:load.A.n200.loss -->0<!-- /num --> · `dup` <!-- num:load.A.n200.dup -->0<!-- /num --> 이고 credit 최솟값은 <!-- num:load.A.n200.credit_min -->17<!-- /num --> 입니다 — 다만 **이 `loss` 는 "시작된 세션이 보낸 청크의 원장"에 대한 값**입니다. 같은 실행에서 끝까지 간 세션은 <!-- num:load.A.n200.sessions_ended -->158<!-- /num --> / <!-- num:load.A.n200.sessions_attempted -->200<!-- /num --> 이고, 나머지 세션은 청크를 **한 개도 보내지 못한 채** 끝났습니다(`hello` 가 시간 안에 돌아오지 않았습니다 — 위 표의 마지막 A 행). 실측 <!-- num:load.A.n200.chunks_per_s -->790<!-- /num --> chunk/s 는 끝까지 간 세션 수 × 세션당 5 chunk/s 이고, 목표 1,000 과의 차이는 세션당 속도가 아니라 **세션 유실**입니다. 즉 **이 박스의 무릎에서는 시작된 세션을 떨어뜨리지 않고 느려지지만, 새 세션은 받지 못합니다** — "떨어뜨리지 않는다" 를 시스템 전체에 대한 주장으로 읽으면 안 됩니다. 수평 확장(api 다중 프로세스 · stt-worker 다중 인스턴스)은 **미실행**이고, 스펙이 시나리오 E 로 남겨 둔 drain 측정도 실행하지 않았습니다.
 <!-- /row -->
+
+† **C 의 "폐기된 partial 0" 은 구성상 도달할 수 없는 값입니다.** 세션당 청크 300개에 partial 은 두 청크에 하나이므로 뷰어가 받는 partial 은 최대 150개인데 `partial_q` 는 256칸이고, "느린" 뷰어의 메시지당 200 ms(= 5 msg/s)는 실제 도착률 ≈ 2.9 msg/s 보다 빠릅니다 — 큐가 찰 수 없으므로 drop-oldest 경로가 **한 번도 실행되지 않았다**는 뜻이고, 격리가 동작한다는 근거가 아닙니다. drop-oldest 동작 자체는 `tests/ws/test_watch_queues.py` 가 고정합니다([`docs/limitations.md`](docs/limitations.md) §3).
 
 ### ② 쿼리 플랜 before(0006, RLS 만) / after(0007, 인덱스 + `search_segments()`)
 
@@ -110,11 +116,11 @@ Q2 는 **같은 SQL 이 실행 역할에 따라 다른 플랜을 받는다**는 
 <!-- /row -->
 <!-- row:eval.rls -->| RLS / RBAC 교차 접근 시도 · 누출 | <!-- num:eval.rls.attempts -->252<!-- /num --> · <!-- num:eval.rls.leaks -->0<!-- /num --> | 라우트 × 역할 × 테넌트, `chartwire_app` 으로 접속 |
 <!-- /row -->
-<!-- row:eval.inject -->| 환각 주입 검출률 — fabricated / seq / diagnosis / number / drug / negation / speaker | <!-- num:eval.inject.fabricated.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.seq.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.diagnosis.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.number.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.drug.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.negation.detection_rate -->0.99<!-- /num --> / <!-- num:eval.inject.speaker.detection_rate -->1.00<!-- /num --> | 클래스당 <!-- num:eval.inject.n_per_class -->200<!-- /num --> 변이, 오탐(false flag) <!-- num:eval.inject.false_flag_rate -->0.000<!-- /num --> |
+<!-- row:eval.inject -->| 환각 주입 검출률 — fabricated / seq / diagnosis / number / drug / negation / speaker | <!-- num:eval.inject.fabricated.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.seq.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.diagnosis.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.number.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.drug.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.negation.detection_rate -->0.99<!-- /num --> / <!-- num:eval.inject.speaker.detection_rate -->1.00<!-- /num --> | 클래스당 <!-- num:eval.inject.n_per_class -->200<!-- /num --> 변이, 오탐(false flag) <!-- num:eval.inject.false_flag_rate -->0.000<!-- /num --> — **구성상 높다**: 변이를 검증기와 **같은** 사전·정규식(`DRUGS`/`DIAGNOSES`, `NEGATION_RE`, `NUMERIC_UNIT_RE`)에서 뽑으므로 규칙 배선의 회귀 점검이지 사전 밖 표현에 대한 일반화 근거가 아니다 |
 <!-- /row -->
 <!-- row:eval.paraphrase -->| 패러프레이즈 오거부율 | <!-- num:eval.paraphrase.false_rejection_rate -->0.014<!-- /num --> | 검증기가 정직한 바꿔쓰기를 얼마나 거부하는가 (잔여 원인: `docs/eval/README.md`) |
 <!-- /row -->
-<!-- row:eval.injection -->| 프롬프트 주입 누출 (<!-- num:eval.injection.n_sessions -->20<!-- /num --> 세션) | <!-- num:eval.injection.leaks -->0<!-- /num --> | 주입 발화가 초안 문장·근거로 새어 나온 수 |
+<!-- row:eval.injection -->| 프롬프트 주입 누출 (<!-- num:eval.injection.n_sessions -->20<!-- /num --> 세션) | <!-- num:eval.injection.leaks -->0<!-- /num --> | 주입 발화가 초안 문장·근거로 새어 나온 수. **구성상 낮다** — 규칙 8 정규식을 §9.5 주입 6문장의 표면형까지 넓혔고 평가가 재생하는 문장이 정확히 그 6문장이다. 위험 탐지와 달리 **held-out 주입 세트가 없다**; 회귀 점검용([`docs/grounding.md`](docs/grounding.md) §7) |
 <!-- /row -->
 <!-- row:eval.grounding -->| 추출형 coverage · fact recall · abstain | <!-- num:eval.grounding.coverage -->1.00<!-- /num --> · <!-- num:eval.grounding.fact_recall -->0.58<!-- /num --> · <!-- num:eval.grounding.abstain_rate -->0.00<!-- /num --> | **coverage 1.0 은 구성상 당연**(인용문만으로 초안을 만든다); fact recall 이 정직한 수치 |
 <!-- /row -->
@@ -124,7 +130,9 @@ Q2 는 **같은 SQL 이 실행 역할에 따라 다른 플랜을 받는다**는 
 
 **믿어도 되는 쪽** — 표의 모든 값은 코드가 쓴 JSON(`docs/{loadtest,perf,eval}/*.json`)에서 `scripts/readme_numbers.py` 가 옮긴 것입니다. 손으로 적은 숫자는 없고, 측정되지 않은 행은 지워집니다. CI 의 `frozen-artifacts` 잡이 `--check` 로 문서와 JSON 이 어긋나면 빨간불을 냅니다. 각 리포트에는 시드·git sha·CPU·RAM·PostgreSQL 버전 헤더가 있고, 부하 리포트에는 어느 DB 에서 쟀는지와 **DB 대조**(세션 상태, `stt_offsets`, 세그먼트 seq 연속성, 원장 대비 loss)가 같이 들어 있습니다. 재현 명령은 §10 표에 있습니다.
 
-**믿으면 안 되는 쪽** — ① **같은 호스트**: api·worker·stt-worker·PostgreSQL·Redis·부하 클라이언트가 4 vCPU 한 박스에서 CPU 를 나눠 씁니다. 분리된 인프라의 값이 아닙니다. ② **클라이언트 혼입**: ack·e2e 지연은 클라이언트 시계로 잰 값이라 서버만의 지연이 아니고 부하 클라이언트 자신의 부하도 들어 있습니다. ③ **합성 상한**: 전사는 STT 시뮬레이터, 문장은 문법으로 만든 합성 한국어, 대량 데이터는 벌크 로더의 분포입니다 — 실제 진료 음성·실제 말뭉치에서의 값이 아니고, 그래서 STT 품질과 노트 품질은 **평가하지 않았다**고 적습니다. ④ **실행 간 편차**: 같은 빌드에서도 N=100 의 ack p95 는 실행마다 눈에 띄게 흔들렸습니다. 표 ① 의 C 행 변화율처럼 그 편차보다 작은 차이는 "느린 뷰어의 결합이 **관측되지 않았다**"까지만 읽어야 합니다. ⑤ **held-out 위험 탐지 P/R 은 안전망 지표**입니다 — 동결된 held-out 세트에 대한 규칙의 성능이고, 임상 정확도 주장이 아닙니다(§8). 전체 목록은 [`docs/limitations.md`](docs/limitations.md).
+**출처(provenance) — `git_sha` 는 "측정을 실행한 시점의 HEAD" 이지 "그 코드가 담긴 커밋" 이 아니었습니다.** 커밋된 리포트는 모두 `3162091`(부하 H 는 `bd9b2df`, perf 는 `a66b607`)을 적고 있지만, 그 숫자를 낸 코드(561-stem 위험 사전, redis 풀 상한 512, `stt:active` 잔여 세션 정리)는 **다음 커밋 `d66d051` 에서야 커밋됐습니다** — 측정 당시 작업 트리가 더러웠고 헤더가 그것을 알려 주지 않았습니다. 계산형 평가 6종(`risk_heldout`, `risk_ingrammar`, `grounding`, `inject`, `injection`, `paraphrase`)은 `d66d051` 의 코드로 다시 돌려 **헤더를 뺀 본문이 바이트 단위로 같음**을 확인했으므로 표 ③ 의 값은 배포된 코드의 값입니다. **부하 리포트(A/B/C/D)는 재실행 없이는 같은 확인을 할 수 없고, 이 리뷰에서 재실행하지 않았습니다** — `docs/loadtest/*.json` 의 sha 가 가리키는 커밋을 체크아웃해 `make loadtest-a` 를 돌리면 풀 상한 수정이 없는 코드가 나오므로 값이 재현되지 않습니다. 재현하려면 `d66d051` 이후를 쓰세요. 재발 방지로 `eval/report.py::git_sha()` 는 이제 더러운 트리에 `-dirty` 를 붙입니다([`docs/limitations.md`](docs/limitations.md) §3).
+
+**믿으면 안 되는 쪽** — ① **같은 호스트**: api·worker·stt-worker·PostgreSQL·Redis·부하 클라이언트가 4 vCPU 한 박스에서 CPU 를 나눠 씁니다. 분리된 인프라의 값이 아닙니다. ② **클라이언트 혼입**: ack·e2e 지연은 클라이언트 시계로 잰 값이라 서버만의 지연이 아니고 부하 클라이언트 자신의 부하도 들어 있습니다. ③ **합성 상한**: 전사는 STT 시뮬레이터, 문장은 문법으로 만든 합성 한국어, 대량 데이터는 벌크 로더의 분포입니다 — 실제 진료 음성·실제 말뭉치에서의 값이 아니고, 그래서 STT 품질과 노트 품질은 **평가하지 않았다**고 적습니다. ④ **실행 간 편차**: 같은 빌드에서도 N=100 의 ack p95 는 실행마다 눈에 띄게 흔들렸습니다. 표 ① 의 C 행 변화율처럼 그 편차보다 작은 차이는 "느린 뷰어의 결합이 **관측되지 않았다**"까지만 읽어야 합니다. ⑤ **held-out 위험 탐지 P/R 은 안전망 지표**입니다 — 동결된 held-out 세트에 대한 규칙의 성능이고, 임상 정확도 주장이 아닙니다(§8). ⑥ **표 ③ 의 세 행은 자기 테스트 세트에 맞춰진 값**이라 회귀 점검으로만 읽어야 합니다: in-grammar 위험 회귀(같은 문법), 환각 주입 검출률(변이를 검증기의 사전·정규식에서 뽑음), 프롬프트 주입 누출(규칙 8 정규식이 그 6문장의 표면형을 포함하도록 넓혀졌고 held-out 주입 세트가 없음). 위험 탐지에만 held-out 세트가 있습니다. 전체 목록은 [`docs/limitations.md`](docs/limitations.md).
 
 ## 3. 5분 데모 (모두 합성 데이터)
 
@@ -139,7 +147,7 @@ Q2 는 **같은 SQL 이 실행 역할에 따라 다른 플랜을 받는다**는 
 | ![SOAP 초안과 근거 하이라이트](docs/images/03_soap_draft.png) | ![파기 영수증과 복호화 시도 결과](docs/images/04_purge_receipt.png) |
 | **③ SOAP 초안** — 문장을 누르면 그 문장의 **근거 발화**가 전사에서 하이라이트됩니다. 평가(A)는 AI 가 쓰지 않습니다. | **④ 파기 영수증** — 동의 철회 → 환자 단위 파기 → 해시가 붙은 영수증, 그리고 `verify-decrypt` 의 `unwrap=failed:dek_destroyed`. |
 | ![Ops 패널 — 메트릭과 DLQ](docs/images/05_ops.png) | |
-| **⑤ Ops** — `/metrics` 폴링(ws 연결, 아웃박스 적체, DLQ, stt 지연)과 DLQ 목록. | |
+| **⑤ Ops** — `/metrics` 폴링(ws 연결, 아웃박스 적체, DLQ, stt 지연). **세션이 끝난 뒤에 찍은 화면이라 라이브 카운터는 모두 0 이고, DLQ 목록 버튼은 누르지 않았습니다.** 빨갛게 보이는 `unacked alerts over SLA` 는 데모 세션이 아니라 **공유 개발 DB(`chartwire`)에 남아 있는 부하 테스트·벌크 로더 잔여 데이터**입니다 — 이 게이지는 프로세스 전체·테넌트 합산이고 테넌트당 `OPEN_SCAN_LIMIT=1000` 에서 잘립니다([`docs/limitations.md`](docs/limitations.md) §6). | |
 
 ④·⑤ 는 **admin 계정으로 전환한 뒤**의 화면입니다: 임상의는 동의를 철회할 수 있지만 파기 영수증 조회(`GET /v1/purge-jobs/{id}`)와 `verify-decrypt` 는 `admin`/`auditor` 권한입니다(`auth/rbac.py`). 콘솔은 정적 HTML 한 장(`console/index.html`)으로 §4 의 프로토콜을 브라우저에서 그대로 구현합니다. 같은 흐름의 명령줄 판은 [`docs/dev/e2e.md`](docs/dev/e2e.md), 캡처 재현은 `python scripts/console_screenshots.py` 입니다.
 
@@ -191,6 +199,9 @@ LLM 없는 결정론적 **고재현율 안전망**입니다: 한국어 사전(�
 <!-- row:eval.risk_heldout.plain -->숫자를 그대로 적습니다: 동결된 held-out <!-- num:eval.risk_heldout.n -->300<!-- /num -->문장에서 **정밀도 <!-- num:eval.risk_heldout.precision -->0.76<!-- /num --> · 재현율 <!-- num:eval.risk_heldout.recall -->0.57<!-- /num --> · F1 <!-- num:eval.risk_heldout.f1 -->0.65<!-- /num -->**. 목표였던 "재현율 ≥ 0.6 **그리고** 정밀도 ≥ 0.8" 에 **미달**했고, 기준을 낮추는 대신 그대로 싣습니다. 재현율이 1 이 아니라는 것은 **경보가 오지 않았다고 위험이 없다는 뜻이 아니라는** 뜻입니다 — 이 기능은 임상의의 판단을 대체하는 분류기가 아니라 놓치기 쉬운 발화를 초 단위로 올려 주는 **안전망**이고, 미탐은 남아 있습니다. 남은 오탐의 가장 큰 갈래는 `past`(명시적 현재 부인이 없는 과거 사고)이며, 통째로 억제하면 정밀도는 오르지만 안전망이 얇아지므로 하지 않았습니다. 규칙을 쓴 작업 패키지는 held-out 문장을 **한 번도 열지 않았습니다**(누출 통제: [`docs/eval/README.md`](docs/eval/README.md)).
 <!-- /row -->
 
+<!-- row:eval.risk_heldout.category -->**범주별 재현율** — 이 백엔드의 헤드라인 문제(§1 ③)는 자살 사고이므로 총합만 싣지 않습니다: 자살사고 <!-- num:eval.risk_heldout.category.suicidal_ideation.recall -->0.61<!-- /num --> (탐지 <!-- num:eval.risk_heldout.category.suicidal_ideation.tp -->39<!-- /num --> · **미탐 <!-- num:eval.risk_heldout.category.suicidal_ideation.fn -->25<!-- /num -->**) · 자해 <!-- num:eval.risk_heldout.category.self_harm.recall -->0.67<!-- /num --> · 타해 <!-- num:eval.risk_heldout.category.harm_to_others.recall -->0.50<!-- /num --> · 급성물질 <!-- num:eval.risk_heldout.category.substance_acute.recall -->0.38<!-- /num -->. 총합 재현율이 헤드라인 범주보다 낮은 것은 **급성물질·타해가 끌어내리기 때문**이지 자살 사고가 더 나쁘기 때문이 아닙니다. 재현율은 그 범주 레이블이 붙은 문장에 대한 값입니다; 범주별 **정밀도**는 오탐을 "발화의 레이블" 로 귀속시키므로(발화한 규칙의 범주가 아님) 여기에 싣지 않습니다.
+<!-- /row -->
+
 ## 9. 운영
 
 - **아웃박스** — 도메인 변경과 같은 트랜잭션에 이벤트 행; 워커가 테넌트별 `FOR UPDATE SKIP LOCKED` 로 클레임, 리스 만료 시 회수, 지수 백오프 ±20 %, 8회 실패 → DLQ → `chartwire outbox dlq replay`. 핸들러 효과와 `processed_events` 가 한 트랜잭션이라 **최소 1회 + 멱등** 이지 exactly-once 가 아닙니다.
@@ -200,7 +211,18 @@ LLM 없는 결정론적 **고재현율 안전망**입니다: 한국어 사전(�
 
 ## 10. 5분 실행법과 재현 명령
 
+**컨테이너로 (사전 요구사항: Docker 만)** — `docker-compose.yml` 이 PostgreSQL 16 · Redis 7 · 역할 생성(`docker/initdb/01_roles.sql`) · 마이그레이션 · 데모 시드 · api/worker/stt-worker 를 전부 띄웁니다. 이 경로는 **CI 의 `docker` 잡이 매번 `docker compose up --wait` 로 실제로 띄우고 `/readyz` 와 `/console` 을 확인**합니다(빌드 박스에는 Docker 데몬이 없어 여기서 손으로 확인하지는 못했습니다).
+
 ```bash
+docker compose up --build          # → http://127.0.0.1:8000/console (clinician@demo.clinic / demo1234!)
+```
+
+**소스에서 (사전 요구사항: Python 3.11+, PostgreSQL 16 with `pg_trgm`·`pgcrypto`, Redis 7 — `make dev-up` 은 이 둘을 설치하지 않고 기동만 합니다)**
+
+```bash
+python3.11 -m venv .venv && source .venv/bin/activate
+pip install -e '.[dev]'            # `chartwire` 콘솔 스크립트 설치 — dev-up 이 이것을 호출한다
+cp .env.example .env               # 슈퍼유저 역할 이름이 `postgres` 가 아니면 .env 에서 바꾼다
 make dev-up      # PostgreSQL/Redis 기동 → 역할 생성 → 마이그레이션 → 데모 시드(합성)
 make demo        # api + worker + stt-worker 한 프로세스 → http://127.0.0.1:8000/console (clinician@demo.clinic / demo1234!)
 chartwire simulate --script s01 --speed 4 --drop-at 30s   # 프로토콜 준수 녹음기 + 뷰어, 30 s 에 소켓 강제 절단 → resume
@@ -241,3 +263,7 @@ chartwire simulate --script s01 --speed 4 --drop-at 30s   # 프로토콜 준수 
 | 더 나은 구조 고민 | `docs/adr/0001..0005` |
 
 기존 저장소와의 관계: aegis-sql(SQL 안전 검사)과 DeFactoRule(규칙 기반 사실 검증)에서 "LLM 을 안전 경로에 두지 않고 결정론적 규칙으로 검증한다"는 원칙을 가져와 위험 탐지와 근거 검증기에 그대로 적용했습니다.
+
+---
+
+만든 사람: [@sokldjs554](https://github.com/sokldjs554) — 이 저장소(`github.com/sokldjs554/chartwire`)의 이슈로 연락할 수 있습니다.

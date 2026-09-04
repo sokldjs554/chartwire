@@ -9,7 +9,12 @@ Life cycle of one key:
 3. :func:`release` — drop the marker when the request failed before producing a storable response
    (5xx, exception), so the client can retry with the same key.
 
-The stored body is the exact response the same principal already received; nothing else is kept.
+The stored body is the exact response the same principal already received; nothing else is kept —
+and the record carries that principal's ``sub`` so it can only ever be replayed *to them*. The key
+space is per tenant (``idem:{tenant}:{key}``, spec §5), but a replay bypasses the route and therefore
+``rbac.require``: without the owner check a ``staff`` user who guessed an admin's key would be handed
+the admin's purge receipt with a 202 the RBAC matrix forbids. A mismatch is a key collision between
+two principals, so it is rejected exactly like a body mismatch.
 """
 
 from __future__ import annotations
@@ -34,6 +39,8 @@ MAX_KEY_LEN: Final = 128
 class Record:
     state: Literal["pending", "done"]
     body_hash: str
+    sub: str = ""
+    """``Principal.sub`` of the request that claimed the key; a replay to any other principal is a 422."""
     status: int = 0
     content_type: str = ""
     body: bytes = b""
@@ -43,6 +50,7 @@ class Record:
             {
                 "state": self.state,
                 "body_hash": self.body_hash,
+                "sub": self.sub,
                 "status": self.status,
                 "content_type": self.content_type,
                 "body": base64.b64encode(self.body).decode("ascii"),
@@ -55,6 +63,7 @@ class Record:
         return cls(
             state=data["state"],
             body_hash=str(data["body_hash"]),
+            sub=str(data.get("sub", "")),
             status=int(data.get("status", 0)),
             content_type=str(data.get("content_type", "")),
             body=base64.b64decode(data.get("body", "")),
@@ -69,9 +78,11 @@ def valid_key(key: str) -> bool:
     return 0 < len(key) <= MAX_KEY_LEN and key.isprintable() and " " not in key
 
 
-async def begin(redis: Redis, tenant: UUID | str, key: str, request_body_hash: str) -> Record | None:
+async def begin(
+    redis: Redis, tenant: UUID | str, key: str, request_body_hash: str, *, sub: str = ""
+) -> Record | None:
     """Claim ``key`` for this request. ``None`` = claimed (first use); otherwise the existing record."""
-    marker = Record(state=PENDING, body_hash=request_body_hash)
+    marker = Record(state=PENDING, body_hash=request_body_hash, sub=sub)
     claimed = await redis.set(
         keys.idempotency(tenant, key), marker.to_json(), nx=True, ex=keys.TTL_IDEMPOTENCY
     )
@@ -87,11 +98,12 @@ async def complete(
     key: str,
     *,
     request_body_hash: str,
+    sub: str = "",
     status: int,
     content_type: str,
     body: bytes,
 ) -> None:
-    record = Record(DONE, request_body_hash, status, content_type, body)
+    record = Record(DONE, request_body_hash, sub, status, content_type, body)
     await redis.set(keys.idempotency(tenant, key), record.to_json(), ex=keys.TTL_IDEMPOTENCY)
 
 

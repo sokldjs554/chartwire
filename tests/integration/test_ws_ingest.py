@@ -430,3 +430,33 @@ async def test_purge_control_message_closes_4012(server, redis, seeded):
     while (msg := await rec.recv())["t"] != "closed":
         msgs.append(msg)
     assert any(m["t"] == "error" and m["code"] == 4012 for m in msgs) and rec.close_code == 4012
+
+
+async def test_duplicate_of_a_buffered_chunk_keeps_its_payload(
+    server, redis, seeded, app_engine, objects_dir
+):
+    """A recorder re-sending its unacked window (docs/protocol.md §4.1 rule 3) must not cost the chunks
+    that are still parked in the reorder buffer.
+
+    The shell caches every frame's bytes until the core emits ``Store`` for that seq. It used to drop
+    the cache whenever the core counted a *duplicate* — but the core counts a duplicate for a seq it is
+    still holding in ``_reorder``, so once the gap filled it emitted ``Store`` for a chunk whose bytes
+    were gone: the chunk was silently never written, ``contig_seq`` had already moved past it so
+    ``missing`` could never nack it again, ``ack_seq`` froze and the session never reached ``ended``.
+    """
+    rec = Recorder(server.url)
+    await rec.connect()
+    await rec.hello(await ingest_ticket(redis, seeded))
+    for seq in (1, 2, 4, 5):  # 3 is "lost in the Wi-Fi"
+        await rec.send_frame(seq)
+    while not any(m["t"] == "nack" for m in rec.received):
+        assert (await rec.recv())["t"] != "closed"
+    for seq in (4, 5):  # the ring buffer re-sends the whole unacked window
+        await rec.ws.send(frame(seq, rec.seed))
+    await asyncio.sleep(0.2)
+    await rec.ws.send(frame(3, rec.seed))
+    bye = await rec.stream(upto=5)
+    assert bye == {"t": "bye", "reason": "ended", "ack_seq": 5}
+    await assert_ledger_complete(app_engine, seeded, objects_dir, 5)
+    row = await session_row(app_engine, seeded)
+    assert (row.state, row.ack_seq, row.final_seq) == ("ended", 5, 5)

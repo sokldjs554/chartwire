@@ -2,8 +2,16 @@
 
 Takes a base provider's (verified) draft and applies one mutation per requested class, each
 imitating a way an LLM goes wrong. The applied mutations are exposed on ``last_applied`` so the
-eval can ask, per class, whether the verifier flagged the mutated statement — the detection rate
-is *measured*, never assumed.
+eval can ask, per class, whether the verifier flagged the mutated statement.
+
+**Read the resulting detection rates as a regression check on the rules, not as generalization.**
+The mutations are drawn from the verifier's own tables — ``DRUGS_LONGEST_FIRST`` (rule 4),
+``DIAGNOSES_LONGEST_FIRST`` (rule 7), ``NUMERIC_UNIT_RE`` (rule 3), ``NEGATION_RE`` (rule 5) — so a
+swap can essentially only escape by coinciding with a quote. The failure mode the eval exists to
+measure — a real model hallucinating a drug the lexicon does not list (brand names: 자낙스·프로작),
+or negating with a marker ``NEGATION_RE`` does not know (부인·중단·끊었-) — is invisible to the
+mutator and to the verifier alike. ``docs/limitations.md`` §1 names what the verifier structurally
+cannot see; a held-out out-of-lexicon set is the thing that would turn that caveat into a number.
 """
 
 from __future__ import annotations

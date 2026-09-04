@@ -73,6 +73,8 @@ services:
     ports:
       - "8000:8000"          # REST /v1, WS /ws/v1, 콘솔 /console
 
+  # 두 워커는 8000 을 열지 않는다 (ops 서버만 각각 9001 / 9002). 이미지의 HEALTHCHECK 는 8000 을
+  # 찌르므로 그대로 두면 두 컨테이너가 영구히 unhealthy 로 표시된다 — 서비스별로 실제 포트를 덮어쓴다.
   worker:
     <<: *app
     environment:
@@ -80,6 +82,12 @@ services:
       CHARTWIRE_ROLE: worker
       CHARTWIRE_NODE_ID: worker-1
       CHARTWIRE_WORKER_PORT: "9001"   # /healthz /readyz /metrics
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:9001/healthz', timeout=2).status == 200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      start_period: 20s
+      retries: 3
 
   stt-worker:
     <<: *app
@@ -88,6 +96,12 @@ services:
       CHARTWIRE_ROLE: stt-worker
       CHARTWIRE_NODE_ID: stt-1
       CHARTWIRE_STT_WORKER_PORT: "9002"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:9002/healthz', timeout=2).status == 200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      start_period: 20s
+      retries: 3
 
   # ---- profile `drain` (시나리오 E, 선택): api 2 레플리카 + nginx 업스트림. `docker compose --profile drain up`
   api-drain:

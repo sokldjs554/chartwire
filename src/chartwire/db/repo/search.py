@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from sqlalchemy import delete, func, select, text
+from sqlalchemy import delete, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,8 +80,3 @@ async def index_segment(
 async def delete_for_session(session: AsyncSession, session_id: UUID) -> int:
     result = await session.execute(delete(SegmentSearch).where(SegmentSearch.session_id == session_id))
     return int(result.rowcount or 0)
-
-
-async def count_for_session(session: AsyncSession, session_id: UUID) -> int:
-    stmt = select(func.count()).select_from(SegmentSearch).where(SegmentSearch.session_id == session_id)
-    return int((await session.execute(stmt)).scalar_one())

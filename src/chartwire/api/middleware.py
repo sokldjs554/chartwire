@@ -362,10 +362,18 @@ class Idempotency:
         body = await _drain_body(receive)
         digest = idempotency.body_hash(body)
         tenant = str(principal.tenant_id)
-        existing = await idempotency.begin(redis, tenant, key, digest)
+        existing = await idempotency.begin(redis, tenant, key, digest, sub=principal.sub)
         if existing is not None:
             if existing.body_hash != digest:
                 exc = AppError("CW-4222", 422, "같은 Idempotency-Key 로 다른 본문을 보냈습니다")
+                await send_problem(send, exc, rid)
+                return
+            if existing.sub != principal.sub:
+                # The key space is per tenant, but a replay never runs the route — so it never runs
+                # ``rbac.require`` either. Replaying another principal's stored response would hand,
+                # say, a ``staff`` user the admin's purge receipt at 202. Two principals colliding on
+                # one key is the same client error as reusing a key for another body.
+                exc = AppError("CW-4222", 422, "같은 Idempotency-Key 를 다른 사용자가 이미 사용했습니다")
                 await send_problem(send, exc, rid)
                 return
             if existing.state == idempotency.PENDING:
@@ -402,6 +410,7 @@ class Idempotency:
                 tenant,
                 key,
                 request_body_hash=digest,
+                sub=principal.sub,
                 status=status,
                 content_type=captured["content_type"],
                 body=b"".join(captured["chunks"]),

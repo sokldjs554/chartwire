@@ -19,7 +19,12 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def git_sha(root: Path = REPO_ROOT) -> str:
-    """Current commit sha; ``GITHUB_SHA`` in CI; ``"unknown"`` outside a checkout."""
+    """Current commit sha; ``GITHUB_SHA`` in CI; ``"unknown"`` outside a checkout.
+
+    A dirty working tree gets a ``-dirty`` suffix. Without it the header is a promise the repository
+    cannot keep: a report generated from uncommitted code names a commit that does not contain the
+    code that produced it, and the README's "매 숫자는 git sha 로 추적된다" claim quietly becomes false.
+    ``-dirty`` makes that self-announcing instead."""
     env = os.environ.get("GITHUB_SHA")
     if env:
         return env
@@ -29,7 +34,20 @@ def git_sha(root: Path = REPO_ROOT) -> str:
         )
     except (OSError, subprocess.SubprocessError):
         return "unknown"
-    return out.stdout.strip() or "unknown"
+    sha = out.stdout.strip()
+    if not sha:
+        return "unknown"
+    return f"{sha}-dirty" if _worktree_dirty(root) else sha
+
+
+def _worktree_dirty(root: Path) -> bool:
+    try:
+        out = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=root, capture_output=True, text=True, check=True, timeout=10
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return bool(out.stdout.strip())
 
 
 def cpu_description() -> str:

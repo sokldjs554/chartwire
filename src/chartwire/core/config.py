@@ -27,10 +27,10 @@ class Settings(BaseSettings):
     """Runtime role ``chartwire_app`` (NOBYPASSRLS). The only URL runtime processes use."""
     database_owner_url: str = "postgresql+psycopg://chartwire_owner:chartwire_owner@localhost:5432/chartwire"
     """``chartwire_owner``: migrations, schema dump, fixtures. Never used by runtime processes."""
-    superuser_url: str | None = "postgresql://app:app@localhost:5432/postgres"
-    """Superuser: ``db bootstrap-roles``, the perf study and the superuser-leak test only."""
-    db_single_role: bool = False
-    """Managed-PG fallback (§4.1): app and owner are the same role; FORCE RLS keeps isolation."""
+    superuser_url: str | None = "postgresql://postgres@localhost:5432/postgres"
+    """Superuser: ``db bootstrap-roles``, the perf study and the superuser-leak test only. The default
+    is the stock PostgreSQL 16 superuser (the value CI uses); a box whose superuser role is named
+    differently overrides it in its own untracked ``.env``, never in ``.env.example``."""
     owner_password: str = "chartwire_owner"
     app_password: str = "chartwire_app"
 

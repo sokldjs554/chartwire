@@ -10,12 +10,17 @@ RUN pip install --no-cache-dir --upgrade pip wheel \
 FROM python:3.11-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
     CHARTWIRE_OBJECTSTORE=localfs:/var/lib/chartwire/objects
+# /var/lib/chartwire/scripts is a named volume in docker-compose. The image must create and own the
+# mount point here: Docker copies the existing directory's ownership up into a fresh named volume, but
+# an absent path is created root:root — and the container runs as uid 10001, so `chartwire seed --demo`
+# would fail with PermissionError writing the demo scripts, and every service that waits on `migrate`
+# would never start.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends tini \
  && rm -rf /var/lib/apt/lists/* \
  && groupadd --system --gid 10001 chartwire \
  && useradd --system --uid 10001 --gid chartwire --home-dir /app --no-create-home chartwire \
- && mkdir -p /app /var/lib/chartwire/objects \
+ && mkdir -p /app /var/lib/chartwire/objects /var/lib/chartwire/scripts \
  && chown -R chartwire:chartwire /app /var/lib/chartwire
 COPY --from=build /wheels /wheels
 RUN pip install --no-index --find-links=/wheels chartwire[aws] && rm -rf /wheels

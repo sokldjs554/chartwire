@@ -55,6 +55,9 @@ RESERVED_CONNECTIONS = 32
 QUARANTINE_AFTER = 3
 """Consecutive crashes of the same session before this worker stops re-acquiring it for a while."""
 QUARANTINE_S = 60.0
+DISCOVERY_FAILURES_BEFORE_DRAIN = 10
+"""Consecutive failed discovery passes before the worker drains itself: a loop that cannot reach
+Redis or PostgreSQL discovers nothing, and a silently idle stt-worker is worse than a restarted one."""
 
 _RENEW_LUA = """
 local v = redis.call('GET', KEYS[1])
@@ -249,6 +252,9 @@ class SttWorker:
         self._renew = deps.redis.register_script(_RENEW_LUA)
         self._release = deps.redis.register_script(_RELEASE_LUA)
         self._last_renew = deps.clock.monotonic()
+        self._pass_failures = 0
+        """Consecutive failed discovery passes; :data:`DISCOVERY_FAILURES_BEFORE_DRAIN` of them drain
+        the worker so a dead loop becomes visible to ``/readyz`` instead of a silently idle process."""
         self._stopped = asyncio.Event()
 
     # --- lease -------------------------------------------------------------------------------------
@@ -399,14 +405,37 @@ class SttWorker:
         metrics.STT_LAG_CHUNKS.set(sum(c.stats.lag for c in self.consumers.values()))
 
     async def run(self) -> None:
-        """Discovery loop until the drainer starts; then stop consumers and release the leases."""
+        """Discovery loop until the drainer starts; then stop consumers and release the leases.
+
+        One bad pass must not kill discovery. Without the guard a single ``ConnectionError`` out of
+        ``smembers(stt:active)`` (a Redis failover, a reset connection) unwound this loop into
+        ``shutdown()``, releasing every lease — while the process stayed up and ``/readyz`` went back
+        to 200 as soon as Redis recovered, so no session was ever discovered again and nothing looked
+        unhealthy. Same shape as ``outbox.poller.Poller.run``. The tick wait stays outside the guard
+        so a persistently failing dependency backs off instead of hot-spinning."""
         try:
             while self.drainer.accepting:
-                await self._reap()
-                await self.run_once()
-                if self.deps.clock.monotonic() - self._last_renew >= self.cfg.renew_every_s:
-                    self._last_renew = self.deps.clock.monotonic()
-                    await self._renew_all()
+                try:
+                    await self._reap()
+                    await self.run_once()
+                    if self.deps.clock.monotonic() - self._last_renew >= self.cfg.renew_every_s:
+                        self._last_renew = self.deps.clock.monotonic()
+                        await self._renew_all()
+                    self._pass_failures = 0
+                except asyncio.CancelledError:
+                    raise
+                except Exception:  # a failed pass (Redis/DB blip) must not kill discovery
+                    self._pass_failures += 1
+                    log.exception(
+                        "stt discovery pass failed",
+                        extra={"worker_id": self.worker_id, "consecutive": self._pass_failures},
+                    )
+                    if self._pass_failures >= DISCOVERY_FAILURES_BEFORE_DRAIN:
+                        log.error(
+                            "stt discovery failing persistently; draining so the orchestrator restarts us",
+                            extra={"worker_id": self.worker_id, "consecutive": self._pass_failures},
+                        )
+                        self.drainer.begin("discovery_failed")
                 with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(self.drainer.wait_draining(), timeout=self.cfg.discovery_s)
         finally:

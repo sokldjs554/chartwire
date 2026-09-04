@@ -180,6 +180,61 @@ Phase 2 — 유휴 박스에서 **직렬** 측정(bulk → perf → eval → loa
 - **임베디드 stt-worker 의 SIGTERM 종료를 이번에 끝까지 확인했다** — `drain started` → `ws drain started` → `stt-worker stopped {clean:true}` →
   `worker stopped {clean:true}` → `Finished server process`(통합자가 §7 에 미확인으로 남겨 둔 항목).
 
+### 적대적 리뷰 ([`review-fixes.md`](dev/handoff/review-fixes.md)) — 외부 리뷰가 잡은 결함
+- **중복이 살아 있는 청크의 바이트를 지웠다** — 셸은 코어가 `Store` 를 낼 수 있는 seq 의 페이로드를 들고 있어야 하는데,
+  코어가 **reorder 버퍼에 든 seq 의 재전송**도 "중복" 으로 세는 바람에 셸이 캐시를 버렸다. 구멍이 메워지면 `Store` 가
+  바이트 없이 발행돼 청크가 조용히 유실되고, `contig_seq` 가 이미 지나가 `missing` 이 다시 요청할 수 없어 `ack_seq` 가
+  영구 정지한다(녹음기는 소켓을 끊어야만 회복). `IngestCore.buffered()` 로 불변식을 복원.
+  **옛 주석("treat as lost and let nack recover")은 거짓이었다** — 그 연결에서 복구는 불가능하다.
+- **`_rebuild` 가 중단돼도 오프셋이 구멍을 넘어갔다** — 드레인/리스 상실로 rebuild 가 중단된 뒤에도 현재 엔트리를
+  처리해 `last_chunk_seq` 를 올렸고, `upsert_stt_offset` 의 `GREATEST` 가 그것을 영구화해 **건너뛴 청크를 어느 워커도
+  전사하지 않는다**. 구멍이 남아 있으면 엔트리를 unack 으로 두고 반환하도록 수정.
+- **`_rebuild` 에 마감도 소유권 확인도 없었다** — 에포크 펜싱으로 원장에 영영 닿지 못한 seq 하나가 컨슈머를 200 ms
+  폴링 루프에 무한히 가두고 리스와 `max_sessions` 슬롯을 함께 잡는다. `rebuild_deadline_s` + `_check_owner()`.
+- **디스커버리 루프에 패스별 가드가 없었다** — Redis 장애 조치 한 번이 루프를 죽이고 모든 리스를 놓아준 뒤 프로세스는
+  살아 `/readyz` 200 을 낸다: 세션이 다시는 발견되지 않는데 아무 신호가 없다. `Poller.run` 과 같은 가드 + 연속 실패
+  10회면 스스로 드레인.
+- **end 마커를 잃은 세션이 영구히 `ended` 로 좌초했다** — 마커 XADD 와 `state='ended'` 커밋 사이의 Redis flush.
+  `ended` 는 `TERMINAL_STATES` 가 아니고, `_idle_should_exit` 는 컨슈머 자신이 다시 넣은 `stt:active` 때문에 발화하지
+  않으며, `session_reaper` 는 `recording`/`paused` 만 본다 → `session.transcribed` 도 SOAP 초안도 영영 없다.
+  `_recover_group` 이 `ended` 를 알리고 호출자가 `_on_end(None)` 을 실행. (`SADD stt:active` 를 조건부로 만들었더니
+  `SttWorker.owns` 가 사라진 리스를 되찾지 못해 rebuild 중에 소유권을 잃었다 — 무조건 SADD 하고 `_on_end` 가 SREM 한다.)
+- **`subscribe` 가 확인을 기다리지 않았다** — redis-py 의 `PubSub.subscribe` 는 바이트만 쓰고 응답을 읽지 않으므로
+  "구독 확인 뒤 반환" 주장이 거짓이었고, 그 창에서 PUBLISH 된 final 은 replay 스냅샷에도 없어 뷰어에게 보이지 않는다.
+  리더가 확인 프레임을 푸는 방식으로 **주장을 참으로** 만들었다. 함정: redis-py 는 **생성자** 플래그
+  `ignore_subscribe_messages=True` 가 켜져 있으면 호출 인자와 무관하게 subscribe 프레임을 버린다.
+- **엔진에 `hide_parameters` 가 없었다** — 모든 문 오류가 바인드 파라미터를 문자열에 담고, `segment_search.text` 는
+  평문 전사다. 그 문자열이 `log.exception`/`exc_info` 로 로그에 간다(§0.9). 성공 경로만 보던 PHI 로그 테스트가
+  이것을 놓쳤다.
+- **멱등성 재생이 RBAC 을 우회했다** — 레코드가 테넌트 키로만 저장돼, 같은 테넌트의 아무 주체가 남의 키를 제시하면
+  라우트(`rbac.require`)를 아예 실행하지 않고 그 응답을 받았다(`staff` 가 admin 의 파기 영수증을 202 로).
+  **기존 테스트가 그 동작을 "keys are scoped per tenant" 라며 고정하고 있었다.**
+- **평문 전사 테이블만 FORCE RLS 가 아니었다** — `segment_search` 의 owner 면제는 런타임이 소유자가 **아닐 때만**
+  좁은데, 단일 역할 배포에서는 런타임이 소유자다. 소유자 단언 테스트는 빈 테이블에 대한 것이라 무의미했다
+  (두 테넌트의 행을 먼저 넣도록 고쳤다).
+- **파기가 블라인드 인덱스를 남겼다** — `name_hmac` 은 전역 KEK master 파생이라 DEK crypto-shred 와 무관하다.
+  영수증이 "파기됨" 이라고 한 뒤에도 `GET /v1/patients?name=` 으로 이름이 확인 가능했고, `purge_verify` 도
+  `purge_eval` 의 잔존 스윕도 그것을 보지 않았다.
+- **경보 ack 에 세션 소유 검사가 없었다** — `risk_events.id` 가 순차 bigint 라, 임상의가 id 를 훑어 다른 임상의 환자의
+  자살 위험 경보를 읽고 영구히 확인 처리(그리고 `ZREM alerts:sla` 로 에스컬레이션 해제)할 수 있었다. 목록과 WS 는
+  검사하는데 REST ack 만 빠져 있었다.
+- **`make test-integration` 이 결정적으로 실패했다** — perf study 가 `CREATE EXTENSION pgstattuple` 을 **커밋**해,
+  같은 DB 에서 뒤에 도는 스키마 덤프 동등성 테스트를 영구히 깼다. CI 는 두 파일을 다른 DB 로 나눠서 초록이었다.
+  그리고 단언이 시키는 대로 `make schema-dump` 를 하면 CI `migrations` 잡이 깨진다. `commit()` → `rollback()`.
+- **`latest_active_consent` 가 fail-open 이었다** — v2 를 철회하면 v1 이 되살아나 `gates.active_scopes` 와 정반대였고,
+  테스트가 `# v1 is still active` 주석으로 그 잘못된 의미를 보호하고 있었다.
+- **측정이 리포트에 남지 않았다** — A n=200 에서 42/200 세션이 청크를 한 개도 못 보냈는데, `loss` 는 "전송 seq − 원장
+  행" 이라 구조적으로 그것을 셀 수 없고 `segments_contiguous` 는 행 0 세션을 "연속" 으로 셌다. 리포트가 시도 수와
+  `clients.outcomes` 를 함께 찍도록 고쳤다. 같은 부류: `RecorderClient.run` 이 예외를 삼켜 42건의 hello 타임아웃이
+  측정 시점에 보이지 않았다.
+- **`git_sha` 가 코드를 가리키지 않았다** — 측정 당시 작업 트리가 더러웠고 헤더에 그 표시가 없어, 커밋된 모든 리포트가
+  자기를 만든 코드가 없는 커밋(`3162091`)을 가리킨다. 이제 `-dirty` 를 붙인다.
+- **`CHARTWIRE_DB_SINGLE_ROLE` 은 아무 데서도 읽히지 않는 죽은 설정이었다** — 실제 단일 역할 적응은
+  `helpers.app_role_exists()` 카탈로그 조회가 한다. 네 개 문서가 없는 스위치에 동작을 귀속시키고 있었다.
+- **`.env.example` 이 빌드 박스 전용 슈퍼유저를 고정**해 `dev_up.sh` 의 이식성 있는 기본값을 죽은 코드로 만들었다.
+- **`docker compose up` 이 뜨지 않았다** — 명명 볼륨의 마운트 지점을 이미지가 만들지 않아 root:root 로 생기고 uid 10001
+  이 못 쓴다. CI 의 `docker` 잡은 `compose config -q` 만 해서 이 부류를 잡을 수 없다.
+
 ## 7. 스펙과 다르게 한 결정의 기록 위치
 
 각 핸드오프의 "스펙과 다르게 한 점" 절이 권위다(A §5, B §4, C §4, D §4, E §4, F §6, G §4, H §4/§3). 통합자가 거절한 요청은 `integrator.md` §1 표에 이유와 함께 있다(예: 벤치의 벌크 INSERT 를 repo 로 옮기는 요청 — 측정 하네스 전용이라 거절).

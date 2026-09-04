@@ -7,7 +7,7 @@
 ## 0. 체크리스트 (재개용)
 
 - [x] `redis/scripts/hello.lua`, `redis/scripts/xadd_chunk.lua`
-- [x] `redis/session_state.py` — `SessionState(redis)`: hello/get/set_fields/xadd_chunk/xadd_end/rehydrate/expire_after_end/stt_lag/publish_event/publish_ctl/viewer_join/viewer_leave
+- [x] `redis/session_state.py` — `SessionState(redis)`: hello/get/set_fields/xadd_chunk/xadd_end/rehydrate/expire_after_end/stt_lag/publish_event/viewer_join/viewer_leave (`publish_ctl` 은 호출자가 없어 리뷰 수정에서 삭제 — `ctl` 발행은 `consent/service.py::notify_revoked` 와 `purge/pipeline.py::_purge_redis` 가 각자의 상수 `CTL_CONSENT_REVOKED`/`CTL_PURGE` 로 한다)
 - [x] `redis/tickets.py` — `issue(...)`, `consume(...)`, `TicketPayload`
 - [x] `ws/ledger.py` — `LedgerBatcher`, `ChunkRow`, SQL 로 검증되는 `sessions.ack_seq` 갱신
 - [x] `ws/pubsub.py` — 프로세스당 하나의 PubSub 리더(`SubscriberManager`), 세션 채널 refcount
@@ -106,7 +106,7 @@ mypy --strict src/chartwire/ws/core.py src/chartwire/ws/codec.py
                               role=principal.role, session_id=session_id, kind=body.kind)   # ttl_s=30
   return WsTicketOut(ticket=token, expires_in=30)
   ```
-  `POST /v1/consents/{id}/revoke` 는 환자의 live 세션마다 `SessionState(redis).publish_ctl(sid, {"t": "consent_revoked"})`, 파기는 `{"t": "purge"}` (ingest 4011/4012, watch 4011/4012). `alerts.service.acknowledge(session, *, event_id, by, tenant_id)` 를 만들면 `ws/watch.py::_ack_alert` 가 그것을 호출하도록 바꿔 주면 좋다(현재는 repo 직접 호출 + 감사 `alert.acked` + ZREM + 발행을 셸이 한다).
+  `POST /v1/consents/{id}/revoke` 는 환자의 live 세션마다 `ctl:{sid}` 로 `CTL_CONSENT_REVOKED`(`{"t": "consent_revoked"}`), 파기는 `CTL_PURGE`(`{"t": "purge"}`) 를 발행한다 (ingest 4011/4012, watch 4011/4012). `alerts.service.acknowledge(session, *, event_id, by, tenant_id)` 를 만들면 `ws/watch.py::_ack_alert` 가 그것을 호출하도록 바꿔 주면 좋다(현재는 repo 직접 호출 + 감사 `alert.acked` + ZREM + 발행을 셸이 한다).
 - **WP-A (`db/repo/segments.py`)** — `async def last_seq(session, session_id, *, started_at=None) -> int` (`max(seq)`, 없으면 −1, `created_at >= started_at` 프루닝). 있으면 `ws/watch.py::_load_session` 의 Core 쿼리를 이것으로 바꾼다:
   ```python
   -            stmt = select(func.coalesce(func.max(TranscriptSegment.seq), -1)).where(...)

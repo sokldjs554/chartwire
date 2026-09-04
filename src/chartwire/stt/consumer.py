@@ -100,6 +100,10 @@ class ConsumerConfig:
     block_ms: int = 1000
     autoclaim_idle_ms: int = 60_000
     rebuild_wait_s: float = 0.2
+    rebuild_deadline_s: float = 30.0
+    """How long ``_rebuild`` waits for one missing ledger row before stepping over it. A chunk whose
+    store path was fenced by a newer epoch never reaches the ledger, and without a bound the consumer
+    would poll for it forever, holding the owner lease and one ``max_sessions`` slot."""
     fetch_audio: bool = False
     """Read/decrypt audio bytes for every stream entry (real STT); the simulator ignores payloads."""
     consent_cache_s: float = 1.0
@@ -113,6 +117,7 @@ class ConsumerStats:
     duplicates: int = 0
     rebuilds: int = 0
     rebuilt_chunks: int = 0
+    rebuild_gaps_skipped: int = 0
     group_recreated: int = 0
     finals: int = 0
     duplicate_finals: int = 0
@@ -230,7 +235,9 @@ class SessionConsumer:
             except ResponseError as exc:
                 if not _group_vanished(exc):
                     raise
-                await self._recover_group()
+                if await self._recover_group():
+                    await self._on_end(None)  # the end marker died with the flushed stream
+                    return "transcribed"
                 continue
             entries = batches[0][1] if batches else []
             if not entries:
@@ -294,7 +301,9 @@ class SessionConsumer:
             except ResponseError as exc:
                 if not _group_vanished(exc):
                     raise
-                await self._recover_group()
+                if await self._recover_group():
+                    await self._on_end(None)  # the end marker died with the flushed stream
+                    return True
                 return False
             cursor, entries = result[0], result[1]
             if entries:
@@ -308,8 +317,17 @@ class SessionConsumer:
                 return False
         return False
 
-    async def _recover_group(self) -> None:
-        """``XGROUP CREATE … $ MKSTREAM`` then replay the ledger from ``last_chunk_seq + 1`` (§5, §7.4)."""
+    async def _recover_group(self) -> bool:
+        """``XGROUP CREATE … $ MKSTREAM`` then replay the ledger from ``last_chunk_seq + 1`` (§5, §7.4).
+
+        Returns True when ``sessions.state`` is already ``ended``: recreating the group at ``$``
+        skipped whatever the flushed stream still held, and the recorder's end marker is written
+        *before* the ``ended`` commit, so that marker is one of the things now gone. The ledger
+        rebuild replaces the chunks but nothing replaces the marker — so the caller must run the end
+        path itself. Re-arming the stream instead would strand the session at ``ended`` forever:
+        ``ended`` is not in :data:`TERMINAL_STATES`, ``_idle_should_exit`` only exits when the session
+        is *absent* from ``stt:active`` (which this method would have just re-populated), and
+        ``session_reaper`` only scans ``recording``/``paused``."""
         self.stats.group_recreated += 1
         with contextlib.suppress(ResponseError):  # BUSYGROUP: the recorder's hello recreated it first
             await self.deps.redis.xgroup_create(self.stream_key, self.group, id="$", mkstream=True)
@@ -321,11 +339,17 @@ class SessionConsumer:
             row = await sessions_repo.get_session(s, self.facts.session_id)
             if row is None or row.state in TERMINAL_STATES:
                 raise SessionGone("state" if row is not None else "missing")
+            state = str(row.state)
             top = await sessions_repo.max_ledger_seq(s, self.facts.session_id)
-        # the flush also emptied stt:active; the session is live, so it must stay discoverable
+        ended = state in ENDED_STATES
+        # The flush also emptied stt:active, and the owner lease with it — ``SttWorker.owns`` re-takes a
+        # missing lease only for a session that is still listed there, so this SADD is what keeps this
+        # consumer the owner through the rebuild. It is safe for an already-``ended`` session too
+        # because the caller runs the end path right after, and ``_on_end`` SREMs the member itself.
         await self.deps.redis.sadd(keys.STT_ACTIVE, str(self.facts.session_id))
         if top > self.last_chunk_seq:
             await self._rebuild(self.last_chunk_seq + 1, top)
+        return ended
 
     async def _idle_should_exit(self) -> bool:
         """Every ``idle_check_s`` with an empty stream: stop serving a session nobody lists as active
@@ -354,6 +378,21 @@ class SessionConsumer:
                 continue
             if seq > self.last_chunk_seq + 1:
                 await self._rebuild(self.last_chunk_seq + 1, seq - 1)
+                if seq > self.last_chunk_seq + 1:
+                    # _rebuild was aborted by stop() (drain / lease lost) with the gap still open.
+                    # Advancing now would push last_chunk_seq — and, via the GREATEST upsert in
+                    # ``upsert_stt_offset``, the persisted offset — past chunks nobody transcribed,
+                    # and no later owner would ever go back for them. Leave the entry unacked so
+                    # XAUTOCLAIM re-delivers it to the next owner instead.
+                    log.warning(
+                        "gap still open after rebuild; leaving entry for the next owner",
+                        extra={
+                            "session_id": str(self.facts.session_id),
+                            "seq": seq,
+                            "last_chunk_seq": self.last_chunk_seq,
+                        },
+                    )
+                    return False
             payload = b""
             if self.cfg.fetch_audio:
                 payload = await self._fetch_payload(seq, fields["key"], expected_sha=None)
@@ -403,7 +442,17 @@ class SessionConsumer:
 
     async def _rebuild(self, from_seq: int, to_seq: int) -> None:
         """Replay ``audio_chunks`` rows ``from_seq..to_seq`` through the adapter; a hole means the
-        ingest has not ledgered the row yet — wait ``rebuild_wait_s`` and look again (§7.4)."""
+        ingest has not ledgered the row yet — wait ``rebuild_wait_s`` and look again (§7.4).
+
+        Two bounds keep this from becoming a parked loop. The wait on any single seq is capped at
+        ``rebuild_deadline_s``: a chunk whose store path was fenced by a newer epoch never reaches the
+        ledger at all, and if the recorder never comes back to re-send it the hole is permanent — past
+        the deadline it is logged, counted in ``rebuild_gaps_skipped`` and stepped over so the read
+        loop resumes. And each pass re-checks the owner lease, so a stalled ex-owner raises
+        :class:`OwnershipLost` here instead of transcribing behind the new owner's back.
+
+        Aborts early when :meth:`stop` is set (drain / lease lost) — possibly with the gap still open,
+        which is why callers must re-check ``last_chunk_seq`` before advancing past it."""
         f = self.facts
         self.stats.rebuilds += 1
         metrics.STT_REBUILDS_TOTAL.inc()  # scenario D ``rebuild_count`` (§11.2)
@@ -412,9 +461,11 @@ class SessionConsumer:
         )
         expected = from_seq
         waited = 0.0
+        deadline = self.deps.clock.monotonic() + self.cfg.rebuild_deadline_s
         while expected <= to_seq and not self._stop.is_set():
             async with self._tx() as s:
                 rows = await sessions_repo.chunks_between(s, f.session_id, expected, to_seq)
+            before = expected
             for row in rows:
                 if int(row.seq) != expected:
                     break
@@ -424,15 +475,32 @@ class SessionConsumer:
                 await self._process(chunk, entry_id=None, received_ms=int(received.timestamp() * 1000))
                 self.stats.rebuilt_chunks += 1
                 expected += 1
-            if expected <= to_seq:
-                await asyncio.sleep(self.cfg.rebuild_wait_s)
-                waited += self.cfg.rebuild_wait_s
-                if waited >= REBUILD_WARN_EVERY_S:
-                    waited = 0.0
-                    log.warning(
-                        "rebuild waiting for ledger rows",
-                        extra={"session_id": str(f.session_id), "seq": expected, "to_seq": to_seq},
-                    )
+            if expected > to_seq:
+                break
+            if expected > before:  # progress: the next hole gets a fresh budget
+                deadline = self.deps.clock.monotonic() + self.cfg.rebuild_deadline_s
+                waited = 0.0
+            await self._check_owner()
+            if self.deps.clock.monotonic() >= deadline:
+                self.stats.rebuild_gaps_skipped += 1
+                log.error(
+                    "rebuild gap abandoned; chunk never reached the ledger",
+                    extra={"session_id": str(f.session_id), "seq": expected, "to_seq": to_seq},
+                )
+                self.last_chunk_seq = max(self.last_chunk_seq, expected)
+                self._offsets_dirty = True
+                expected += 1
+                deadline = self.deps.clock.monotonic() + self.cfg.rebuild_deadline_s
+                waited = 0.0
+                continue
+            await asyncio.sleep(self.cfg.rebuild_wait_s)
+            waited += self.cfg.rebuild_wait_s
+            if waited >= REBUILD_WARN_EVERY_S:
+                waited = 0.0
+                log.warning(
+                    "rebuild waiting for ledger rows",
+                    extra={"session_id": str(f.session_id), "seq": expected, "to_seq": to_seq},
+                )
 
     # --- per chunk ---------------------------------------------------------------------------------
 
@@ -589,7 +657,9 @@ class SessionConsumer:
 
     # --- end marker (§7.4) ---------------------------------------------------------------------------
 
-    async def _on_end(self, entry_id: str) -> None:
+    async def _on_end(self, entry_id: str | None) -> None:
+        """Flush the adapter, set ``transcribed``, emit the outbox event and release ``stt:active``.
+        ``entry_id`` is None when the end marker itself was lost (Redis flush after ``ended``)."""
         assert self.stream is not None
         f = self.facts
         self._scopes = _Scopes()  # re-read: the flush is an adapter call and needs the same gate (§8.3)

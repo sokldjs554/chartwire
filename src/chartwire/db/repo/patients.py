@@ -108,13 +108,16 @@ async def grant_consent(
 
 
 async def latest_active_consent(session: AsyncSession, patient_id: UUID) -> Consent | None:
-    stmt = (
-        select(Consent)
-        .where(Consent.patient_id == patient_id, Consent.revoked_at.is_(None))
-        .order_by(Consent.version.desc())
-        .limit(1)
-    )
-    return (await session.scalars(stmt)).one_or_none()
+    """The row form of :func:`chartwire.consent.gates.active_scopes` (§8.3): the highest version
+    governs, and if *it* is revoked nothing is active.
+
+    Filtering ``revoked_at IS NULL`` inside the query instead would fail **open**: a patient with
+    v1={recording} (never explicitly revoked) and a revoked v2={recording,transcription} would get v1
+    back, resurrecting a superseded consent after a revocation — the exact reading ``gates`` forbids.
+    """
+    stmt = select(Consent).where(Consent.patient_id == patient_id).order_by(Consent.version.desc()).limit(1)
+    latest = (await session.scalars(stmt)).one_or_none()
+    return latest if latest is not None and latest.revoked_at is None else None
 
 
 async def get_consent(session: AsyncSession, consent_id: UUID) -> Consent | None:

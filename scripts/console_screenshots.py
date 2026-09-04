@@ -10,7 +10,10 @@ lets a clinician revoke a consent but only ``admin``/``auditor`` may read ``GET 
 call ``verify-decrypt`` (a clinician gets 403), and the Ops panel needs ``admin`` for the DLQ list.
 
 ``--video-dir`` records the whole run as WebM (Playwright ``record_video_dir``); ``docs/images/demo.gif``
-is produced from it with the bundled ffmpeg (see the handoff / README). Every browser console error /
+is produced from it with a **full** ffmpeg build (``imageio-ffmpeg``) — the Playwright-bundled binary
+(``/opt/pw-browsers/ffmpeg-*/ffmpeg-linux``) has only the ``scale`` filter, no ``fps``/palette filters
+and no gif muxer, so it fails with ``No such filter: 'fps'``. The exact palettegen/paletteuse command
+is in ``docs/dev/e2e.md`` §5. Every browser console error /
 page error is collected and printed; the exit code is 1 when any occurred. All data is synthetic.
 Requires ``playwright`` and a Chromium build (``PLAYWRIGHT_BROWSERS_PATH`` or ``--chromium``).
 """

@@ -161,6 +161,10 @@ async def run(ctx: HandlerContext, purge_job_id: UUID, *, tenant_id: UUID) -> Pu
                 and patient.dek_wrapped is None
                 and patient.name_enc is None
                 and patient.phone_enc is None
+                # the blind index is keyed from the KEK master, not the DEK, so it survives a
+                # crypto-shred unless the purge nulls it; a receipt must not report `verified`
+                # while `GET /v1/patients?name=` can still confirm the name
+                and patient.name_hmac is None
                 and patient.consent_state == "purged",
             )
         for sid in session_ids:

@@ -197,9 +197,9 @@ async def test_consent_versions_increment_and_revoke_updates_patient_state(
         assert revoked is not None and revoked.revoked_at == fake_clock.now()
         await session.refresh(patient)
         assert patient.consent_state == "revoked"
-        assert (
-            await patients_repo.latest_active_consent(session, patient_a.id) is not None
-        )  # v1 is still active
+        # revoking the latest version withdraws consent; the superseded v1 does not resurrect (§8.3,
+        # the row form of gates.active_scopes — any other reading would fail open)
+        assert await patients_repo.latest_active_consent(session, patient_a.id) is None
         found = await patients_repo.find_patients_by_name_hmac(session, ctx_a.tenant_id, patient_a.name_hmac)
         assert [p.id for p in found] == [patient_a.id]
 

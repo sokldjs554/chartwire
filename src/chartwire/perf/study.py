@@ -333,6 +333,13 @@ def leakproof_report(conn: psycopg.Connection[Any]) -> str:
 
 
 def pgstattuple(conn: psycopg.Connection[Any], table: str = "outbox_events") -> dict[str, Any] | None:
+    """Bloat sample for the outbox table. The extension is created and then **rolled back**, exactly
+    like :func:`leakproof_report`: ``CREATE EXTENSION`` is transactional, so it exists for the SELECT
+    and is gone afterwards, and ``IF NOT EXISTS`` leaves a pre-existing installation untouched.
+    Committing it instead leaked an extension into whatever database the study ran against, which then
+    made ``test_round_trip_and_schema_dump_equality`` fail for every later run in the same database
+    (``docs/db/schema.sql`` has no pgstattuple) — and ``make schema-dump`` would have written it into
+    the contract, breaking the CI ``migrations`` job in turn."""
     try:
         conn.execute("CREATE EXTENSION IF NOT EXISTS pgstattuple")
         row = _one(
@@ -343,7 +350,7 @@ def pgstattuple(conn: psycopg.Connection[Any], table: str = "outbox_events") -> 
                 ).format(sql.Literal(table))
             )
         )
-        conn.commit()
+        conn.rollback()  # drop the extension again; the schema dump is a contract (see docstring)
     except psycopg.Error as exc:
         conn.rollback()
         return {"table": table, "error": f"{type(exc).__name__}: {str(exc).splitlines()[0]}"}

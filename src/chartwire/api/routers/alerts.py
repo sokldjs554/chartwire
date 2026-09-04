@@ -73,6 +73,9 @@ async def list_alerts(
 async def ack_alert(
     id: int, request: Request, principal: Principal = Depends(require(*CLINICAL))
 ) -> AlertOut:
+    """Acknowledge one alert. ``risk_events.id`` is a guessable bigint identity and RLS only scopes it
+    to the tenant, so a clinician gets the same "clinician (own)" rule the listing applies — otherwise
+    an id sweep would both disclose and irreversibly ack another clinician's patients' alerts."""
     deps = get_deps(request)
     event = await alerts.ack(
         deps,
@@ -81,6 +84,7 @@ async def ack_alert(
         by=principal.user_id,
         actor_role=principal.role,
         via="rest",
+        require_own_session=principal.role == "clinician",
     )
     if event is None:
         raise not_found("경보")

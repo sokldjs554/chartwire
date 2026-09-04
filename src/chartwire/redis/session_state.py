@@ -142,9 +142,6 @@ class SessionState:
     async def publish_event(self, sid: UUID | str, msg: Mapping[str, Any]) -> None:
         await self.redis.publish(keys.sess_events(sid), orjson.dumps(msg).decode())
 
-    async def publish_ctl(self, sid: UUID | str, msg: Mapping[str, Any]) -> None:
-        await self.redis.publish(keys.ctl(sid), orjson.dumps(msg).decode())
-
     # --- viewer presence ---------------------------------------------------------------------------
 
     async def viewer_join(self, sid: UUID | str, conn: str) -> int:

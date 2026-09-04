@@ -11,7 +11,11 @@ TENANT_POLICY = "tenant_id = NULLIF(current_setting('app.tenant_id', true), ''):
 
 
 def app_role_exists() -> bool:
-    """False in the managed-PG single-role fallback (``CHARTWIRE_DB_SINGLE_ROLE=1``)."""
+    """False in the managed-PG single-role fallback (Render: one role, which owns the tables).
+
+    This catalog probe — not an env var — is what drives every single-role adaptation: ``grant()``
+    skips the GRANTs, and revision 0006 FORCEs RLS on ``segment_search`` because the runtime role is
+    the owner there."""
     bind = op.get_bind()
     return (
         bind.execute(text("SELECT 1 FROM pg_roles WHERE rolname = :r"), {"r": APP_ROLE}).scalar() is not None

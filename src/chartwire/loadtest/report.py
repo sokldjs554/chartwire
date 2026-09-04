@@ -94,7 +94,11 @@ class DbCheck:
     """Sessions whose ``stt_offsets.last_chunk_seq == sessions.final_seq`` (scenario D invariant),
     at check time — see :attr:`sessions_transcribed`."""
     segments_contiguous: int = 0
-    """Sessions whose segment seqs are ``0..max`` without holes."""
+    """Sessions whose segment seqs are ``0..max`` without holes. A session that produced **no** rows
+    counts as trivially contiguous, so read it next to :attr:`segments_zero_row` — otherwise a run
+    that shed sessions before they sent anything reads as 100 % contiguous."""
+    segments_zero_row: int = 0
+    """Sessions with zero ``transcript_segments`` rows (included in :attr:`segments_contiguous`)."""
     segment_rows: int = 0
     risk_events: int = 0
     per_session_loss: dict[str, int] = field(default_factory=dict)
@@ -113,6 +117,7 @@ class DbCheck:
             "sessions_transcribed": self.sessions_transcribed,
             "stt_offsets_complete": self.stt_offsets_complete,
             "segments_contiguous": self.segments_contiguous,
+            "segments_zero_row": self.segments_zero_row,
             "segment_rows": self.segment_rows,
             "risk_events": self.risk_events,
             "sessions_with_loss": sum(1 for v in self.per_session_loss.values() if v > 0),
@@ -376,20 +381,39 @@ def _resources_table(res: Mapping[str, Any]) -> list[str]:
     return lines
 
 
+def _outcomes(entry: Mapping[str, Any]) -> str:
+    """``clients.outcomes`` verbatim. ``loss`` counts ledger rows against chunks *sent*, so it is
+    structurally blind to a session that never sent a chunk: without this row a run where a fifth of
+    the sessions never finished still reads as "loss 0, dup 0"."""
+    outcomes = ((entry.get("clients") or {}).get("outcomes")) or {}
+    if not outcomes:
+        return "—"
+    return " · ".join(f"{k} {v}" for k, v in sorted(outcomes.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
 def _db_table(entry: Mapping[str, Any], label: str) -> list[str]:
     """DB 대조 표. ``stt_offsets_complete`` 는 **검사 시점**의 값이므로 파이프라인이 밀린 것을 소화했는지
     (``stt_drained``)와 함께 읽어야 한다 — 그래서 같은 표에 넣는다."""
     db = entry.get("db") or {}
     ended = db.get("sessions_ended")
+    attempted = db.get("sessions")
+    zero_row = db.get("segments_zero_row")
+    contiguous = f"| 세그먼트 seq 연속 세션 | {_fmt(db.get('segments_contiguous'))} / {_fmt(attempted)}"
+    contiguous += (
+        f" (행 0 세션 {_fmt(zero_row)} 포함) |"
+        if zero_row is not None
+        else " (행이 0 인 세션도 연속으로 센다) |"
+    )
     return [
         "",
         f"DB 대조 ({label}):",
         "",
         "| 항목 | 값 |",
         "|---|---|",
-        f"| 세션 (ended / transcribed) | {_fmt(ended)} / {_fmt(db.get('sessions_transcribed'))} |",
+        f"| 세션 (ended / transcribed / 시도) | {_fmt(ended)} / {_fmt(db.get('sessions_transcribed'))} / {_fmt(attempted)} |",
+        f"| 세션 결과 (클라이언트가 본 것) | {_outcomes(entry)} |",
         f"| `stt_offsets.last_chunk_seq == final_seq` | {_fmt(db.get('stt_offsets_complete'))} / {_fmt(ended)} |",
-        f"| 세그먼트 seq 연속 세션 | {_fmt(db.get('segments_contiguous'))} / {_fmt(db.get('sessions'))} |",
+        contiguous,
         f"| 세그먼트 행 / 위험 이벤트 | {_fmt(db.get('segment_rows'))} / {_fmt(db.get('risk_events'))} |",
         f"| loss (전송 − 원장) | {_fmt(db.get('loss'))} |",
         f"| stt 파이프라인 소화 완료 / 대기 (s) | {_fmt(entry.get('stt_drained'))} / {_fmt(entry.get('stt_drain_wait_s'), 1)} |",
@@ -420,6 +444,9 @@ def render_results_md(reports: Mapping[str, Mapping[str, Any]]) -> str:
         "정의: `ack_rtt` = 바이너리 프레임 전송 → 그 seq 를 덮는 누적 `ack` 수신(클라이언트 시계, 50 ms 그룹 커밋 창 포함) ·",
         "`final_e2e` = 발화의 마지막 청크 전송 → 뷰어 `transcript.final` 수신 · `alert_e2e` = 서버 `committed_at` → 뷰어 `risk.alert` 수신 ·",
         "`loss` = 전송 seq 수 − `audio_chunks` 행 수 · `dup` = 뷰어에 같은 세그먼트 seq 가 두 번 배달된 수(DB 행 중복은 PK 로 0) ·",
+        "**`loss` 는 보낸 적 없는 청크를 셀 수 없다** — 세션이 통째로 떨어진 경우는 `세션 결과` 행(클라이언트가 본 outcome)과",
+        "`세션 (ended / transcribed / 시도)` 의 분모로만 보인다. `세그먼트 seq 연속 세션` 도 행이 0 인 세션을 연속으로 세므로",
+        "괄호 안의 `행 0 세션` 과 함께 읽어야 한다 ·",
         "`superseded_closes` = 클라이언트가 관찰한 4409 종료 수(close 프레임 없이 끊긴 소켓은 서버 쪽 좀비 4409 를 받지 못하므로 세지 않는다;",
         '옛 epoch 프레임의 펜싱 자체는 `ws_chunks_total{result="stale"}` 에 있다) · `rebuild_count` = stt-worker `stt_rebuilds_total`.',
         "",

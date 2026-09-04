@@ -255,6 +255,12 @@ async def test_alerts_list_and_ack(
     ps = redis.pubsub()
     await ps.subscribe(keys.sess_events(seeded.session.id))
     assert await ps.get_message(timeout=2.0) is not None
+    # risk_events.id is a guessable bigint identity and RLS only scopes it to the tenant, so the ack
+    # applies the same "clinician (own)" rule the listing does: another clinician must not be able to
+    # read the alert's patient/category — or silently disarm its SLA escalation — by sweeping ids.
+    foreign = await api.post(f"/v1/alerts/{event_id}/ack", headers=other_h)
+    assert foreign.status_code == 404
+    assert await redis.zcard(keys.ALERTS_SLA) == 1, "the rejected ack left the SLA timer armed"
     acked = await api.post(f"/v1/alerts/{event_id}/ack", headers=own)
     assert acked.status_code == 200 and acked.json()["acknowledged_by"] == str(clinician_a.id)
     assert await redis.zcard(keys.ALERTS_SLA) == 0

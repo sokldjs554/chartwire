@@ -12,13 +12,17 @@ from __future__ import annotations
 
 import json
 import logging
+import traceback
 
 import pytest
 import structlog
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from structlog.testing import capture_logs
 
 from chartwire.core.logging import redact_dict
 from chartwire.crypto.kek import LocalKek
+from chartwire.db.tenant import TenantCtx, tenant_tx
 from chartwire.objectstore.localfs import LocalFs
 from tests.integration.api_support import (
     build_app,
@@ -111,3 +115,25 @@ async def test_request_logs_never_contain_transcript_names_or_tokens(
     access = [r for r in caplog.records if r.getMessage() == "http request"]
     assert access and all(getattr(r, "path", "").startswith("/v1/") for r in access)
     assert all("q=" not in _record_text(r) for r in access), "query strings are never logged"
+
+
+async def test_db_errors_never_render_bound_parameters(app_engine, tenant_a, patient_a, caplog):
+    """A failing statement must not put its bound parameters in the traceback.
+
+    ``segment_search.text`` is the plaintext utterance and ``/v1/search`` binds the clinician's free
+    text, and SQLAlchemy renders ``[parameters: (...)]`` into ``str(DBAPIError)``. Those strings reach
+    stdout through ``stt/worker.py``'s ``log.exception`` and ``api/app.py``'s ``exc_info=exc``, so the
+    engine is built with ``hide_parameters=True``. The success-only coverage above cannot see this.
+    """
+    caplog.set_level(logging.DEBUG)
+    with pytest.raises(SQLAlchemyError) as exc_info:
+        async with tenant_tx(app_engine, TenantCtx.service(tenant_a.id)) as s:
+            await s.execute(
+                text("INSERT INTO segment_search (segment_id, tenant_id, text) VALUES (:i, :t, :x)"),
+                {"i": 1, "t": str(tenant_a.id), "x": MARKER},  # violates NOT NULL on the other columns
+            )
+    rendered = "".join(traceback.format_exception(exc_info.value))
+    assert MARKER not in rendered, "the transcript reached a log-bound exception string"
+    assert "hidden due to hide_parameters" in rendered, "SQLAlchemy is still rendering parameters"
+    logging.getLogger("test").exception("db failed", exc_info=exc_info.value)
+    assert all(MARKER not in _record_text(r) for r in caplog.records)

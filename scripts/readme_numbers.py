@@ -100,10 +100,24 @@ _RISK_KINDS = (
     "unrelated",
 )
 _RISK_FIELDS = {"precision": ".2f", "recall": ".2f", "f1": ".2f", "n": "d", "tp": "d", "fp": "d", "fn": "d"}
+_RISK_CATEGORIES = ("suicidal_ideation", "self_harm", "harm_to_others", "substance_acute")
+"""The four alert-worthy categories. ``none`` is deliberately excluded: it holds no positives, so its
+precision/recall are 0.0 by construction and would read as a failure rather than as an empty bucket."""
 
 KEYS: dict[str, Key] = {
     # ---- load tests (docs/loadtest/<scenario>.json) ----
     **_load_runs("load.A", "docs/loadtest/A.json", (50, 100, 200), _A_FIELDS),
+    # `loss` counts ledger rows against chunks *sent*, so it cannot see a session that never sent one.
+    # These three make the shed sessions at the knee visible next to it (README §2 무릎 문단).
+    **{
+        f"load.A.n{n}.{name}": Key("docs/loadtest/A.json", f"$.runs[?n=={n}].{path}", "d")
+        for n in (200,)
+        for name, path in (
+            ("sessions_attempted", "db.sessions"),
+            ("sessions_ended", "db.sessions_ended"),
+            ("sessions_never_started", "clients.outcomes.running"),
+        )
+    },
     "load.B.credit_zero_at_s": Key("docs/loadtest/B.json", "$.credit_zero_at_s", ".1f"),
     "load.B.pause_count": Key("docs/loadtest/B.json", "$.pause_count", "d"),
     "load.B.stream_len_max": Key("docs/loadtest/B.json", "$.stream_len_max", "d"),
@@ -163,6 +177,15 @@ KEYS: dict[str, Key] = {
         f"eval.risk_heldout.kind.{k}.{f}": Key("docs/eval/risk_heldout.json", f"$.per_kind.{k}.{f}", fmt)
         for k in _RISK_KINDS
         for f, fmt in (("n", "d"), ("fp", "d"), ("fn", "d"), ("fp_rate", ".2f"))
+    },
+    # Per-category recall: suicidal ideation is the headline product problem (README §1), so the
+    # aggregate must not be the only number for it. Recall is over sentences carrying the label.
+    **{
+        f"eval.risk_heldout.category.{c}.{f}": Key(
+            "docs/eval/risk_heldout.json", f"$.per_category.{c}.{f}", fmt
+        )
+        for c in _RISK_CATEGORIES
+        for f, fmt in (("n", "d"), ("tp", "d"), ("fn", "d"), ("recall", ".2f"), ("precision", ".2f"))
     },
     "eval.risk_ingrammar.n_scripts": Key("docs/eval/risk_ingrammar.json", "$.n_scripts", "d"),
     "eval.risk_ingrammar.past.n": Key("docs/eval/risk_ingrammar.json", "$.past_kind.n", "d"),

@@ -573,9 +573,10 @@ async def db_check(settings: Settings, seeded: Seeded, sent: dict[str, int]) -> 
                 check.segment_rows += int(count)
                 if int(count) == int(max_seq) + 1:
                     check.segments_contiguous += 1
-            check.segments_contiguous += sum(
-                1 for sid in ids if str(sid) not in seen
-            )  # 0 rows = trivially contiguous
+            check.segments_zero_row = sum(1 for sid in ids if str(sid) not in seen)
+            # 0 rows = trivially contiguous — recorded separately so the ratio cannot read as clean
+            # for a run that shed sessions before they sent anything (report.DbCheck).
+            check.segments_contiguous += check.segments_zero_row
             check.risk_events = int(
                 (
                     await s.execute(

@@ -150,11 +150,6 @@ class LedgerBatcher:
     def pending_rows(self) -> int:
         return len(self._pending)
 
-    async def flush_now(self) -> None:
-        """Commit everything pending right away (tests, drain)."""
-        if self._pending:
-            await self._flush(self._take())
-
     # --- internals -------------------------------------------------------------------------------
 
     def _take(self) -> list[_Pending]:
