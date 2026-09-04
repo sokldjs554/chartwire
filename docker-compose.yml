@@ -8,6 +8,7 @@ x-app-env: &app-env
   CHARTWIRE_KEK_MASTER: ${CHARTWIRE_KEK_MASTER:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
   CHARTWIRE_JWT_SECRET: ${CHARTWIRE_JWT_SECRET:-dev-secret-change-me}
   CHARTWIRE_NOTE_PROVIDER: ${CHARTWIRE_NOTE_PROVIDER:-extractive}
+  CHARTWIRE_SCRIPTS_DIR: /var/lib/chartwire/scripts   # seed --demo 가 쓰고 stt-worker 시뮬레이터가 읽는다
 
 x-app: &app
   build: .
@@ -15,6 +16,7 @@ x-app: &app
   restart: unless-stopped
   volumes:
     - objects:/var/lib/chartwire/objects
+    - scripts:/var/lib/chartwire/scripts
   depends_on:
     migrate:
       condition: service_completed_successfully
@@ -55,6 +57,8 @@ services:
     image: chartwire:local
     environment: *app-env
     command: ["sh", "-c", "chartwire db upgrade && chartwire seed --demo --if-empty"]
+    volumes:
+      - scripts:/var/lib/chartwire/scripts
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,6 +79,7 @@ services:
       <<: *app-env
       CHARTWIRE_ROLE: worker
       CHARTWIRE_NODE_ID: worker-1
+      CHARTWIRE_WORKER_PORT: "9001"   # /healthz /readyz /metrics
 
   stt-worker:
     <<: *app
@@ -82,6 +87,7 @@ services:
       <<: *app-env
       CHARTWIRE_ROLE: stt-worker
       CHARTWIRE_NODE_ID: stt-1
+      CHARTWIRE_STT_WORKER_PORT: "9002"
 
   # ---- profile `drain` (시나리오 E, 선택): api 2 레플리카 + nginx 업스트림. `docker compose --profile drain up`
   api-drain:
@@ -106,3 +112,4 @@ services:
 volumes:
   pgdata:
   objects:
+  scripts:

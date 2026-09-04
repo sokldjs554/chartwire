@@ -59,10 +59,26 @@ class Settings(BaseSettings):
 
     # --- process identity --------------------------------------------------
     node_id: str = "dev-1"
-    scripts_dir: Path | None = None
-    """Directory with the Redis Lua scripts; ``None`` = packaged ``chartwire/redis/scripts``."""
+    scripts_dir: Path = Path("var/scripts")
+    """STT script directory (§3.1/§10.4): ``seed --demo`` writes ``s01..s20.json`` here and the
+    stt-worker simulator reads them. Lua scripts are always package resources."""
     embedded: bool = False
     """``chartwire serve all --embedded``: api + worker + stt-worker in one process."""
+
+    # --- stt-worker --------------------------------------------------------
+    stt_provider: Literal["simulator", "slow", "aws"] = "simulator"
+    stt_scripts_dir: Path | None = None
+    """Overrides ``scripts_dir`` for the stt-worker only (``CHARTWIRE_STT_SCRIPTS_DIR``)."""
+    stt_slow_delay_ms: int = 400
+    stt_sim_seed: int = 0
+    stt_worker_port: int = 9002
+    """Ops HTTP port of a standalone stt-worker (0 = none; embedded mode shares the api port)."""
+
+    # --- api ---------------------------------------------------------------
+    cors_origins: str = ""
+    """Comma-separated console origins; empty → no CORS middleware."""
+    console_dir: Path | None = None
+    """Directory holding ``console/index.html`` (default: repo ``console/`` or ``/app/console``)."""
 
     # --- test isolation (tests/conftest.py) --------------------------------
     test_db: str = "chartwire_test"
@@ -78,6 +94,14 @@ class Settings(BaseSettings):
         if len(raw) != 32:
             raise ValueError("kek_master must decode to exactly 32 bytes")
         return value
+
+    @property
+    def stt_scripts_path(self) -> Path:
+        return self.stt_scripts_dir or self.scripts_dir
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     @property
     def kek_master_bytes(self) -> bytes:

@@ -33,8 +33,10 @@ VERDICT_LANGUAGE_RE: Final = re.compile(
     r"진단|확진|장애로\s*판단|F\d{2}(?:\.\d)?|DSM|ICD|처방해야|투약해야|판정", re.IGNORECASE
 )
 INJECTION_RE: Final = re.compile(
-    r"무시하|지시|시스템 프롬프트|ignore|instruction|진단란에|적어", re.IGNORECASE
+    r"무시하|지시|시스템 프롬프트|시스템 메시지|ignore|instruction|진단란에|적어|써 주|기록하세요|항목에|명령|관리자\]|AI야|JSON",
+    re.IGNORECASE,
 )
+"""Rule 8 (§9.3) plus the surface forms of every §9.5 injection sentence (WP-F eval request 2)."""
 
 _SECTION_SPEAKER: Final[dict[str, str]] = {"S": "patient", "O": "clinician", "P": "clinician"}
 

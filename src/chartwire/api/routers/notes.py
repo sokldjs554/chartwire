@@ -25,6 +25,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from chartwire.api.deps import get_deps
 from chartwire.audit import service as audit
 from chartwire.auth.jwt import Principal
 from chartwire.auth.rbac import require
@@ -35,14 +36,6 @@ from chartwire.db.tenant import TenantCtx, tenant_tx
 from chartwire.notes import service
 from chartwire.notes.service import NoteView
 from chartwire.redis import keys
-
-try:  # WP-E's app composition (contract: ``get_deps(request) -> AppDeps``)
-    from chartwire.api.deps import get_deps
-except ImportError:  # pragma: no cover - standalone router (tests, partial trees)
-
-    def get_deps(request: Request) -> Any:
-        return request.app.state.deps
-
 
 router = APIRouter(prefix="/v1", tags=["notes"])
 

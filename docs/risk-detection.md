@@ -85,3 +85,7 @@ stt-worker(§7.4)는 `hit.alerts` 인 경우에만 `risk_events` 행을 만들�
 `risk_unacked_over_sla` 게이지는 Redis 가 아니라 PostgreSQL(`acknowledged_at IS NULL AND sla_deadline_at < now`, 부분 인덱스 `ix_risk_open_sla`)에서 10 s 마다 다시 셉니다 — ZSET 을 잃어도(시나리오 A) 게이지는 참이고, `chartwire outbox stats --rebuild-sla` 가 ZSET 을 되살립니다(`docs/ops/runbook.md` §3-5).
 
 `risk_hits_total{category, severity, suppressed}` 는 억제된 히트까지 셉니다(경보 행은 만들지 않음). 통합 테스트: `tests/integration/test_alerts.py`(생성·확인·에스컬레이션, `FakeClock`), `tests/integration/test_stt_worker.py`(세그먼트 트랜잭션 안의 경보 + ZSET + 발행).
+
+## 9. `past` 종류와 held-out 레이블의 차이 (`docs/eval/README.md` 해석 규칙 1 과 동일)
+
+spec §9.4 는 과거 서술(`작년엔 죽고 싶었는데 지금은 아니에요`)을 *severity −1, 그래도 ≥ 1 이면 경보* 로 규정하고, 생성기 골드는 억제 종류 전부를 `alert=false` 로 둡니다. 두 해석을 하나로 합치지 않습니다: in-grammar P/R/F1 에서 `past` 발화를 **제외**하고 `past_kind.{n, alerted}` 로 따로 보고합니다. held-out 세트는 동결된 레이블(`alert=false`, 작성자의 임상 판단)을 그대로 쓰므로 §9.4 대로 동작하는 이 탐지기는 그 행에서 오탐으로 집계됩니다 — `per_kind.past.fp_rate` 가 그 크기를 보여줍니다. 이 문서와 `docs/eval/README.md` 는 같은 해석을 적습니다.

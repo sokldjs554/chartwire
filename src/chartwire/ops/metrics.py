@@ -137,6 +137,9 @@ PURGE_DURATION_SECONDS = Histogram(
     "purge_duration_seconds", "purge_run wall time", buckets=JOB_BUCKETS, registry=REGISTRY
 )
 DB_POOL_IN_USE = Gauge("db_pool_in_use", "Connections checked out of the asyncpg pool", registry=REGISTRY)
+STT_REBUILDS_TOTAL = Counter(
+    "stt_rebuilds_total", "Ledger rebuilds after a stream gap / lost consumer group", registry=REGISTRY
+)
 
 ALL_NAMES: Final[tuple[str, ...]] = (
     "ledger_flush_seconds",
@@ -166,8 +169,10 @@ ALL_NAMES: Final[tuple[str, ...]] = (
     "note_draft_seconds",
     "purge_duration_seconds",
     "db_pool_in_use",
+    "stt_rebuilds_total",
 )
-"""Every metric name in the spec plus ``segments_default_partition_rows`` (§7.2 names none)."""
+"""Every metric name in the spec plus ``segments_default_partition_rows`` (§7.2 names none) and
+``stt_rebuilds_total`` (scenario D ``rebuild_count``, §11.2)."""
 
 KNOWN_LABEL_VALUES: Final[tuple[tuple[Counter | Gauge | Histogram, tuple[str, ...]], ...]] = (
     (WS_CONNECTIONS, ("ingest", "watch")),

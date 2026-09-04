@@ -235,8 +235,7 @@ class Poller:
         for tenant_id, ids in done.items():
             try:
                 async with tenant_tx(self._engine, TenantCtx.service(tenant_id)) as session:
-                    for event_id in ids:
-                        await outbox_repo.mark_done(session, event_id, now=now)
+                    await outbox_repo.mark_done_many(session, ids, now=now)
             except Exception:
                 log.exception(
                     "outbox mark_done failed",

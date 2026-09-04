@@ -12,15 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from chartwire.core.clock import Clock
 from chartwire.crypto import KeyCache
 from chartwire.objectstore import ObjectStore
+from chartwire.ops import metrics
 from chartwire.redis.session_state import SessionState
 from chartwire.ws.drain import ConnectionRegistry
 from chartwire.ws.ledger import LedgerBatcher
 from chartwire.ws.pubsub import SubscriberManager
-
-try:
-    from chartwire.ops import metrics
-except ImportError:  # pragma: no cover - ops package is WP-G; the shells still work without metrics
-    from chartwire.ws import _nometrics as metrics  # type: ignore[no-redef]
 
 __all__ = ["WsRuntime", "metrics", "now_ms"]
 

@@ -102,20 +102,23 @@ class SttWorkerConfig:
         ``_SIM_SEED``, ``_SIM_LATENCY``, ``_AWS_REGION``, ``_FETCH_AUDIO``, ``_LEASE_MS``,
         ``_AUTOCLAIM_IDLE_MS``, ``_WORKER_PORT`` (0 = no ops HTTP server)."""
         env = os.environ if env is None else env
-        provider = env.get(ENV_PREFIX + "PROVIDER", "simulator").strip().lower()
+        # ``Settings`` (env prefix ``CHARTWIRE_``) already carries ``stt_provider`` / ``stt_scripts_dir`` /
+        # ``stt_slow_delay_ms`` / ``stt_sim_seed`` / ``stt_worker_port`` (WP-C request 3); the explicit
+        # ``env`` mapping still wins so tests can inject values without touching the process environment.
+        provider = env.get(ENV_PREFIX + "PROVIDER", settings.stt_provider).strip().lower()
         if provider not in PROVIDERS:
             raise ValueError(f"CHARTWIRE_STT_PROVIDER must be one of {PROVIDERS}, got {provider!r}")
         return cls(
             provider=provider,
-            scripts_dir=Path(env.get(ENV_PREFIX + "SCRIPTS_DIR", DEFAULT_SCRIPTS_DIR)),
-            slow_delay_ms=_env_int(env, "SLOW_DELAY_MS", 400),
-            sim_seed=_env_int(env, "SIM_SEED", 0),
+            scripts_dir=Path(env.get(ENV_PREFIX + "SCRIPTS_DIR", settings.stt_scripts_path)),
+            slow_delay_ms=_env_int(env, "SLOW_DELAY_MS", settings.stt_slow_delay_ms),
+            sim_seed=_env_int(env, "SIM_SEED", settings.stt_sim_seed),
             sim_latency=_env_bool(env, "SIM_LATENCY", True),
             aws_region=env.get(ENV_PREFIX + "AWS_REGION", "ap-northeast-2"),
             fetch_audio=_env_bool(env, "FETCH_AUDIO", provider == "aws"),
             lease_ms=_env_int(env, "LEASE_MS", keys.TTL_STT_OWNER_MS),
             autoclaim_idle_ms=_env_int(env, "AUTOCLAIM_IDLE_MS", 60_000),
-            http_port=_env_int(env, "WORKER_PORT", DEFAULT_HTTP_PORT),
+            http_port=_env_int(env, "WORKER_PORT", settings.stt_worker_port),
         )
 
 

@@ -67,7 +67,6 @@ from chartwire.redis import keys
 log = logging.getLogger(__name__)
 
 PROBLEM_MEDIA_TYPE = middleware.PROBLEM_MEDIA_TYPE
-CORS_ORIGINS_ENV = "CHARTWIRE_CORS_ORIGINS"
 CONSOLE_DIR_ENV = "CHARTWIRE_CONSOLE_DIR"
 _STATUS_CODES = {
     400: "CW-4000",
@@ -116,7 +115,7 @@ def build_deps(settings: Settings) -> AppDeps:
 async def close_deps(deps: AppDeps) -> None:
     await deps.engine.dispose()
     with contextlib.suppress(RedisError, OSError):
-        await deps.redis.aclose()  # type: ignore[attr-defined]  # types-redis stubs predate redis 5
+        await deps.redis.aclose()
 
 
 async def _keys_invalidate_loop(deps: AppDeps) -> None:
@@ -134,7 +133,7 @@ async def _keys_invalidate_loop(deps: AppDeps) -> None:
                 deps.keycache.invalidate(str(message["data"]))
     finally:
         with contextlib.suppress(RedisError, OSError):
-            await pubsub.aclose()  # type: ignore[attr-defined]
+            await pubsub.aclose()
 
 
 def _optional(module: str) -> Any | None:
@@ -216,8 +215,9 @@ def install_error_handlers(app: FastAPI) -> None:
 # ------------------------------------------------------------------ console
 
 
-def console_path() -> Path | None:
-    candidates = [Path(p) for p in (os.environ.get(CONSOLE_DIR_ENV) or "",) if p]
+def console_path(settings: Settings | None = None) -> Path | None:
+    configured = settings.console_dir if settings is not None else os.environ.get(CONSOLE_DIR_ENV)
+    candidates = [Path(configured)] if configured else []
     candidates.append(Path(__file__).resolve().parents[3] / "console")
     candidates.append(Path("/app/console"))
     for directory in candidates:
@@ -281,7 +281,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if ops_routes is not None:
         app.include_router(ops_routes.router)
 
-    index = console_path()
+    index = console_path(settings)
 
     @app.get("/console", include_in_schema=False)
     @app.get("/console/index.html", include_in_schema=False)
@@ -310,7 +310,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(middleware.Idempotency, settings=settings, redis=_redis, clock=_clock)
     app.add_middleware(middleware.RateLimit, settings=settings, redis=_redis, clock=_clock)
     app.add_middleware(middleware.BodyLimit)
-    origins = [o.strip() for o in os.environ.get(CORS_ORIGINS_ENV, "").split(",") if o.strip()]
+    origins = settings.cors_origin_list
     if origins:
         app.add_middleware(
             CORSMiddleware,

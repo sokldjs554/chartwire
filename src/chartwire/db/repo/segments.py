@@ -8,11 +8,11 @@ from it after decryption.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Row, and_, or_, select, tuple_
+from sqlalchemy import Row, and_, func, or_, select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -108,10 +108,23 @@ async def replay(
             await session.execute(select(SessionModel.started_at).where(SessionModel.id == session_id))
         ).scalar()
     stmt = select(*_COLUMNS).where(T.session_id == session_id, T.seq > after_seq)
-    if started_at is not None:
-        stmt = stmt.where(T.created_at >= started_at)
+    stmt = _bounded(stmt, started_at)
     rows = await session.execute(stmt.order_by(T.seq).limit(limit))
     return [SegmentRow.from_row(r) for r in rows]
+
+
+def _bounded(stmt: Any, started_at: datetime | None) -> Any:
+    """A lower bound alone only prunes *past* partitions; a session never spans a day, so the upper
+    bound ``< started_at + 1 day`` keeps the scan to one partition (perf study ``Q1a_bounded``)."""
+    if started_at is not None:
+        stmt = stmt.where(T.created_at >= started_at, T.created_at < started_at + timedelta(days=1))
+    return stmt
+
+
+async def last_seq(session: AsyncSession, session_id: UUID, *, started_at: datetime | None = None) -> int:
+    """``max(seq)`` of the session's finals, ``-1`` when none (viewer ``welcome.last_final_seq``)."""
+    stmt = select(func.coalesce(func.max(T.seq), -1)).where(T.session_id == session_id)
+    return int((await session.execute(_bounded(stmt, started_at))).scalar_one())
 
 
 async def timeline(

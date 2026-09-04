@@ -169,8 +169,9 @@ async def upsert_stt_offset(
     stmt = stmt.on_conflict_do_update(
         index_elements=["session_id"],
         set_={
-            "last_chunk_seq": stmt.excluded.last_chunk_seq,
-            "last_segment_seq": stmt.excluded.last_segment_seq,
+            # monotone: a thawed ex-owner can never move the offsets backwards (WP-C request 4)
+            "last_chunk_seq": func.greatest(SttOffset.last_chunk_seq, stmt.excluded.last_chunk_seq),
+            "last_segment_seq": func.greatest(SttOffset.last_segment_seq, stmt.excluded.last_segment_seq),
             "updated_at": func.now(),
         },
     )

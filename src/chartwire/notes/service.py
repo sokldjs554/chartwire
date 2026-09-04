@@ -30,7 +30,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from chartwire.audit import service as audit
-from chartwire.consent.gates import ConsentScopeMissing, active_scopes, require_scope
+from chartwire.consent.gates import ConsentScopeMissing, require_scope
+from chartwire.consent.service import active_scopes_for_patient
 from chartwire.core.errors import AppError, NotFound
 from chartwire.core.ids import uuid7
 from chartwire.crypto.envelope import Envelope, aad
@@ -39,7 +40,6 @@ from chartwire.crypto.keycache import KeyCache
 from chartwire.db.models import Note, NoteAssessment, NoteStatement, Tenant
 from chartwire.db.models import Session as SessionModel
 from chartwire.db.repo import notes as notes_repo
-from chartwire.db.repo import patients as patients_repo
 from chartwire.db.repo import sessions as sessions_repo
 from chartwire.db.tenant import TenantCtx, tenant_tx
 from chartwire.notes import policy
@@ -58,18 +58,9 @@ from chartwire.notes.schema import (
     parse_draft,
 )
 from chartwire.notes.verifier import VERIFIER_VERSION, verify
+from chartwire.ops import metrics as _metrics
 from chartwire.outbox.context import HandlerContext
 from chartwire.redis import keys
-
-try:  # WP-E's DB-backed consent helper (contract); the pure gate is the fallback
-    from chartwire.consent.service import active_scopes_for_patient as _active_scopes_for_patient
-except ImportError:  # pragma: no cover - depends on the build order
-    _active_scopes_for_patient = None
-
-try:  # WP-G's single metrics registry; optional so the notes package imports on its own
-    from chartwire.ops import metrics as _metrics
-except ImportError:  # pragma: no cover
-    _metrics = None  # type: ignore[assignment]
 
 log = logging.getLogger(__name__)
 
@@ -265,9 +256,7 @@ async def _find_tenant(engine: Any, session_id: UUID) -> UUID:
 
 
 async def _consent_scopes(s: AsyncSession, patient_id: UUID) -> set[str]:
-    if _active_scopes_for_patient is not None:
-        return set(await _active_scopes_for_patient(s, patient_id))
-    return active_scopes(await patients_repo.list_consents(s, patient_id))
+    return set(await active_scopes_for_patient(s, patient_id))
 
 
 async def _load(s: AsyncSession, keycache: KeyCache, tenant_id: UUID, session_id: UUID) -> _Loaded | None:
@@ -510,8 +499,6 @@ async def publish_note_status(
 
 
 def _record_metrics(outcome: NoteOutcome, verified: VerifiedDraft | None, elapsed_s: float) -> None:
-    if _metrics is None:
-        return
     _metrics.NOTE_STATUS_TOTAL.labels(status=outcome.status).inc()
     _metrics.NOTE_DRAFT_SECONDS.labels(provider=outcome.provider).observe(max(elapsed_s, 0.0))
     if verified is not None:

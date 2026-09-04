@@ -12,6 +12,7 @@ BULK_SEED ?= 7
 BULK_SEGMENTS ?= 2000000
 LOAD_SESSIONS ?= 50
 LOAD_DURATION ?= 60
+DEMO_PORT ?= 8000
 STRICT_MODULES := src/chartwire/ws/core.py src/chartwire/ws/codec.py src/chartwire/notes/verifier.py src/chartwire/crypto src/chartwire/outbox
 # 테스트 격리: 작업 패키지마다 자기 DB/Redis 인덱스를 쓴다 (docs/dev/AGENT_ENV.md)
 export CHARTWIRE_TEST_DB ?= chartwire_test
@@ -59,10 +60,11 @@ loadtest-a loadtest-b loadtest-c loadtest-d loadtest-h: loadtest-%: ## 부하 �
 	$(CHARTWIRE) loadtest $(shell echo $* | tr a-z A-Z) --sessions $(LOAD_SESSIONS) --duration $(LOAD_DURATION) --out docs/loadtest
 
 perf-study: ## 실행계획 연구 (0006 before → 0007 after) → docs/perf (§4.6); bulk 이후 VACUUM ANALYZE 필수
-	$(CHARTWIRE) perf study --out docs/perf
+	$(CHARTWIRE) db downgrade 0006 && $(CHARTWIRE) perf study --state before --out docs/perf
+	$(CHARTWIRE) db upgrade head && $(CHARTWIRE) perf study --state after --out docs/perf
 
-bulk: ## 합성 대량 적재 (8 테넌트 / 2M 세그먼트, §4.6)
-	$(CHARTWIRE) synth bulk --seed $(BULK_SEED) --segments $(BULK_SEGMENTS)
+bulk: ## 합성 대량 적재 (8 테넌트 / 2M 세그먼트, §4.6) → docs/perf/bulk.json
+	$(CHARTWIRE) synth bulk --seed $(BULK_SEED) --segments $(BULK_SEGMENTS) --out docs/perf/bulk.json
 
 cdk-synth: ## AWS CDK 합성 + cdk-nag, 커밋된 템플릿과 diff 0 (§12.1)
 	cd infra/cdk && npx aws-cdk@2 synth --quiet && git diff --exit-code -- cdk.out
@@ -70,5 +72,7 @@ cdk-synth: ## AWS CDK 합성 + cdk-nag, 커밋된 템플릿과 diff 0 (§12.1)
 readme-numbers: ## README 숫자 마커를 docs/{eval,loadtest,perf}/*.json 에서 채운다 (§11.4)
 	$(CHARTWIRE) readme-numbers --write
 
-demo: ## api + 콘솔 (http://localhost:8000/console) — 합성 데이터만
-	$(CHARTWIRE) serve api
+demo: ## api + worker + stt-worker 를 한 프로세스로 (http://localhost:8000/console) — 시드된 데모, 합성 데이터만
+	$(CHARTWIRE) db bootstrap-roles && $(CHARTWIRE) db upgrade && $(CHARTWIRE) seed --demo --if-empty
+	@echo "콘솔: http://127.0.0.1:8000/console  (clinician@demo.clinic / demo1234!)  — 흐름: docs/dev/e2e.md"
+	$(CHARTWIRE) serve all --embedded --host 127.0.0.1 --port $(DEMO_PORT)

@@ -13,7 +13,6 @@ and a seeded patient's name decrypts in the console. All data is synthetic (spec
 
 from __future__ import annotations
 
-import os
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -57,14 +56,12 @@ N_PATIENTS: Final = 20
 N_SCRIPTS: Final = 20
 ALL_SCOPES: Final[list[str]] = list(SCOPE_ORDER)
 CONSENT_CHANNEL: Final = "seed"
-SCRIPTS_DIR_ENV: Final = "CHARTWIRE_STT_SCRIPTS_DIR"
-DEFAULT_SCRIPTS_DIR: Final = "var/scripts"
-"""Same default as the stt-worker (``chartwire.stt.worker.DEFAULT_SCRIPTS_DIR``), read via the
-same environment variable so ``seed`` and ``serve stt-worker`` agree without importing each other."""
 
 
-def default_scripts_dir() -> Path:
-    return Path(os.environ.get(SCRIPTS_DIR_ENV) or DEFAULT_SCRIPTS_DIR)
+def default_scripts_dir(settings: Settings | None = None) -> Path:
+    """``Settings.stt_scripts_dir`` → ``Settings.scripts_dir`` (default ``var/scripts``) — the same
+    directory the stt-worker simulator reads, so ``seed`` and ``serve stt-worker`` always agree."""
+    return (settings or Settings()).stt_scripts_path
 
 
 @dataclass
@@ -137,7 +134,7 @@ async def _seed(
 ) -> SeedResult:
     kek = LocalKek(settings.kek_master_bytes)
     master = settings.kek_master_bytes
-    target_dir = scripts_dir or default_scripts_dir()
+    target_dir = scripts_dir or default_scripts_dir(settings)
     tenant, created = await _ensure_tenant(owner, kek)
     result = SeedResult(tenant_id=tenant.id, scripts_dir=target_dir)
     if if_empty and not created:

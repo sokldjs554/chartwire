@@ -10,7 +10,6 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import func, select
 
-from chartwire.api import app as app_module
 from chartwire.db.models import Session as SessionModel
 from chartwire.db.tenant import TenantCtx, tenant_tx
 from chartwire.objectstore.localfs import LocalFs
@@ -21,8 +20,8 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
-async def api(app_engine, redis, settings, tmp_path, monkeypatch):
-    monkeypatch.setenv(app_module.CORS_ORIGINS_ENV, "http://console.example.test")
+async def api(app_engine, redis, settings, tmp_path):
+    settings = settings.model_copy(update={"cors_origins": "http://console.example.test"})
     app = build_app(make_deps(app_engine, redis, settings, LocalFs(tmp_path)))
     async with client(app) as c:
         yield c

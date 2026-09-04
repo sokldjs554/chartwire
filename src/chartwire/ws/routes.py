@@ -76,9 +76,7 @@ def on_startup(app: Any, deps: Any) -> Awaitable[None]:
         objectstore=deps.objectstore,
         clock=deps.clock,
         node_id=deps.node_id,
-        state=SessionState(
-            deps.redis, stream_maxlen=settings.stream_maxlen, scripts_dir=settings.scripts_dir
-        ),
+        state=SessionState(deps.redis, stream_maxlen=settings.stream_maxlen),
         ledger=ledger,
         subscribers=SubscriberManager(deps.redis),
         registry=ConnectionRegistry(),

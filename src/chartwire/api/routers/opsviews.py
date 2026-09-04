@@ -7,7 +7,6 @@ partition list is catalog metadata (``pg_inherits``) and carries no tenant data.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from chartwire.api.deps import get_deps, not_found, open_tx, request_id
@@ -15,16 +14,11 @@ from chartwire.api.schemas import DeadLetterOut, OutboxStatsOut, PartitionOut, R
 from chartwire.audit import service as audit
 from chartwire.auth.jwt import Principal
 from chartwire.auth.rbac import require
+from chartwire.db.repo import ops as ops_repo
 from chartwire.db.repo import outbox as outbox_repo
 from chartwire.outbox import dlq
 
 router = APIRouter(prefix="/v1", tags=["ops"])
-
-_PARTITIONS_SQL = text(
-    "SELECT c.relname AS name, pg_get_expr(c.relpartbound, c.oid) AS bounds "
-    "FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid JOIN pg_class p ON p.oid = i.inhparent "
-    "WHERE p.relname = 'transcript_segments' ORDER BY c.relname"
-)
 
 
 @router.get("/ops/outbox", response_model=OutboxStatsOut)
@@ -82,7 +76,7 @@ async def partitions(
 ) -> list[PartitionOut]:
     deps = get_deps(request)
     async with AsyncSession(deps.engine) as s:
-        rows = (await s.execute(_PARTITIONS_SQL)).all()
+        rows = await ops_repo.list_segment_partitions(s)
     return [
         PartitionOut(name=str(name), bounds=bounds, is_default=(bounds or "").upper() == "DEFAULT")
         for name, bounds in rows

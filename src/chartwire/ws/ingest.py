@@ -269,6 +269,8 @@ class IngestConnection:
             sess.session_id, self.rt.node_id, self.conn_id, now=self.rt.clock.now()
         )
         self.epoch = int(data["epoch"])
+        # the stt-worker resolves the tenant from the hash (no tenant walk) — WP-C request 1
+        await self.rt.state.set_fields(sess.session_id, tenant=str(sess.tenant_id))
         return hot is not None
 
     async def _persist_hello(self, sess: _Session, hello: m.Hello) -> None:
@@ -522,9 +524,6 @@ class IngestConnection:
     async def _transition(self, state: str) -> None:
         assert self.sess is not None and self.core is not None
         sess = self.sess
-        if state == "ended":
-            with contextlib.suppress(RedisError, OSError):
-                await self.rt.state.xadd_end(sess.session_id, self.epoch)
         try:
             async with tenant_tx(self.rt.engine, TenantCtx.service(sess.tenant_id)) as s:
                 if state == "recording" and sess.started_at is None:
@@ -554,6 +553,10 @@ class IngestConnection:
             await self._fail(CloseCode.DEPENDENCY_UNAVAILABLE, "database unavailable", retryable=True)
             return
         with contextlib.suppress(RedisError, OSError):
+            if state == "ended":
+                # ``ended`` is committed *before* the end marker so the stt-worker's ``transcribed``
+                # can never be overwritten by a late ``ended`` commit (WP-C request 2)
+                await self.rt.state.xadd_end(sess.session_id, self.epoch)
             await self.rt.state.set_fields(
                 sess.session_id, state=state, updated_at=self.rt.clock.now().isoformat()
             )

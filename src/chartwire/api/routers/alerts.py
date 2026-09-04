@@ -7,22 +7,18 @@ The response carries the span, category and scope flags but never the matched ph
 
 from __future__ import annotations
 
-from importlib import import_module
 from uuid import UUID
 
-import orjson
 from fastapi import APIRouter, Depends, Query, Request
 
-from chartwire.api.deps import AppDeps, get_deps, not_found, open_tx, principal_ctx, request_id
+from chartwire.api.deps import get_deps, not_found, open_tx
 from chartwire.api.schemas import AlertOut
-from chartwire.audit import service as audit
 from chartwire.auth.jwt import Principal
 from chartwire.auth.rbac import require
 from chartwire.db.models import RiskEvent
 from chartwire.db.repo import risk as risk_repo
 from chartwire.db.repo import sessions as sessions_repo
-from chartwire.db.tenant import tenant_tx
-from chartwire.redis import keys
+from chartwire.risk import alerts
 
 router = APIRouter(prefix="/v1", tags=["alerts"])
 CLINICAL = ("clinician", "staff")
@@ -78,45 +74,14 @@ async def ack_alert(
     id: int, request: Request, principal: Principal = Depends(require(*CLINICAL))
 ) -> AlertOut:
     deps = get_deps(request)
-    try:
-        alerts = import_module("chartwire.risk.alerts")
-    except ImportError:
-        alerts = None
-    if alerts is not None:
-        event = await alerts.ack(
-            deps,
-            tenant_id=principal.tenant_id,
-            risk_event_id=id,
-            by=principal.user_id,
-            actor_role=principal.role,
-            via="rest",
-        )
-    else:  # inline fallback with the same effects (UPDATE + audit + ZREM + publish)
-        event = await _ack_inline(deps, principal, id, request_id(request))
+    event = await alerts.ack(
+        deps,
+        tenant_id=principal.tenant_id,
+        risk_event_id=id,
+        by=principal.user_id,
+        actor_role=principal.role,
+        via="rest",
+    )
     if event is None:
         raise not_found("경보")
     return alert_out(event)
-
-
-async def _ack_inline(
-    deps: AppDeps, principal: Principal, risk_event_id: int, rid: str | None
-) -> RiskEvent | None:
-    async with tenant_tx(deps.engine, principal_ctx(principal)) as s:
-        event = await risk_repo.acknowledge(s, risk_event_id, by=principal.user_id, now=deps.clock.now())
-        if event is None:
-            return None
-        await audit.record(
-            s,
-            tenant_id=principal.tenant_id,
-            actor_id=principal.user_id,
-            actor_role=principal.role,
-            action="alert.acked",
-            resource_type="risk_event",
-            resource_id=str(risk_event_id),
-            request_id=rid,
-            detail={"session_id": str(event.session_id), "via": "rest"},
-        )
-    await deps.redis.zrem(keys.ALERTS_SLA, keys.alerts_sla_member(principal.tenant_id, risk_event_id))
-    msg = {"t": "risk.ack", "risk_event_id": risk_event_id, "by": str(principal.user_id or UUID(int=0))}
-    await deps.redis.publish(keys.sess_events(event.session_id), orjson.dumps(msg).decode())
-    return event

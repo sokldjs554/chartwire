@@ -27,7 +27,10 @@ from chartwire.notes.schema import (
 )
 from chartwire.notes.verifier import INJECTION_RE
 
-SYMPTOM_CUES = re.compile(r"잠|수면|입맛|식욕|기분|우울|불안|두근|집중|피곤|기운|약|복용|부작용|술|체중")
+SYMPTOM_CUES = re.compile(
+    r"잠|수면|입맛|식욕|기분|우울|불안|두근|집중|피곤|기운|약|복용|부작용|술|체중"
+    r"|자요|깨서|빠졌|소주|맥주|mg|먹고"  # §10.1 fact utterances without a §9.2 cue (WP-F request 3)
+)
 OBSERVATION_CUES = re.compile(r"보이시|보입니다|표정|말속도|목소리|시선|위생|안절부절|눈물")
 PLAN_CUES = re.compile(r"올려|줄여|유지|처방|드리겠|뵙겠|의뢰|검사|일지|연습|주 뒤|다음 주|2주|한 달")
 # A clinician *question* (``지난 2주 동안 어떻게 지내셨어요?``) is neither an observation nor a plan even

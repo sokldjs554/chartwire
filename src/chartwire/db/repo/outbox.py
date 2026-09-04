@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import ColumnElement
 
 from chartwire.db.models import DeadLetter, OutboxEvent, ProcessedEvent
+from chartwire.outbox import backoff
 
 MAX_BACKOFF_S = 300
 DEFAULT_MAX_ATTEMPTS = 8
@@ -30,10 +31,10 @@ def _now(now: datetime | None) -> ColumnElement[Any]:
 
 
 def backoff_seconds(attempts: int, rng: random.Random | None = None) -> float:
-    """``min(300, 2**attempts) ± 20 %`` (attempts = failures so far, ≥1)."""
-    base = min(MAX_BACKOFF_S, 2 ** max(attempts, 0))
-    jitter = (rng or random).uniform(-0.2, 0.2)
-    return base * (1 + jitter)
+    """``min(300, 2**attempts) ± 20 %`` (attempts = failures so far, ≥1) — the single rule lives in
+    :mod:`chartwire.outbox.backoff`; this is the repo-side wrapper."""
+    jitter = (rng or random).uniform(-backoff.JITTER_RATIO, backoff.JITTER_RATIO)
+    return backoff.base_delay_s(max(attempts, 0)) * (1 + jitter)
 
 
 async def insert_event(
@@ -94,12 +95,33 @@ async def claim_batch(
     return (await session.scalars(stmt)).all()
 
 
+_DONE_VALUES: dict[str, Any] = {
+    "status": "done",
+    "locked_by": None,
+    "locked_at": None,
+    "lease_until": None,
+    "last_error": None,
+}
+
+
 async def mark_done(session: AsyncSession, event_id: int, *, now: datetime | None = None) -> None:
     await session.execute(
-        update(OutboxEvent)
-        .where(OutboxEvent.id == event_id)
-        .values(status="done", done_at=_now(now), locked_by=None, lease_until=None, last_error=None)
+        update(OutboxEvent).where(OutboxEvent.id == event_id).values(done_at=_now(now), **_DONE_VALUES)
     )
+
+
+async def mark_done_many(
+    session: AsyncSession, event_ids: Sequence[int], *, now: datetime | None = None
+) -> int:
+    """Batch form of :func:`mark_done` (one UPDATE); returns the number of rows updated."""
+    if not event_ids:
+        return 0
+    stmt = (
+        update(OutboxEvent)
+        .where(OutboxEvent.id.in_(list(event_ids)))
+        .values(done_at=_now(now), **_DONE_VALUES)
+    )
+    return int((await session.execute(stmt)).rowcount or 0)
 
 
 async def mark_failed(
@@ -128,6 +150,7 @@ async def mark_failed(
             attempts=attempts,
             next_attempt_at=_now(now) + delay,
             locked_by=None,
+            locked_at=None,
             lease_until=None,
             last_error=error[:2000],
         )
@@ -198,7 +221,7 @@ async def reclaim_stuck(session: AsyncSession, *, now: datetime | None = None) -
     stmt = (
         update(OutboxEvent)
         .where(OutboxEvent.status == "in_flight", OutboxEvent.lease_until < _now(now))
-        .values(status="pending", locked_by=None, lease_until=None)
+        .values(status="pending", locked_by=None, locked_at=None, lease_until=None)
     )
     return int((await session.execute(stmt)).rowcount or 0)
 

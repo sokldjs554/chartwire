@@ -41,7 +41,7 @@ def minute_of(now: datetime) -> int:
 
 
 async def hit(
-    redis: Redis[str],
+    redis: Redis,
     tenant: UUID | str,
     principal: UUID | str,
     bucket: str,
@@ -63,7 +63,7 @@ async def hit(
 
 
 async def check(
-    redis: Redis[str],
+    redis: Redis,
     tenant: UUID | str,
     principal: UUID | str,
     bucket: str,

@@ -20,17 +20,16 @@ from uuid import UUID, uuid4
 import orjson
 from fastapi import WebSocket, WebSocketDisconnect
 from redis.exceptions import RedisError
-from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
-from chartwire.audit import service as audit
 from chartwire.crypto import CryptoError, DecryptError, Envelope, aad
-from chartwire.db.models import Tenant, TranscriptSegment
+from chartwire.db.models import Tenant
 from chartwire.db.repo import risk as risk_repo
 from chartwire.db.repo import segments as segments_repo
 from chartwire.db.repo import sessions as sessions_repo
 from chartwire.db.tenant import TenantCtx, tenant_tx
-from chartwire.redis import keys, tickets
+from chartwire.redis import tickets
+from chartwire.risk import alerts
 from chartwire.ws import actions as act
 from chartwire.ws import messages as m
 from chartwire.ws.actions import CloseCode
@@ -50,8 +49,6 @@ CRITICAL_Q_MAX = 1_024
 LAGGED_NOTICE_EVERY_S = 5.0
 CLOSE_TIMEOUT_S = 5.0
 """A close frame to a viewer whose socket buffer is full must not hold the connection task hostage."""
-NOBODY = UUID(int=0)
-"""``risk.ack.by`` for principals without a user id (dev tokens)."""
 
 
 def segment_aad(tenant_id: UUID, session_id: UUID, seq: int) -> str:
@@ -219,12 +216,7 @@ class WatchConnection:
             tenant = await s.get(Tenant, ticket.tenant_id)
             if row is None or tenant is None or row.tenant_id != ticket.tenant_id:
                 return None
-            stmt = select(func.coalesce(func.max(TranscriptSegment.seq), -1)).where(
-                TranscriptSegment.session_id == row.id
-            )
-            if row.started_at is not None:
-                stmt = stmt.where(TranscriptSegment.created_at >= row.started_at)
-            last = int((await s.execute(stmt)).scalar_one())
+            last = await segments_repo.last_seq(s, row.id, started_at=row.started_at)
             return _Session(
                 row.tenant_id, row.id, row.state, row.started_at, last, tenant.kek_ref, row.dek_wrapped
             )
@@ -283,38 +275,31 @@ class WatchConnection:
             await self._fail(CloseCode.SESSION_ENDED, "session purged")
 
     async def _ack_alert(self, risk_event_id: int) -> None:
-        """REST-equivalent of ``POST /v1/alerts/{id}/ack`` (§6.9) under the viewer's own tenant context."""
+        """REST-equivalent of ``POST /v1/alerts/{id}/ack`` (§6.9) under the viewer's own tenant context —
+        the same implementation the REST router uses (``risk.alerts``)."""
         assert self.sess is not None and self.ticket is not None
         sess, ticket = self.sess, self.ticket
         ctx = TenantCtx(sess.tenant_id, ticket.user_id, ticket.role)
         try:
             async with tenant_tx(self.rt.engine, ctx) as s:
-                event = await risk_repo.acknowledge(
-                    s, risk_event_id, by=ticket.user_id, now=self.rt.clock.now()
+                event = await alerts.acknowledge_in_tx(
+                    s,
+                    tenant_id=sess.tenant_id,
+                    risk_event_id=risk_event_id,
+                    by=ticket.user_id,
+                    actor_role=ticket.role,
+                    now=self.rt.clock.now(),
+                    via="ws",
                 )
                 if event is None or event.session_id != sess.session_id:
                     return
-                await audit.record(
-                    s,
-                    tenant_id=sess.tenant_id,
-                    actor_id=ticket.user_id,
-                    actor_role=ticket.role,
-                    action="alert.acked",
-                    resource_type="risk_event",
-                    resource_id=str(risk_event_id),
-                    detail={"session_id": str(sess.session_id), "via": "ws"},
-                )
         except SQLAlchemyError:
             await self._send_now(
                 act.error_msg(CloseCode.DEPENDENCY_UNAVAILABLE, "ack failed", retryable=True)
             )
             return
         with contextlib.suppress(RedisError, OSError):
-            await self.rt.redis.zrem(keys.ALERTS_SLA, keys.alerts_sla_member(sess.tenant_id, risk_event_id))
-            by = ticket.user_id or NOBODY
-            await self.rt.state.publish_event(
-                sess.session_id, m.dump(m.RiskAckEvent(risk_event_id=risk_event_id, by=by))
-            )
+            await alerts.after_ack(self.rt.redis, event, by=ticket.user_id)
 
     # --- producers ---------------------------------------------------------------------------------
 
@@ -381,7 +366,7 @@ class WatchConnection:
                 text = "[복호화 실패]"
         msg = m.TranscriptFinal(
             seq=row.seq,
-            speaker=row.speaker,  # type: ignore[arg-type]
+            speaker=row.speaker,
             t_start_ms=row.t_start_ms,
             t_end_ms=row.t_end_ms,
             text=text,

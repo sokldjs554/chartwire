@@ -38,7 +38,7 @@ class AppDeps:
 
     settings: Settings
     engine: AsyncEngine
-    redis: Redis[str]
+    redis: Redis
     kek: KekProvider
     keycache: KeyCache
     objectstore: ObjectStore
