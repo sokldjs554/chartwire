@@ -1,0 +1,291 @@
+"""``create_app(settings)`` — the api process (spec §6.9, §8.1, §13.3).
+
+Composition, in order:
+
+* **lifespan** builds :class:`AppDeps` (engine as ``chartwire_app``, Redis, KEK, DEK cache, object
+  store, clock, node id) at ``app.state.deps``, subscribes to ``keys:invalidate`` (DEK cache eviction
+  after a purge), then starts the WebSocket runtime (WP-B) and the ops/drain wiring (WP-G);
+* **routers** — every REST route of §6.9 owned here plus, each guarded by ``ImportError`` so a partial
+  tree still boots: ``ws.routes`` (WP-B), ``routers.notes`` (WP-D), ``ops.routes`` (WP-G);
+* **middleware** — request id, security headers, CORS allowlist, 1 MB body limit, rate limit,
+  ``Idempotency-Key`` (:mod:`chartwire.api.middleware`);
+* **errors** — every failure is RFC 9457 ``application/problem+json`` with a ``CW-xxxx`` code and
+  the request id (``AppError``, consent gate, auth ``HTTPException``, validation, unexpected).
+
+Tests may run the app without its lifespan by injecting ``app.state.deps`` (``httpx.ASGITransport``).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import logging
+import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from importlib import import_module
+from pathlib import Path
+from typing import Any
+
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from redis.asyncio import Redis
+from redis.exceptions import RedisError
+
+from chartwire.api import middleware
+from chartwire.api.deps import AppDeps, request_id
+from chartwire.api.routers import (
+    alerts,
+    audit,
+    auth,
+    consents,
+    opsviews,
+    patients,
+    purge,
+    search,
+    segments,
+    sessions,
+    users,
+)
+from chartwire.auth.deps import clock as auth_clock
+from chartwire.auth.deps import jwt_secret
+from chartwire.auth.jwt import SYSTEM_CLOCK
+from chartwire.consent.gates import ConsentScopeMissing
+from chartwire.core.clock import SystemClock
+from chartwire.core.config import Settings, get_settings
+from chartwire.core.errors import AppError
+from chartwire.crypto.kek import LocalKek
+from chartwire.crypto.keycache import KeyCache
+from chartwire.db.engine import make_engine
+from chartwire.objectstore import from_spec
+from chartwire.redis import keys
+
+log = logging.getLogger(__name__)
+
+PROBLEM_MEDIA_TYPE = middleware.PROBLEM_MEDIA_TYPE
+CORS_ORIGINS_ENV = "CHARTWIRE_CORS_ORIGINS"
+CONSOLE_DIR_ENV = "CHARTWIRE_CONSOLE_DIR"
+_STATUS_CODES = {400: "CW-4000", 401: "CW-4010", 403: "CW-4030", 404: "CW-4040", 405: "CW-4050", 409: "CW-4090"}
+
+OWN_ROUTERS = (
+    auth.router,
+    users.router,
+    patients.router,
+    consents.router,
+    sessions.router,
+    segments.router,
+    search.router,
+    alerts.router,
+    purge.router,
+    audit.router,
+    opsviews.router,
+)
+
+
+# ------------------------------------------------------------------ deps
+
+
+def build_deps(settings: Settings) -> AppDeps:
+    kek = LocalKek(settings.kek_master_bytes)
+    pool = 5 if settings.embedded else 20
+    return AppDeps(
+        settings=settings,
+        engine=make_engine(settings.database_url, pool_size=pool, max_overflow=0 if settings.embedded else 10),
+        redis=Redis.from_url(settings.redis_url, decode_responses=True),
+        kek=kek,
+        keycache=KeyCache(kek),
+        objectstore=from_spec(settings.objectstore),
+        clock=SystemClock(),
+        node_id=settings.node_id,
+    )
+
+
+async def close_deps(deps: AppDeps) -> None:
+    await deps.engine.dispose()
+    with contextlib.suppress(RedisError, OSError):
+        await deps.redis.aclose()
+
+
+async def _keys_invalidate_loop(deps: AppDeps) -> None:
+    """``keys:invalidate`` subscriber: evict a purged session/patient DEK from this node's cache."""
+    pubsub = deps.redis.pubsub(ignore_subscribe_messages=True)
+    try:
+        await pubsub.subscribe(keys.KEYS_INVALIDATE)
+        while True:
+            try:
+                message = await pubsub.get_message(timeout=1.0)
+            except (RedisError, OSError):
+                await asyncio.sleep(1.0)
+                continue
+            if message and message.get("type") == "message":
+                deps.keycache.invalidate(str(message["data"]))
+    finally:
+        with contextlib.suppress(RedisError, OSError):
+            await pubsub.aclose()
+
+
+def _optional(module: str) -> Any | None:
+    try:
+        return import_module(module)
+    except ImportError as exc:
+        log.info("optional module not available", extra={"module_name": module, "reason": type(exc).__name__})
+        return None
+
+
+# ------------------------------------------------------------------ errors
+
+
+def problem_response(exc: AppError, rid: str | None, headers: dict[str, str] | None = None) -> JSONResponse:
+    return JSONResponse(exc.to_problem(rid), status_code=exc.status, media_type=PROBLEM_MEDIA_TYPE, headers=headers)
+
+
+def _http_exception_problem(exc: HTTPException) -> AppError:
+    detail = exc.detail
+    if isinstance(detail, dict):
+        code = str(detail.get("code") or _STATUS_CODES.get(exc.status_code, "CW-4000"))
+        text = str(detail.get("detail") or detail.get("reason") or "요청을 처리할 수 없습니다")
+    else:
+        code = _STATUS_CODES.get(exc.status_code, "CW-4000" if exc.status_code < 500 else "CW-5000")
+        text = str(detail) if detail else "요청을 처리할 수 없습니다"
+    return AppError(code, exc.status_code, text)
+
+
+def install_error_handlers(app: FastAPI) -> None:
+    @app.exception_handler(AppError)
+    async def _app_error(request: Request, exc: AppError) -> Response:
+        return problem_response(exc, request_id(request))
+
+    @app.exception_handler(ConsentScopeMissing)
+    async def _consent(request: Request, exc: ConsentScopeMissing) -> Response:
+        return problem_response(AppError(exc.code, exc.status, exc.detail), request_id(request))
+
+    @app.exception_handler(HTTPException)
+    async def _http(request: Request, exc: HTTPException) -> Response:
+        return problem_response(_http_exception_problem(exc), request_id(request), exc.headers)
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation(request: Request, exc: RequestValidationError) -> Response:
+        errors = [
+            {"loc": [str(part) for part in err.get("loc", ())], "msg": err.get("msg"), "type": err.get("type")}
+            for err in exc.errors()
+        ]  # never ``input``: a rejected value may be free text
+        problem = AppError("CW-4220", 422, "요청 형식이 올바르지 않습니다").to_problem(request_id(request))
+        problem["errors"] = errors
+        return JSONResponse(problem, status_code=422, media_type=PROBLEM_MEDIA_TYPE)
+
+    @app.exception_handler(Exception)
+    async def _unexpected(request: Request, exc: Exception) -> Response:
+        log.error("unhandled error", extra={"error_type": type(exc).__name__}, exc_info=exc)
+        return problem_response(AppError("CW-5000", 500, "내부 오류가 발생했습니다", retryable=True), request_id(request))
+
+
+# ------------------------------------------------------------------ console
+
+
+def console_path() -> Path | None:
+    candidates = [Path(p) for p in (os.environ.get(CONSOLE_DIR_ENV) or "",) if p]
+    candidates.append(Path(__file__).resolve().parents[3] / "console")
+    candidates.append(Path("/app/console"))
+    for directory in candidates:
+        index = directory / "index.html"
+        if index.is_file():
+            return index
+    return None
+
+
+# ------------------------------------------------------------------ factory
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or get_settings()
+    ws_routes = _optional("chartwire.ws.routes")
+    notes_routes = _optional("chartwire.api.routers.notes")
+    ops_routes = _optional("chartwire.ops.routes")
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        deps = build_deps(settings)
+        app.state.deps = deps
+        invalidator = asyncio.get_running_loop().create_task(_keys_invalidate_loop(deps), name="keys-invalidate")
+        try:
+            if ws_routes is not None:
+                await ws_routes.on_startup(app, deps)
+            if ops_routes is not None:
+                ops_routes.on_startup(app, deps, role="api")
+            log.info("api started", extra={"node_id": deps.node_id, "dev_secrets": settings.uses_dev_secrets})
+            yield
+        finally:
+            if ws_routes is not None:
+                await ws_routes.on_shutdown(app)
+            if ops_routes is not None:
+                await ops_routes.on_shutdown(app)
+            invalidator.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await invalidator
+            await close_deps(deps)
+            app.state.deps = None
+
+    app = FastAPI(
+        title="chartwire",
+        version="0.1.0",
+        description="SOAPY-class 음성차팅 제품의 밑바닥 백엔드 층 — 모든 데이터는 합성(SYNTHETIC)입니다",
+        lifespan=lifespan,
+        docs_url="/docs",
+        redoc_url=None,
+    )
+    app.state.settings = settings
+    app.state.deps = None
+
+    for router in OWN_ROUTERS:
+        app.include_router(router)
+    if notes_routes is not None:
+        app.include_router(notes_routes.router)
+    if ws_routes is not None:
+        app.include_router(ws_routes.router)
+    if ops_routes is not None:
+        app.include_router(ops_routes.router)
+
+    index = console_path()
+
+    @app.get("/console", include_in_schema=False)
+    @app.get("/console/index.html", include_in_schema=False)
+    async def console() -> Response:
+        if index is None:
+            raise AppError("CW-4040", 404, "console/index.html 이 없습니다")
+        return FileResponse(index, media_type="text/html; charset=utf-8")
+
+    install_error_handlers(app)
+
+    def _deps() -> AppDeps | None:
+        return app.state.deps
+
+    def _redis() -> Any:
+        deps = _deps()
+        return deps.redis if deps is not None else None
+
+    def _clock() -> Any:
+        deps = _deps()
+        return deps.clock if deps is not None else SYSTEM_CLOCK
+
+    app.dependency_overrides[jwt_secret] = lambda: settings.jwt_secret
+    app.dependency_overrides[auth_clock] = _clock
+
+    # innermost first: add_middleware wraps the previous stack
+    app.add_middleware(middleware.Idempotency, settings=settings, redis=_redis, clock=_clock)
+    app.add_middleware(middleware.RateLimit, settings=settings, redis=_redis, clock=_clock)
+    app.add_middleware(middleware.BodyLimit)
+    origins = [o.strip() for o in os.environ.get(CORS_ORIGINS_ENV, "").split(",") if o.strip()]
+    if origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Request-Id"],
+            expose_headers=["X-Request-Id", "Retry-After", "X-RateLimit-Remaining", "Idempotent-Replayed"],
+            max_age=600,
+        )
+    app.add_middleware(middleware.SecurityHeaders)
+    app.add_middleware(middleware.RequestId, node_id=settings.node_id)
+    return app
