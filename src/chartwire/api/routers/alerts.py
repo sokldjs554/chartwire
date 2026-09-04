@@ -10,9 +10,10 @@ from __future__ import annotations
 from importlib import import_module
 from uuid import UUID
 
+import orjson
 from fastapi import APIRouter, Depends, Query, Request
 
-from chartwire.api.deps import get_deps, not_found, open_tx, request_id
+from chartwire.api.deps import AppDeps, get_deps, not_found, open_tx, principal_ctx, request_id
 from chartwire.api.schemas import AlertOut
 from chartwire.audit import service as audit
 from chartwire.auth.jwt import Principal
@@ -21,9 +22,7 @@ from chartwire.db.models import RiskEvent
 from chartwire.db.repo import risk as risk_repo
 from chartwire.db.repo import sessions as sessions_repo
 from chartwire.db.tenant import tenant_tx
-from chartwire.api.deps import principal_ctx
 from chartwire.redis import keys
-import orjson
 
 router = APIRouter(prefix="/v1", tags=["alerts"])
 CLINICAL = ("clinician", "staff")
@@ -58,7 +57,7 @@ async def list_alerts(
 ) -> list[AlertOut]:
     """Unacknowledged alerts ordered by SLA deadline (Q3). Clinicians see their own sessions only."""
     if not open:
-        return []  # acknowledged alerts are reachable per session through the audit trail (repo has no closed listing yet)
+        return []  # acknowledged alerts are traced per session through the audit trail (no closed listing in the repo)
     async with open_tx(request, principal) as (_deps, s):
         rows = await risk_repo.list_open(s, principal.tenant_id, limit=limit)
         if principal.role == "clinician":
@@ -75,7 +74,9 @@ async def list_alerts(
 
 
 @router.post("/alerts/{id}/ack", response_model=AlertOut)
-async def ack_alert(id: int, request: Request, principal: Principal = Depends(require(*CLINICAL))) -> AlertOut:
+async def ack_alert(
+    id: int, request: Request, principal: Principal = Depends(require(*CLINICAL))
+) -> AlertOut:
     deps = get_deps(request)
     try:
         alerts = import_module("chartwire.risk.alerts")
@@ -83,7 +84,12 @@ async def ack_alert(id: int, request: Request, principal: Principal = Depends(re
         alerts = None
     if alerts is not None:
         event = await alerts.ack(
-            deps, tenant_id=principal.tenant_id, risk_event_id=id, by=principal.user_id, actor_role=principal.role, via="rest"
+            deps,
+            tenant_id=principal.tenant_id,
+            risk_event_id=id,
+            by=principal.user_id,
+            actor_role=principal.role,
+            via="rest",
         )
     else:  # inline fallback with the same effects (UPDATE + audit + ZREM + publish)
         event = await _ack_inline(deps, principal, id, request_id(request))
@@ -92,7 +98,9 @@ async def ack_alert(id: int, request: Request, principal: Principal = Depends(re
     return alert_out(event)
 
 
-async def _ack_inline(deps, principal: Principal, risk_event_id: int, rid: str | None):  # type: ignore[no-untyped-def]
+async def _ack_inline(
+    deps: AppDeps, principal: Principal, risk_event_id: int, rid: str | None
+) -> RiskEvent | None:
     async with tenant_tx(deps.engine, principal_ctx(principal)) as s:
         event = await risk_repo.acknowledge(s, risk_event_id, by=principal.user_id, now=deps.clock.now())
         if event is None:

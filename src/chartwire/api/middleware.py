@@ -67,7 +67,7 @@ API_CSP: Final = "default-src 'none'; frame-ancestors 'none'"
 def _header(scope: Scope, name: bytes) -> str | None:
     for key, value in scope.get("headers", ()):
         if key == name:
-            return value.decode("latin-1")
+            return bytes(value).decode("latin-1")
     return None
 
 
@@ -75,7 +75,9 @@ def problem_bytes(exc: AppError, request_id: str | None) -> bytes:
     return orjson.dumps(exc.to_problem(request_id))
 
 
-async def send_problem(send: Send, exc: AppError, request_id: str | None, extra_headers: dict[str, str] | None = None) -> None:
+async def send_problem(
+    send: Send, exc: AppError, request_id: str | None, extra_headers: dict[str, str] | None = None
+) -> None:
     body = problem_bytes(exc, request_id)
     headers = [(b"content-type", PROBLEM_MEDIA_TYPE.encode()), (b"content-length", str(len(body)).encode())]
     if request_id:
@@ -353,7 +355,9 @@ class Idempotency:
             await self.app(scope, receive, send)
             return
         if not idempotency.valid_key(key):
-            await send_problem(send, AppError("CW-4223", 422, "Idempotency-Key 형식이 올바르지 않습니다"), rid)
+            await send_problem(
+                send, AppError("CW-4223", 422, "Idempotency-Key 형식이 올바르지 않습니다"), rid
+            )
             return
         body = await _drain_body(receive)
         digest = idempotency.body_hash(body)

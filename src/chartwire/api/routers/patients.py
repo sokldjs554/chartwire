@@ -8,6 +8,8 @@ patient's DEK has been crypto-shredded.
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.exc import IntegrityError
 
@@ -22,7 +24,6 @@ from chartwire.crypto.envelope import Envelope, aad, dek_fingerprint
 from chartwire.crypto.errors import CryptoError
 from chartwire.db.models import Patient, Tenant
 from chartwire.db.repo import patients as patients_repo
-from chartwire.redis import keys as _keys  # noqa: F401  (key names never spelled here)
 
 router = APIRouter(prefix="/v1", tags=["patients"])
 CLINICAL = ("clinician", "staff")
@@ -38,7 +39,9 @@ def patient_out(deps: AppDeps, tenant: Tenant, patient: Patient) -> PatientOut:
     if patient.name_enc is not None and patient.dek_wrapped is not None:
         try:
             dek = deps.keycache.get(patient.id, tenant.kek_ref, bytes(patient.dek_wrapped))
-            name = Envelope.decrypt(dek, bytes(patient.name_enc), _aad(tenant, patient.pseudonym, "name")).decode()
+            name = Envelope.decrypt(
+                dek, bytes(patient.name_enc), _aad(tenant, patient.pseudonym, "name")
+            ).decode()
         except (CryptoError, UnicodeDecodeError):
             name = None  # placeholder fixtures / foreign key material: the row is still listable
     return PatientOut(
@@ -112,19 +115,12 @@ async def find_patients(
 
 
 @router.get("/patients/{id}", response_model=PatientOut)
-async def get_patient(id: str, request: Request, principal: Principal = Depends(require(*CLINICAL))) -> PatientOut:
+async def get_patient(
+    id: UUID, request: Request, principal: Principal = Depends(require(*CLINICAL))
+) -> PatientOut:
     async with open_tx(request, principal) as (deps, s):
         tenant = await load_tenant(s, principal.tenant_id)
-        patient = await patients_repo.get_patient(s, _uuid(id))
+        patient = await patients_repo.get_patient(s, id)
         if patient is None:
             raise not_found("환자")
         return patient_out(deps, tenant, patient)
-
-
-def _uuid(value: str):  # type: ignore[no-untyped-def]
-    from uuid import UUID
-
-    try:
-        return UUID(value)
-    except ValueError:
-        raise not_found("환자") from None

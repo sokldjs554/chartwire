@@ -21,18 +21,19 @@ import asyncio
 import contextlib
 import logging
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from importlib import import_module
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
+from starlette.exceptions import HTTPException
 
 from chartwire.api import middleware
 from chartwire.api.deps import AppDeps, request_id
@@ -56,6 +57,7 @@ from chartwire.consent.gates import ConsentScopeMissing
 from chartwire.core.clock import SystemClock
 from chartwire.core.config import Settings, get_settings
 from chartwire.core.errors import AppError
+from chartwire.crypto.errors import CryptoError
 from chartwire.crypto.kek import LocalKek
 from chartwire.crypto.keycache import KeyCache
 from chartwire.db.engine import make_engine
@@ -67,7 +69,14 @@ log = logging.getLogger(__name__)
 PROBLEM_MEDIA_TYPE = middleware.PROBLEM_MEDIA_TYPE
 CORS_ORIGINS_ENV = "CHARTWIRE_CORS_ORIGINS"
 CONSOLE_DIR_ENV = "CHARTWIRE_CONSOLE_DIR"
-_STATUS_CODES = {400: "CW-4000", 401: "CW-4010", 403: "CW-4030", 404: "CW-4040", 405: "CW-4050", 409: "CW-4090"}
+_STATUS_CODES = {
+    400: "CW-4000",
+    401: "CW-4010",
+    403: "CW-4030",
+    404: "CW-4040",
+    405: "CW-4050",
+    409: "CW-4090",
+}
 
 OWN_ROUTERS = (
     auth.router,
@@ -92,7 +101,9 @@ def build_deps(settings: Settings) -> AppDeps:
     pool = 5 if settings.embedded else 20
     return AppDeps(
         settings=settings,
-        engine=make_engine(settings.database_url, pool_size=pool, max_overflow=0 if settings.embedded else 10),
+        engine=make_engine(
+            settings.database_url, pool_size=pool, max_overflow=0 if settings.embedded else 10
+        ),
         redis=Redis.from_url(settings.redis_url, decode_responses=True),
         kek=kek,
         keycache=KeyCache(kek),
@@ -105,7 +116,7 @@ def build_deps(settings: Settings) -> AppDeps:
 async def close_deps(deps: AppDeps) -> None:
     await deps.engine.dispose()
     with contextlib.suppress(RedisError, OSError):
-        await deps.redis.aclose()
+        await deps.redis.aclose()  # type: ignore[attr-defined]  # types-redis stubs predate redis 5
 
 
 async def _keys_invalidate_loop(deps: AppDeps) -> None:
@@ -123,7 +134,7 @@ async def _keys_invalidate_loop(deps: AppDeps) -> None:
                 deps.keycache.invalidate(str(message["data"]))
     finally:
         with contextlib.suppress(RedisError, OSError):
-            await pubsub.aclose()
+            await pubsub.aclose()  # type: ignore[attr-defined]
 
 
 def _optional(module: str) -> Any | None:
@@ -137,8 +148,15 @@ def _optional(module: str) -> Any | None:
 # ------------------------------------------------------------------ errors
 
 
-def problem_response(exc: AppError, rid: str | None, headers: dict[str, str] | None = None) -> JSONResponse:
-    return JSONResponse(exc.to_problem(rid), status_code=exc.status, media_type=PROBLEM_MEDIA_TYPE, headers=headers)
+def problem_response(
+    exc: AppError, rid: str | None, headers: Mapping[str, str] | None = None
+) -> JSONResponse:
+    return JSONResponse(
+        exc.to_problem(rid),
+        status_code=exc.status,
+        media_type=PROBLEM_MEDIA_TYPE,
+        headers=None if headers is None else dict(headers),
+    )
 
 
 def _http_exception_problem(exc: HTTPException) -> AppError:
@@ -161,24 +179,38 @@ def install_error_handlers(app: FastAPI) -> None:
     async def _consent(request: Request, exc: ConsentScopeMissing) -> Response:
         return problem_response(AppError(exc.code, exc.status, exc.detail), request_id(request))
 
-    @app.exception_handler(HTTPException)
+    @app.exception_handler(
+        HTTPException
+    )  # Starlette's base class: covers FastAPI's and the router's own 404/405
     async def _http(request: Request, exc: HTTPException) -> Response:
         return problem_response(_http_exception_problem(exc), request_id(request), exc.headers)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(request: Request, exc: RequestValidationError) -> Response:
         errors = [
-            {"loc": [str(part) for part in err.get("loc", ())], "msg": err.get("msg"), "type": err.get("type")}
+            {
+                "loc": [str(part) for part in err.get("loc", ())],
+                "msg": err.get("msg"),
+                "type": err.get("type"),
+            }
             for err in exc.errors()
         ]  # never ``input``: a rejected value may be free text
         problem = AppError("CW-4220", 422, "요청 형식이 올바르지 않습니다").to_problem(request_id(request))
         problem["errors"] = errors
         return JSONResponse(problem, status_code=422, media_type=PROBLEM_MEDIA_TYPE)
 
+    @app.exception_handler(CryptoError)
+    async def _crypto(request: Request, exc: CryptoError) -> Response:
+        # wrong KEK master / foreign key material: the reason is a token like ``invalid_tag``, never key bytes
+        log.error("key material unusable", extra={"error_type": type(exc).__name__})
+        return problem_response(AppError("CW-5001", 500, "키 자료를 열 수 없습니다"), request_id(request))
+
     @app.exception_handler(Exception)
     async def _unexpected(request: Request, exc: Exception) -> Response:
         log.error("unhandled error", extra={"error_type": type(exc).__name__}, exc_info=exc)
-        return problem_response(AppError("CW-5000", 500, "내부 오류가 발생했습니다", retryable=True), request_id(request))
+        return problem_response(
+            AppError("CW-5000", 500, "내부 오류가 발생했습니다", retryable=True), request_id(request)
+        )
 
 
 # ------------------------------------------------------------------ console
@@ -208,7 +240,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         deps = build_deps(settings)
         app.state.deps = deps
-        invalidator = asyncio.get_running_loop().create_task(_keys_invalidate_loop(deps), name="keys-invalidate")
+        invalidator = asyncio.get_running_loop().create_task(
+            _keys_invalidate_loop(deps), name="keys-invalidate"
+        )
         try:
             if ws_routes is not None:
                 await ws_routes.on_startup(app, deps)
@@ -259,7 +293,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_error_handlers(app)
 
     def _deps() -> AppDeps | None:
-        return app.state.deps
+        return cast(AppDeps | None, app.state.deps)
 
     def _redis() -> Any:
         deps = _deps()

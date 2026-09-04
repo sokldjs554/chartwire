@@ -83,7 +83,15 @@ def _key_for_attempt(kek: Any, keycache: Any, tenant: Tenant) -> bytes:
     return bytes(keycache.get(tenant.id, tenant.kek_ref, tenant.record_key_wrapped))
 
 
-def attempt_decrypt(kek: Any, keycache: Any, *, tenant: Tenant, session_id: UUID, dek_wrapped: bytes | None, sample: bytes | None) -> dict[str, str]:
+def attempt_decrypt(
+    kek: Any,
+    keycache: Any,
+    *,
+    tenant: Tenant,
+    session_id: UUID,
+    dek_wrapped: bytes | None,
+    sample: bytes | None,
+) -> dict[str, str]:
     """``{unwrap, decrypt_sample}`` — the two failures the console's "복호화 시도" button shows."""
     try:
         keycache.get(session_id, tenant.kek_ref, dek_wrapped)
@@ -95,14 +103,18 @@ def attempt_decrypt(kek: Any, keycache: Any, *, tenant: Tenant, session_id: UUID
     if sample is None:
         return {"unwrap": unwrap, "decrypt_sample": DECRYPT_NO_SAMPLE}
     try:
-        Envelope.decrypt(_key_for_attempt(kek, keycache, tenant), bytes(sample), segment_aad(tenant.id, session_id, 0))
+        Envelope.decrypt(
+            _key_for_attempt(kek, keycache, tenant), bytes(sample), segment_aad(tenant.id, session_id, 0)
+        )
         decrypt = DECRYPT_SUCCEEDED
     except DecryptError as exc:
         decrypt = f"failed:{exc.reason}"
     return {"unwrap": unwrap, "decrypt_sample": decrypt}
 
 
-async def _verify_session(ctx: HandlerContext, s: AsyncSession, tenant: Tenant, sid: UUID, sample: bytes | None, report: Report) -> None:
+async def _verify_session(
+    ctx: HandlerContext, s: AsyncSession, tenant: Tenant, sid: UUID, sample: bytes | None, report: Report
+) -> None:
     counts = await purge_repo.count_session_data(s, sid)
     report.add(f"rows:{sid}", all(v == 0 for v in counts.values()), counts=counts)
     objects = await ctx.objectstore.list(session_prefix(tenant.id, sid))
@@ -112,11 +124,14 @@ async def _verify_session(ctx: HandlerContext, s: AsyncSession, tenant: Tenant, 
     sess = await sessions_repo.get_session(s, sid)
     wrapped = None if sess is None else sess.dek_wrapped
     report.add(f"dek_null:{sid}", sess is not None and wrapped is None and sess.state == "purged")
-    attempt = attempt_decrypt(ctx.kek, ctx.keycache, tenant=tenant, session_id=sid, dek_wrapped=wrapped, sample=sample)
+    attempt = attempt_decrypt(
+        ctx.kek, ctx.keycache, tenant=tenant, session_id=sid, dek_wrapped=wrapped, sample=sample
+    )
     report.add(f"unwrap:{sid}", attempt["unwrap"] == UNWRAP_DESTROYED, result=attempt["unwrap"])
     report.add(
         f"decrypt_sample:{sid}",
-        attempt["decrypt_sample"] in (DECRYPT_INVALID, DECRYPT_NO_SAMPLE) or attempt["decrypt_sample"].startswith("failed:"),
+        attempt["decrypt_sample"] in (DECRYPT_INVALID, DECRYPT_NO_SAMPLE)
+        or attempt["decrypt_sample"].startswith("failed:"),
         result=attempt["decrypt_sample"],
     )
 
@@ -152,7 +167,11 @@ async def run(ctx: HandlerContext, purge_job_id: UUID, *, tenant_id: UUID) -> Pu
             await _verify_session(ctx, s, tenant, sid, sample, report)
         now = ctx.clock.now()
         verified = await purge_repo.update_job(
-            s, job.id, state="verified" if report.ok else "failed", verified_at=now, verify_result=report.as_json()
+            s,
+            job.id,
+            state="verified" if report.ok else "failed",
+            verified_at=now,
+            verify_result=report.as_json(),
         )
         assert verified is not None
         await audit.record(

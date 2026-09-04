@@ -31,9 +31,9 @@ def _default(value: Any) -> str:
 
 
 def canonical_json(obj: Any) -> bytes:
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=_default).encode(
-        "utf-8"
-    )
+    return json.dumps(
+        obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=_default
+    ).encode("utf-8")
 
 
 def receipt_hash(steps: list[dict[str, Any]], counts: dict[str, Any], dek_fingerprints: list[str]) -> bytes:

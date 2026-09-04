@@ -59,18 +59,19 @@ class PurgeJobNotFound(LookupError):
 
 @dataclass
 class _Run:
+    """One execution. Holds plain values copied from the job row, not the mapped instance: every
+    ``UPDATE purge_jobs`` expires the instance's columns and a lazy reload is not possible here."""
+
     ctx: HandlerContext
     session: Any
-    job: PurgeJob
+    job_id: UUID
+    tenant_id: UUID
     now: datetime
+    prior_steps: list[dict[str, Any]]
     steps: list[dict[str, Any]] = field(default_factory=list)
     counts: dict[str, int] = field(default_factory=dict)
     fingerprints: list[str] = field(default_factory=list)
     sample: bytes | None = None
-
-    @property
-    def tenant_id(self) -> UUID:
-        return self.job.tenant_id
 
     # --- bookkeeping ---------------------------------------------------------------------------
 
@@ -86,7 +87,7 @@ class _Run:
         self.steps.append(entry)
         for name, value in counts.items():
             self.counts[name] = self.counts.get(name, 0) + int(value)
-        await purge_repo.append_step(self.session, self.job.id, entry)
+        await purge_repo.append_step(self.session, self.job_id, entry)
         await audit.record(
             self.session,
             tenant_id=self.tenant_id,
@@ -94,7 +95,7 @@ class _Run:
             actor_role="service",
             action="purge.step",
             resource_type="purge_job",
-            resource_id=self.job.id,
+            resource_id=self.job_id,
             detail={"step": step, "subject_id": str(subject), "counts": counts},
         )
 
@@ -121,7 +122,11 @@ class _Run:
         if fp is not None:
             self.fingerprints.append(bytes(fp).hex())
         await sessions_repo.update_session(self.session, sid, state="purging")
-        await self._record(STEP_CAPTURE, sid, {"sample_ciphertext": int(sample is not None), "dek_fingerprint": int(fp is not None)})
+        await self._record(
+            STEP_CAPTURE,
+            sid,
+            {"sample_ciphertext": int(sample is not None), "dek_fingerprint": int(fp is not None)},
+        )
         # 2. force-close live ingest/viewers, drop every Redis key of the session
         await self._record(STEP_REDIS, sid, await self._purge_redis(sid))
         # 3. object store
@@ -141,7 +146,7 @@ class _Run:
             action="session.purged",
             resource_type="session",
             resource_id=sid,
-            detail={"purge_job_id": str(self.job.id)},
+            detail={"purge_job_id": str(self.job_id)},
         )
 
     async def _purge_redis(self, sid: UUID) -> dict[str, int]:
@@ -178,11 +183,10 @@ class _Run:
     # --- finalize -----------------------------------------------------------------------------
 
     async def finalize(self) -> PurgeJob:
-        all_steps = list(self.job.steps) + self.steps
-        digest = receipt.receipt_hash(all_steps, self.counts, self.fingerprints)
+        digest = receipt.receipt_hash(self.prior_steps + self.steps, self.counts, self.fingerprints)
         job = await purge_repo.update_job(
             self.session,
-            self.job.id,
+            self.job_id,
             state="completed",
             completed_at=self.now,
             counts=self.counts,
@@ -230,13 +234,20 @@ async def run(ctx: HandlerContext, purge_job_id: UUID, *, tenant_id: UUID) -> Pu
             raise PurgeJobNotFound(purge_job_id)
         if job.state in TERMINAL_STATES:
             return job
-        running = await purge_repo.update_job(session, job.id, state="running")
-        assert running is not None
-        run_ = _Run(ctx=ctx, session=session, job=running, now=ctx.clock.now())
-        if job.subject_type == "session":
-            await run_.purge_session(job.subject_id)
+        subject_type, subject_id = job.subject_type, job.subject_id
+        run_ = _Run(
+            ctx=ctx,
+            session=session,
+            job_id=job.id,
+            tenant_id=job.tenant_id,
+            now=ctx.clock.now(),
+            prior_steps=list(job.steps),
+        )
+        await purge_repo.update_job(session, job.id, state="running")
+        if subject_type == "session":
+            await run_.purge_session(subject_id)
         else:
-            await run_.purge_patient(job.subject_id)
+            await run_.purge_patient(subject_id)
         job = await run_.finalize()
     _observe(time.monotonic() - started)
     log.info(

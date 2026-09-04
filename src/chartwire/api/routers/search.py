@@ -11,8 +11,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
 
-from chartwire.api.schemas import SearchHit
 from chartwire.api.deps import open_tx
+from chartwire.api.schemas import SearchHit
 from chartwire.auth.jwt import Principal
 from chartwire.auth.rbac import require
 from chartwire.db.repo import search as search_repo

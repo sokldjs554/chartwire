@@ -106,7 +106,11 @@ async def create_session(
             resource_type="session",
             resource_id=row.id,
             request_id=request_id(request),
-            detail={"patient_id": str(patient.id), "clinician_id": str(clinician.id), "scopes": row.scopes_snapshot},
+            detail={
+                "patient_id": str(patient.id),
+                "clinician_id": str(clinician.id),
+                "scopes": row.scopes_snapshot,
+            },
         )
         return session_out(row)
 
@@ -125,14 +129,21 @@ async def list_sessions(
         clinician_id = actor_user_id(principal)
     async with open_tx(request, principal) as (_deps, s):
         rows = await sessions_repo.list_sessions(
-            s, tenant_id=principal.tenant_id, state=state, clinician_id=clinician_id, before=before, limit=limit
+            s,
+            tenant_id=principal.tenant_id,
+            state=state,
+            clinician_id=clinician_id,
+            before=before,
+            limit=limit,
         )
     items = [session_out(r) for r in rows]
     return SessionList(items=items, next_before=items[-1].created_at if len(items) == limit else None)
 
 
 @router.get("/sessions/{id}", response_model=SessionOut)
-async def get_session(id: UUID, request: Request, principal: Principal = Depends(require(*CLINICAL))) -> SessionOut:
+async def get_session(
+    id: UUID, request: Request, principal: Principal = Depends(require(*CLINICAL))
+) -> SessionOut:
     async with open_tx(request, principal) as (_deps, s):
         return session_out(await owned_session(s, id, principal))
 
@@ -168,7 +179,9 @@ async def ws_ticket(
 
 
 @router.post("/sessions/{id}/end", response_model=SessionOut)
-async def end_session(id: UUID, request: Request, principal: Principal = Depends(require(*CLINICAL))) -> SessionOut:
+async def end_session(
+    id: UUID, request: Request, principal: Principal = Depends(require(*CLINICAL))
+) -> SessionOut:
     """REST alternative to the WS ``end``: the ledger ``ack_seq`` becomes ``final_seq``; the end marker
     goes on the chunk stream so the stt-worker flushes and marks the session transcribed (§7.4)."""
     async with open_tx(request, principal) as (deps, s):
@@ -197,7 +210,9 @@ async def end_session(id: UUID, request: Request, principal: Principal = Depends
 
 async def _announce_end(deps: AppDeps, row: SessionModel) -> None:
     """Redis side of ending (idempotent, best effort): end marker, hash state, viewers, 24 h TTLs."""
-    state = SessionState(deps.redis, stream_maxlen=deps.settings.stream_maxlen, scripts_dir=deps.settings.scripts_dir)
+    state = SessionState(
+        deps.redis, stream_maxlen=deps.settings.stream_maxlen, scripts_dir=deps.settings.scripts_dir
+    )
     with contextlib.suppress(RedisError, OSError):
         await state.xadd_end(row.id, int(row.epoch))
         await state.set_fields(row.id, state="ended", updated_at=deps.clock.now().isoformat())

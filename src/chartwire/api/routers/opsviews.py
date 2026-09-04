@@ -35,7 +35,9 @@ async def outbox_stats(request: Request, principal: Principal = Depends(require(
 
 
 @router.get("/ops/dead-letters", response_model=list[DeadLetterOut])
-async def dead_letters(request: Request, principal: Principal = Depends(require("admin"))) -> list[DeadLetterOut]:
+async def dead_letters(
+    request: Request, principal: Principal = Depends(require("admin"))
+) -> list[DeadLetterOut]:
     async with open_tx(request, principal) as (_deps, s):
         rows = await outbox_repo.list_dead_letters(s, limit=100)
     return [
@@ -53,7 +55,9 @@ async def dead_letters(request: Request, principal: Principal = Depends(require(
 
 
 @router.post("/ops/dead-letters/{id}/replay", response_model=ReplayOut)
-async def replay_dead_letter(id: int, request: Request, principal: Principal = Depends(require("admin"))) -> ReplayOut:
+async def replay_dead_letter(
+    id: int, request: Request, principal: Principal = Depends(require("admin"))
+) -> ReplayOut:
     deps = get_deps(request)
     replayed = await dlq.replay(deps.engine, id, tenant_id=principal.tenant_id, now=deps.clock.now())
     if not replayed:
@@ -73,7 +77,9 @@ async def replay_dead_letter(id: int, request: Request, principal: Principal = D
 
 
 @router.get("/ops/partitions", response_model=list[PartitionOut])
-async def partitions(request: Request, principal: Principal = Depends(require("admin"))) -> list[PartitionOut]:
+async def partitions(
+    request: Request, principal: Principal = Depends(require("admin"))
+) -> list[PartitionOut]:
     deps = get_deps(request)
     async with AsyncSession(deps.engine) as s:
         rows = (await s.execute(_PARTITIONS_SQL)).all()

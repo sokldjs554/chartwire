@@ -65,7 +65,41 @@ _A_FIELDS = {
     "loss": "d",
     "dup": "d",
 }
-_PERF_QUERIES = ("Q1", "Q2", "Q2b", "Q2c", "Q3", "Q4", "Q5", "Q6")
+_PERF_QUERIES = (
+    "Q1",
+    "Q1a_without",
+    "Q1a_with",
+    "Q1a_bounded",
+    "Q1b_keyset",
+    "Q1b_offset",
+    "Q2a",
+    "Q2b",
+    "Q2c",
+    "Q2d_text",
+    "Q2d_term",
+    "Q3",
+    "Q4",
+    "Q5_q1_app",
+    "Q5_q1_su",
+    "Q5_q3_app",
+    "Q5_q3_su",
+    "Q5_form_inline",
+    "Q5_form_initplan",
+    "Q6",
+)
+"""``id`` values in ``docs/perf/summary.json:$.queries[]`` (``chartwire.perf.queries.QUERIES``)."""
+_INJECT_CLASSES = ("fabricated", "seq", "diagnosis", "number", "drug", "negation", "speaker")
+_RISK_KINDS = (
+    "positive",
+    "negated",
+    "hypothetical",
+    "past",
+    "third_person",
+    "clinician_question",
+    "idiom",
+    "unrelated",
+)
+_RISK_FIELDS = {"precision": ".2f", "recall": ".2f", "f1": ".2f", "n": "d", "tp": "d", "fp": "d", "fn": "d"}
 
 KEYS: dict[str, Key] = {
     # ---- load tests (docs/loadtest/<scenario>.json) ----
@@ -87,34 +121,91 @@ KEYS: dict[str, Key] = {
     "load.H.dlq_count": Key("docs/loadtest/H.json", "$.dlq_count", "d"),
     "load.E.loss": Key("docs/loadtest/E.json", "$.loss", "d"),
     "load.E.reconnect_p95_ms": Key("docs/loadtest/E.json", "$.reconnect_p95_ms", ".0f"),
-    # ---- perf study (docs/perf/study.json: {"queries":[{"id":"Q1","before_ms":..,"after_ms":..}]}) ----
+    # ---- perf study (docs/perf/summary.json, merged over --state before|after; docs/perf/README.md) ----
     **{
-        f"perf.{q}.{side}_ms": Key("docs/perf/study.json", f"$.queries[?id=={q}].{side}_ms", ".1f")
+        f"perf.{q}.{side}_ms": Key("docs/perf/summary.json", f"$.queries[?id=={q}].{side}_ms", ".1f")
         for q in _PERF_QUERIES
         for side in ("before", "after")
     },
-    # ---- evaluation (docs/eval/*.json) ----
-    "eval.risk_heldout.precision": Key("docs/eval/risk_heldout.json", "$.precision", ".2f"),
-    "eval.risk_heldout.recall": Key("docs/eval/risk_heldout.json", "$.recall", ".2f"),
-    "eval.risk_heldout.f1": Key("docs/eval/risk_heldout.json", "$.f1", ".2f"),
-    "eval.risk_heldout.n": Key("docs/eval/risk_heldout.json", "$.n", "d"),
-    "eval.risk_ingrammar.precision": Key("docs/eval/risk_ingrammar.json", "$.precision", ".2f"),
-    "eval.risk_ingrammar.recall": Key("docs/eval/risk_ingrammar.json", "$.recall", ".2f"),
-    "eval.risk_ingrammar.f1": Key("docs/eval/risk_ingrammar.json", "$.f1", ".2f"),
+    **{
+        f"perf.{q}.{side}_plan": Key("docs/perf/summary.json", f"$.queries[?id=={q}].{side}_plan")
+        for q in _PERF_QUERIES
+        for side in ("before", "after")
+    },
+    **{
+        f"perf.rls_overhead.{side}.{q}_pct": Key(
+            "docs/perf/summary.json", f"$.rls_overhead.{side}.{q}_pct", "+.1f"
+        )
+        for side in ("before", "after")
+        for q in ("q1", "q3")
+    },
+    **{
+        f"perf.pgstattuple.{side}.{f}": Key("docs/perf/summary.json", f"$.pgstattuple.{side}.{f}", fmt)
+        for side in ("before", "after")
+        for f, fmt in (("dead_tuple_percent", ".2f"), ("tuple_count", "d"), ("table_len_bytes", "d"))
+    },
+    "perf.pg_version": Key("docs/perf/summary.json", "$.pg_version"),
+    "perf.bulk.total_s": Key("docs/perf/bulk.json", "$.total_s", ".0f"),
+    "perf.bulk.segments": Key("docs/perf/bulk.json", "$.counts.segments", "d"),
+    "perf.bulk.search": Key("docs/perf/bulk.json", "$.counts.search", "d"),
+    "perf.bulk.risk": Key("docs/perf/bulk.json", "$.counts.risk", "d"),
+    "perf.bulk.outbox": Key("docs/perf/bulk.json", "$.counts.outbox", "d"),
+    "perf.bulk.tenants": Key("docs/perf/bulk.json", "$.plan.tenants", "d"),
+    "perf.bulk.sessions": Key("docs/perf/bulk.json", "$.plan.sessions", "d"),
+    "perf.bulk.patients": Key("docs/perf/bulk.json", "$.plan.patients", "d"),
+    # ---- evaluation (docs/eval/*.json; layouts in docs/eval/README.md) ----
+    **{
+        f"eval.risk_{s_}.{f}": Key(f"docs/eval/risk_{s_}.json", f"$.{f}", fmt)
+        for s_ in ("heldout", "ingrammar")
+        for f, fmt in _RISK_FIELDS.items()
+    },
+    **{
+        f"eval.risk_heldout.kind.{k}.{f}": Key("docs/eval/risk_heldout.json", f"$.per_kind.{k}.{f}", fmt)
+        for k in _RISK_KINDS
+        for f, fmt in (("n", "d"), ("fp", "d"), ("fn", "d"), ("fp_rate", ".2f"))
+    },
+    "eval.risk_ingrammar.n_scripts": Key("docs/eval/risk_ingrammar.json", "$.n_scripts", "d"),
+    "eval.risk_ingrammar.past.n": Key("docs/eval/risk_ingrammar.json", "$.past_kind.n", "d"),
+    "eval.risk_ingrammar.past.alerted": Key("docs/eval/risk_ingrammar.json", "$.past_kind.alerted", "d"),
     "eval.alert_latency.p50_ms": Key("docs/eval/alert_latency.json", "$.p50_ms", ".0f"),
     "eval.alert_latency.p95_ms": Key("docs/eval/alert_latency.json", "$.p95_ms", ".0f"),
     "eval.grounding.coverage": Key("docs/eval/grounding.json", "$.coverage", ".2f"),
     "eval.grounding.fact_recall": Key("docs/eval/grounding.json", "$.fact_recall", ".2f"),
     "eval.grounding.abstain_rate": Key("docs/eval/grounding.json", "$.abstain_rate", ".2f"),
+    "eval.grounding.n_sessions": Key("docs/eval/grounding.json", "$.n_sessions", "d"),
+    "eval.grounding.facts_total": Key("docs/eval/grounding.json", "$.facts_total", "d"),
+    "eval.grounding.statements_per_session": Key(
+        "docs/eval/grounding.json", "$.statements_per_session", ".1f"
+    ),
     "eval.paraphrase.false_rejection_rate": Key("docs/eval/paraphrase.json", "$.false_rejection_rate", ".3f"),
+    "eval.paraphrase.n_statements": Key("docs/eval/paraphrase.json", "$.n_statements", "d"),
+    "eval.paraphrase.rejected": Key("docs/eval/paraphrase.json", "$.rejected", "d"),
+    **{
+        f"eval.paraphrase.{t}.rate": Key(
+            "docs/eval/paraphrase.json", f"$.by_transform[?transform=={t}].rate", ".3f"
+        )
+        for t in (
+            "ending_plain",
+            "ending_formal",
+            "particle_swap",
+            "synonym",
+            "merge",
+            "number_word",
+            "honorific_drop",
+        )
+    },
     **{
         f"eval.inject.{cls}.detection_rate": Key(
             "docs/eval/inject.json", f"$.classes[?class=={cls}].detection_rate", ".2f"
         )
-        for cls in ("fabricated", "seq", "diagnosis", "number", "drug", "negation", "speaker")
+        for cls in _INJECT_CLASSES
     },
     "eval.inject.false_flag_rate": Key("docs/eval/inject.json", "$.false_flag_rate", ".3f"),
+    "eval.inject.n_per_class": Key("docs/eval/inject.json", "$.n_per_class", "d"),
     "eval.injection.leaks": Key("docs/eval/injection.json", "$.injection_leaks", "d"),
+    "eval.injection.n_sessions": Key("docs/eval/injection.json", "$.n_sessions", "d"),
+    "eval.injection.n_utterances": Key("docs/eval/injection.json", "$.n_injection_utterances", "d"),
+    "eval.injection.rule8_flagged": Key("docs/eval/injection.json", "$.forced_citations_flagged", "d"),
     "eval.purge.residual_rows": Key("docs/eval/purge.json", "$.residual_rows", "d"),
     "eval.purge.residual_objects": Key("docs/eval/purge.json", "$.residual_objects", "d"),
     "eval.purge.residual_keys": Key("docs/eval/purge.json", "$.residual_keys", "d"),

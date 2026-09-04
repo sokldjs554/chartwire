@@ -19,7 +19,7 @@ app = typer.Typer(help="합성 데이터 생성 (모든 데이터는 합성입�
 
 @app.callback()
 def _group() -> None:
-    """합성 데이터 생성: scripts (Phase 1: bulk)."""
+    """합성 데이터 생성: scripts (스크립트 세트), bulk (성능 연구용 대량 적재)."""
 
 
 def dump_json(payload: Any) -> str:
@@ -72,3 +72,46 @@ def scripts_cmd(
     typer.echo(
         f"{len(index)}개 스크립트 생성 → {out} (경보 예상 세션 {alert_sessions}개, 시드 {scripts[0].seed})"
     )
+
+
+@app.command("bulk")
+def bulk_cmd(
+    seed: int = typer.Option(7, "--seed", help="데이터셋 시드 (§10.3: 7)"),
+    segments: int = typer.Option(2_000_000, "--segments", min=800, help="세그먼트 수 (세션당 100)"),
+    tenants: int = typer.Option(8, "--tenants", min=1, help="테넌트 수"),
+    owner_url: str | None = typer.Option(None, "--owner-url", help="기본값: CHARTWIRE_DATABASE_OWNER_URL"),
+    out: Path | None = typer.Option(None, "--out", help="적재 리포트 JSON (예: docs/perf/bulk.json)"),
+    vacuum: bool = typer.Option(
+        True, "--vacuum/--no-vacuum", help="적재 뒤 VACUUM ANALYZE (성능 연구 전 필수)"
+    ),
+) -> None:
+    """성능 연구용 대량 합성 데이터 적재 (§4.6). owner 역할로 COPY 하되 테넌트마다 app.tenant_id 를 설정합니다."""
+    import asyncio
+
+    from chartwire.core.config import get_settings
+    from chartwire.eval.report import build_report
+    from chartwire.synth import bulk
+
+    settings = get_settings()
+    plan = bulk.BulkPlan.build(seed=seed, segments=segments, tenants=tenants)
+    typer.echo(
+        f"bulk seed={plan.seed}: tenants={plan.tenants} sessions={plan.sessions:,} segments={plan.segments:,} "
+        f"patients={plan.patients:,} (모든 데이터는 합성입니다)"
+    )
+    try:
+        report = asyncio.run(
+            bulk.load(
+                owner_url or settings.database_owner_url,
+                plan,
+                kek_master=settings.kek_master_bytes,
+                log=typer.echo,
+                vacuum=vacuum,
+            )
+        )
+    except bulk.BulkAlreadyLoaded as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(dump_json(build_report(seed, report.as_dict())), encoding="utf-8")
+        typer.echo(f"리포트 → {out}")

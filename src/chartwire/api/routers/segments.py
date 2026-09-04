@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from chartwire.api.deps import AppDeps, load_tenant, not_found, open_tx, session_dek
 from chartwire.api.routers.sessions import owned_session
@@ -31,7 +32,9 @@ TIMELINE_WINDOW = timedelta(days=183)
 
 
 def decrypt_segment(dek: bytes, tenant_id: UUID, row: SegmentRow) -> str:
-    return Envelope.decrypt(dek, bytes(row.text_enc), segment_aad(tenant_id, row.session_id, row.seq)).decode("utf-8")
+    return Envelope.decrypt(dek, bytes(row.text_enc), segment_aad(tenant_id, row.session_id, row.seq)).decode(
+        "utf-8"
+    )
 
 
 def segment_out(dek: bytes, tenant_id: UUID, row: SegmentRow) -> SegmentOut:
@@ -55,11 +58,9 @@ async def list_segments(
 ) -> list[SegmentOut]:
     async with open_tx(request, principal) as (deps, s):
         row = await owned_session(s, id, principal)
-        rows = await segments_repo.replay(s, row.id, after_seq, limit, started_at=row.started_at)
-        if not rows:
-            return []
         tenant = await load_tenant(s, principal.tenant_id)
-        dek = session_dek(deps, tenant, row)
+        dek = session_dek(deps, tenant, row)  # a purged session is 410 even when no rows are left
+        rows = await segments_repo.replay(s, row.id, after_seq, limit, started_at=row.started_at)
         return [segment_out(dek, tenant.id, r) for r in rows]
 
 
@@ -100,15 +101,21 @@ async def patient_timeline(
     return TimelineOut(items=items, next_before=cursor)
 
 
-async def _decrypt_rows(deps: AppDeps, s, tenant: Tenant, rows: list[SegmentRow], principal: Principal):  # type: ignore[no-untyped-def]
+async def _decrypt_rows(
+    deps: AppDeps, s: AsyncSession, tenant: Tenant, rows: list[SegmentRow], principal: Principal
+) -> list[TimelineSegmentOut]:
     deks: dict[UUID, bytes | None] = {}
     out: list[TimelineSegmentOut] = []
     for row in rows:
         if row.session_id not in deks:
             sess = await sessions_repo.get_session(s, row.session_id)
-            visible = sess is not None and (principal.role != "clinician" or sess.clinician_id == principal.user_id)
+            visible = sess is not None and (
+                principal.role != "clinician" or sess.clinician_id == principal.user_id
+            )
             deks[row.session_id] = (
-                None if not visible or sess is None or sess.dek_wrapped is None else session_dek(deps, tenant, sess)
+                None
+                if not visible or sess is None or sess.dek_wrapped is None
+                else session_dek(deps, tenant, sess)
             )
         dek = deks[row.session_id]
         if dek is None:  # not the clinician's own session, or already crypto-shredded

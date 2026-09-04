@@ -75,7 +75,9 @@ async def create_purge_job(
 
 
 @router.get("/purge-jobs/{id}", response_model=PurgeReceiptOut)
-async def get_purge_job(id: UUID, request: Request, principal: Principal = Depends(require(*READERS))) -> PurgeReceiptOut:
+async def get_purge_job(
+    id: UUID, request: Request, principal: Principal = Depends(require(*READERS))
+) -> PurgeReceiptOut:
     async with open_tx(request, principal) as (_deps, s):
         job = await purge_repo.get_job(s, id)
         if job is None:
@@ -101,7 +103,9 @@ async def verify_decrypt(
         for sid in session_ids:
             sess = await sessions_repo.get_session(s, sid)
             wrapped = None if sess is None else sess.dek_wrapped
-            result = verify.attempt_decrypt(deps.kek, deps.keycache, tenant=tenant, session_id=sid, dek_wrapped=wrapped, sample=sample)
+            result = verify.attempt_decrypt(
+                deps.kek, deps.keycache, tenant=tenant, session_id=sid, dek_wrapped=wrapped, sample=sample
+            )
             if result["unwrap"] != verify.UNWRAP_DESTROYED:
                 break  # report the first session whose DEK is still alive
         await audit.record(
@@ -113,6 +117,10 @@ async def verify_decrypt(
             resource_type="purge_job",
             resource_id=job.id,
             request_id=request_id(request),
-            detail={"unwrap": result["unwrap"], "decrypt_sample": result["decrypt_sample"], "sessions": len(session_ids)},
+            detail={
+                "unwrap": result["unwrap"],
+                "decrypt_sample": result["decrypt_sample"],
+                "sessions": len(session_ids),
+            },
         )
         return VerifyDecryptOut(decrypt_attempted=True, job_state=job.state, **result)

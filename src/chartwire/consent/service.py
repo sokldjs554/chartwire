@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from chartwire.audit import service as audit
 from chartwire.consent import gates
+from chartwire.consent.scopes import SCOPES
 from chartwire.core.errors import Conflict, NotFound
 from chartwire.core.ids import uuid7
 from chartwire.db.models import Consent
@@ -80,7 +81,7 @@ async def grant(
         raise NotFound("환자")
     if patient.consent_state == "purged":
         raise Conflict("파기된 환자에게는 동의를 기록할 수 없습니다", "CW-4096")
-    unknown = set(scopes) - gates.SCOPES
+    unknown = set(scopes) - SCOPES
     if unknown or not scopes:
         raise ValueError(f"invalid consent scopes: {sorted(unknown) or 'empty'}")
     consent = await patients_repo.grant_consent(
@@ -149,7 +150,11 @@ async def revoke(
         aggregate_type="consent",
         aggregate_id=consent.id,
         event_type=CONSENT_REVOKED,
-        payload={"patient_id": str(consent.patient_id), "consent_id": str(consent.id), "purge_job_id": str(job.id)},
+        payload={
+            "patient_id": str(consent.patient_id),
+            "consent_id": str(consent.id),
+            "purge_job_id": str(job.id),
+        },
         idempotency_key=writer.idempotency_key(CONSENT_REVOKED, consent.id, consent.version),
     )
     detail: dict[str, Any] = {
@@ -179,7 +184,11 @@ async def revoke(
         resource_type="purge_job",
         resource_id=job.id,
         request_id=request_id,
-        detail={"subject_type": "patient", "subject_id": str(consent.patient_id), "reason": "consent_revoked"},
+        detail={
+            "subject_type": "patient",
+            "subject_id": str(consent.patient_id),
+            "reason": "consent_revoked",
+        },
     )
     return Revoked(consent=consent, purge_job_id=job.id, outbox_event_id=event_id, live_session_ids=live)
 

@@ -69,10 +69,12 @@ def valid_key(key: str) -> bool:
     return 0 < len(key) <= MAX_KEY_LEN and key.isprintable() and " " not in key
 
 
-async def begin(redis: Redis, tenant: UUID | str, key: str, request_body_hash: str) -> Record | None:
+async def begin(redis: Redis[str], tenant: UUID | str, key: str, request_body_hash: str) -> Record | None:
     """Claim ``key`` for this request. ``None`` = claimed (first use); otherwise the existing record."""
     marker = Record(state=PENDING, body_hash=request_body_hash)
-    claimed = await redis.set(keys.idempotency(tenant, key), marker.to_json(), nx=True, ex=keys.TTL_IDEMPOTENCY)
+    claimed = await redis.set(
+        keys.idempotency(tenant, key), marker.to_json(), nx=True, ex=keys.TTL_IDEMPOTENCY
+    )
     if claimed:
         return None
     raw = await redis.get(keys.idempotency(tenant, key))
@@ -80,7 +82,7 @@ async def begin(redis: Redis, tenant: UUID | str, key: str, request_body_hash: s
 
 
 async def complete(
-    redis: Redis,
+    redis: Redis[str],
     tenant: UUID | str,
     key: str,
     *,
@@ -93,5 +95,5 @@ async def complete(
     await redis.set(keys.idempotency(tenant, key), record.to_json(), ex=keys.TTL_IDEMPOTENCY)
 
 
-async def release(redis: Redis, tenant: UUID | str, key: str) -> None:
+async def release(redis: Redis[str], tenant: UUID | str, key: str) -> None:
     await redis.delete(keys.idempotency(tenant, key))

@@ -41,7 +41,7 @@ def minute_of(now: datetime) -> int:
 
 
 async def hit(
-    redis: Redis,
+    redis: Redis[str],
     tenant: UUID | str,
     principal: UUID | str,
     bucket: str,
@@ -57,11 +57,13 @@ async def hit(
         pipe.expire(key, keys.TTL_RATELIMIT)
         count = int((await pipe.execute())[0])
     retry_after = 60 - int(now.timestamp()) % 60
-    return Decision(allowed=count <= limit_per_min, count=count, limit=limit_per_min, retry_after_s=retry_after)
+    return Decision(
+        allowed=count <= limit_per_min, count=count, limit=limit_per_min, retry_after_s=retry_after
+    )
 
 
 async def check(
-    redis: Redis,
+    redis: Redis[str],
     tenant: UUID | str,
     principal: UUID | str,
     bucket: str,
