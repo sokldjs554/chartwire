@@ -1,0 +1,36 @@
+{
+  "seed": 42,
+  "git_sha": "bd9b2df4593286813acc598770cb329cfa22ce09",
+  "generated_at": "2026-09-04T11:36:15+00:00",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
+  "ram_gb": 15.7,
+  "python": "3.11.15",
+  "pg_version": "16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)",
+  "scenario": "H",
+  "events": 100000,
+  "workers": 2,
+  "tenants": 30,
+  "insert_s": 4.368,
+  "elapsed_s": 242.038,
+  "events_per_s": 413.2,
+  "dlq_count": 0,
+  "worker_killed": true,
+  "reclaimed": 1345,
+  "passes": 46,
+  "claim_ms_p50": 11.024,
+  "claim_ms_p95": 41.879,
+  "lease_s": 5,
+  "worker_exit_codes": [
+    -9,
+    0
+  ],
+  "per_worker": [
+    {
+      "worker": 1,
+      "passes": 46,
+      "processed": 86192,
+      "reclaimed": 1345
+    }
+  ],
+  "cleaned_rows": 100000
+}

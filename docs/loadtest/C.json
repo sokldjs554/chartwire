@@ -1,0 +1,153 @@
+{
+  "seed": 42,
+  "git_sha": "bd9b2df4593286813acc598770cb329cfa22ce09",
+  "generated_at": "2026-09-04T11:29:57+00:00",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
+  "ram_gb": 15.7,
+  "python": "3.11.15",
+  "pg_version": "16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)",
+  "scenario": "C",
+  "description": "느린 뷰어 20 % (메시지당 200 ms) — 녹음기 ack p95 는 A 와 같아야 한다",
+  "sessions": 100,
+  "duration_s": 60,
+  "chunk_ms": 200,
+  "stt_provider": "simulator",
+  "stt_slow_delay_ms": 0,
+  "pinning": {
+    "api": "0-1",
+    "services": "2-3",
+    "client": "3"
+  },
+  "process_exit_codes": {
+    "api": -15,
+    "worker": 0,
+    "stt-worker": 0
+  },
+  "workdir": "var/loadtest/C-n100-1788521309",
+  "metrics": {
+    "ws_dropped_partials_total": 0.0,
+    "ws_resume_total_ok": 0.0,
+    "ws_resume_total_gap": 0.0,
+    "stt_rebuilds_total": 70.0,
+    "stt_lag_chunks": 24.0
+  },
+  "ack_p95_ms": 316.0,
+  "reference_ack_p95_ms": 308.5,
+  "ack_p95_delta_pct": 2.4,
+  "dropped_partials": 0,
+  "slow_viewers": 20,
+  "finals_delivered": 0,
+  "loss": 0,
+  "clients": {
+    "sessions": 100,
+    "duration_s": 60,
+    "ramp_s": 2.0,
+    "chunks_sent": 30000,
+    "chunks_resent": 0,
+    "chunks_per_s": 500.0,
+    "ack_samples": 30000,
+    "ack_p50_ms": 169.4,
+    "ack_p95_ms": 316.0,
+    "ack_p99_ms": 718.4,
+    "final_samples": 0,
+    "final_e2e_p50_ms": null,
+    "final_e2e_p95_ms": null,
+    "alert_samples": 0,
+    "alert_sessions": 0,
+    "alert_e2e_p50_ms": null,
+    "alert_e2e_p95_ms": null,
+    "credit_min": 48,
+    "credit_zero_sessions": 0,
+    "credit_zero_at_s": null,
+    "credit_waits": 0,
+    "pause_count": 0,
+    "nacks": 0,
+    "reconnects": 0,
+    "resumes_ok": 0,
+    "resume_success_pct": null,
+    "superseded_closes": 0,
+    "loss_client": 0,
+    "finals": 0,
+    "final_dups": 0,
+    "final_out_of_order": 0,
+    "partials": 0,
+    "alerts": 0,
+    "lagged_dropped": 0,
+    "viewer_reconnects": 0,
+    "outcomes": {
+      "ended": 100
+    },
+    "errors": 0,
+    "recorders_done_s": 65.1,
+    "wall_s": 85.1
+  },
+  "db": {
+    "sessions": 100,
+    "chunks_sent": 30000,
+    "chunk_rows": 30000,
+    "loss": 0,
+    "sessions_ended": 100,
+    "stt_offsets_complete": 0,
+    "segments_contiguous": 100,
+    "segment_rows": 0,
+    "risk_events": 0,
+    "sessions_with_loss": 0
+  },
+  "resources": {
+    "api": {
+      "samples": 84,
+      "cpu_pct_mean": 59.2,
+      "cpu_pct_max": 105.4,
+      "rss_mb_start": 133.2,
+      "rss_mb_max": 166.7,
+      "rss_mb_end": 166.7,
+      "rss_slope_mb_per_min": 10.584
+    },
+    "worker": {
+      "samples": 84,
+      "cpu_pct_mean": 6.0,
+      "cpu_pct_max": 47.7,
+      "rss_mb_start": 125.8,
+      "rss_mb_max": 130.5,
+      "rss_mb_end": 130.5,
+      "rss_slope_mb_per_min": 3.134
+    },
+    "stt-worker": {
+      "samples": 84,
+      "cpu_pct_mean": 26.1,
+      "cpu_pct_max": 100.6,
+      "rss_mb_start": 103.3,
+      "rss_mb_max": 120.4,
+      "rss_mb_end": 120.4,
+      "rss_slope_mb_per_min": 4.504
+    },
+    "postgres": {
+      "samples": 84,
+      "cpu_pct_mean": 4.1,
+      "cpu_pct_max": 42.8,
+      "rss_mb_start": 1820.2,
+      "rss_mb_max": 1855.1,
+      "rss_mb_end": 1787.6,
+      "rss_slope_mb_per_min": 9.446
+    },
+    "redis": {
+      "samples": 84,
+      "cpu_pct_mean": 3.4,
+      "cpu_pct_max": 10.0,
+      "rss_mb_start": 25.6,
+      "rss_mb_max": 30.1,
+      "rss_mb_end": 29.5,
+      "rss_slope_mb_per_min": 2.617
+    },
+    "client": {
+      "samples": 84,
+      "cpu_pct_mean": 7.5,
+      "cpu_pct_max": 14.6,
+      "rss_mb_start": 139.5,
+      "rss_mb_max": 241.9,
+      "rss_mb_end": 241.9,
+      "rss_slope_mb_per_min": 64.475
+    }
+  },
+  "caption": "same host, 4 vCPU, loopback, STT simulator, client-confounded"
+}
