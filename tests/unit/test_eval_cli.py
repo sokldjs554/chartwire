@@ -52,19 +52,33 @@ def test_single_commands_and_aggregator_with_source(tmp_path: Path) -> None:
 
 def test_smoke_thresholds() -> None:
     ok = cli.smoke_failures(
-        {"recall": 0.7},
+        {"recall": 0.7, "precision": 0.8},
         {"injection_leaks": 0},
         {"false_rejection_rate": 0.02},
         {"residual_rows": 0, "residual_objects": 0, "residual_keys": 0},
+        {"leaks": 0},
     )
     assert ok == []
     bad = cli.smoke_failures(
-        {"recall": 0.5},
+        {"recall": 0.5, "precision": 0.5},
         {"injection_leaks": 2},
         {"false_rejection_rate": 0.08},
         {"residual_rows": 1, "residual_objects": 0, "residual_keys": 0},
+        {"leaks": 3},
     )
-    assert len(bad) == 4 and "recall" in bad[0] and "leaks" in bad[1]
+    assert len(bad) == 6 and "recall" in bad[0] and "precision" in bad[1] and "leaks" in bad[2]
+    # the aggregate inputs are optional: absent purge/rls measurements are not a failure
     assert (
-        cli.smoke_failures({"recall": 0.9}, {"injection_leaks": 0}, {"false_rejection_rate": 0.0}, None) == []
+        cli.smoke_failures(
+            {"recall": 0.9, "precision": 0.9}, {"injection_leaks": 0}, {"false_rejection_rate": 0.0}, None
+        )
+        == []
     )
+
+
+def test_smoke_thresholds_track_the_measured_floor() -> None:
+    """The held-out gate is the measured floor, not the §11.1 target — see SMOKE_THRESHOLDS."""
+    assert cli.SMOKE_THRESHOLDS["heldout_recall_min"] <= 0.6
+    assert cli.SMOKE_THRESHOLDS["injection_leaks_max"] == 0
+    assert cli.SMOKE_THRESHOLDS["purge_residual_max"] == 0
+    assert cli.SMOKE_THRESHOLDS["rls_leaks_max"] == 0

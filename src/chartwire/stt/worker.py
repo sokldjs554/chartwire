@@ -50,6 +50,12 @@ DEFAULT_SCRIPTS_DIR = "var/scripts"
 DEFAULT_HTTP_PORT = 9002
 ENV_PREFIX = "CHARTWIRE_STT_"
 
+RESERVED_CONNECTIONS = 32
+"""Redis connections kept outside the per-session budget (discovery, leases, publishes, Lua)."""
+QUARANTINE_AFTER = 3
+"""Consecutive crashes of the same session before this worker stops re-acquiring it for a while."""
+QUARANTINE_S = 60.0
+
 _RENEW_LUA = """
 local v = redis.call('GET', KEYS[1])
 if v == ARGV[1] then return redis.call('PEXPIRE', KEYS[1], ARGV[2]) end
@@ -91,6 +97,12 @@ class SttWorkerConfig:
     block_ms: int = 1000
     rebuild_wait_s: float = 0.2
     http_port: int = DEFAULT_HTTP_PORT
+    max_sessions: int = 256
+    """Hard ceiling on concurrently owned sessions. Each one parks a Redis connection inside
+    ``XREADGROUP … BLOCK``, so a worker that owns more sessions than the pool has connections
+    fails *every* command — discovery and lease renewal included. Sessions past the ceiling are
+    left unowned for another worker (or for this one, once some finish) instead of being taken and
+    dropped. ``from_env`` derives it from ``CHARTWIRE_REDIS_MAX_CONNECTIONS``."""
 
     @property
     def renew_every_s(self) -> float:
@@ -100,7 +112,8 @@ class SttWorkerConfig:
     def from_env(cls, settings: Settings, env: Mapping[str, str] | None = None) -> SttWorkerConfig:
         """``CHARTWIRE_STT_PROVIDER`` (simulator|slow|aws), ``_SCRIPTS_DIR``, ``_SLOW_DELAY_MS``,
         ``_SIM_SEED``, ``_SIM_LATENCY``, ``_AWS_REGION``, ``_FETCH_AUDIO``, ``_LEASE_MS``,
-        ``_AUTOCLAIM_IDLE_MS``, ``_WORKER_PORT`` (0 = no ops HTTP server)."""
+        ``_AUTOCLAIM_IDLE_MS``, ``_WORKER_PORT`` (0 = no ops HTTP server), ``_MAX_SESSIONS``
+        (default: the Redis pool ceiling minus :data:`RESERVED_CONNECTIONS`)."""
         env = os.environ if env is None else env
         # ``Settings`` (env prefix ``CHARTWIRE_``) already carries ``stt_provider`` / ``stt_scripts_dir`` /
         # ``stt_slow_delay_ms`` / ``stt_sim_seed`` / ``stt_worker_port`` (WP-C request 3); the explicit
@@ -119,6 +132,9 @@ class SttWorkerConfig:
             lease_ms=_env_int(env, "LEASE_MS", keys.TTL_STT_OWNER_MS),
             autoclaim_idle_ms=_env_int(env, "AUTOCLAIM_IDLE_MS", 60_000),
             http_port=_env_int(env, "WORKER_PORT", settings.stt_worker_port),
+            max_sessions=_env_int(
+                env, "MAX_SESSIONS", max(1, settings.redis_max_connections - RESERVED_CONNECTIONS)
+            ),
         )
 
 
@@ -226,6 +242,10 @@ class SttWorker:
         self.outcomes: dict[UUID, str] = {}
         self.finished: dict[UUID, ConsumerStats] = {}
         """Counters of consumers that already returned (dedup/rebuild evidence for tests and logs)."""
+        self.crashes: dict[UUID, int] = {}
+        """Consecutive crashes per session; reset the moment a consumer returns normally."""
+        self.quarantined: dict[UUID, float] = {}
+        """session → monotonic deadline before which this worker will not re-acquire it."""
         self._renew = deps.redis.register_script(_RENEW_LUA)
         self._release = deps.redis.register_script(_RELEASE_LUA)
         self._last_renew = deps.clock.monotonic()
@@ -261,6 +281,20 @@ class SttWorker:
 
     # --- discovery ---------------------------------------------------------------------------------
 
+    def _quarantined(self, sid: UUID) -> bool:
+        """A session this worker crashed on :data:`QUARANTINE_AFTER` times in a row is left alone for
+        :data:`QUARANTINE_S`. Without it one undeserializable session (a script or an object the
+        worker cannot read) is re-acquired every discovery pass and crashes again, and a handful of
+        them starve every healthy session on the box — scenario C, ``docs/dev/handoff/loadfix.md``."""
+        until = self.quarantined.get(sid)
+        if until is None:
+            return False
+        if self.deps.clock.monotonic() < until:
+            return True
+        del self.quarantined[sid]
+        self.crashes.pop(sid, None)
+        return False
+
     async def run_once(self) -> list[UUID]:
         """One discovery pass: acquire every active session nobody owns; returns the sessions started."""
         started: list[UUID] = []
@@ -272,7 +306,15 @@ class SttWorker:
                 log.warning("stt:active member is not a uuid; removing", extra={"member_len": len(value)})
                 await self.deps.redis.srem(keys.STT_ACTIVE, value)
                 continue
-            if sid in self.tasks or not await self.acquire(sid):
+            if sid in self.tasks or self._quarantined(sid):
+                continue
+            if len(self.tasks) >= self.cfg.max_sessions:
+                log.warning(
+                    "stt-worker at session capacity; leaving sessions unowned",
+                    extra={"owned": len(self.tasks), "max_sessions": self.cfg.max_sessions},
+                )
+                break
+            if not await self.acquire(sid):
                 continue
             facts = await self.resolver.resolve(sid)
             if facts is None:
@@ -324,7 +366,21 @@ class SttWorker:
             self.finished[sid] = consumer.stats
             self.tasks.pop(sid, None)
             self.consumers.pop(sid, None)
+            self._record_outcome(sid, outcome)
         return outcome
+
+    def _record_outcome(self, sid: UUID, outcome: str) -> None:
+        if outcome != "crashed":
+            self.crashes.pop(sid, None)
+            return
+        count = self.crashes.get(sid, 0) + 1
+        self.crashes[sid] = count
+        if count >= QUARANTINE_AFTER:
+            self.quarantined[sid] = self.deps.clock.monotonic() + QUARANTINE_S
+            log.error(
+                "session quarantined after repeated crashes",
+                extra={"session_id": str(sid), "crashes": count, "quarantine_s": QUARANTINE_S},
+            )
 
     async def _reap(self) -> None:
         """Defensive sweep: a task that finished without running its ``finally`` (loop teardown)."""

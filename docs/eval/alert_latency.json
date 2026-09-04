@@ -1,0 +1,17 @@
+{
+  "seed": 42,
+  "git_sha": "316209103be3672288ffa4964dfc0b0e202f674d",
+  "generated_at": "2026-09-04T12:23:46+00:00",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
+  "ram_gb": 15.7,
+  "python": "3.11.15",
+  "pg_version": "16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)",
+  "p50_ms": 47.4,
+  "p95_ms": 229.8,
+  "n_sessions": 83,
+  "n_alerts": 192,
+  "scenario": "A",
+  "n_run": 200,
+  "definition": "committed_at (server) -> viewer risk.alert receipt, same host clock",
+  "caption": "same host, 4 vCPU, loopback, STT simulator, client-confounded"
+}

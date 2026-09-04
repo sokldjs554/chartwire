@@ -9,6 +9,7 @@ import pytest
 
 from chartwire.eval import protocol_eval, purge_eval, rls_eval
 from chartwire.perf import queries, study
+from chartwire.purge import receipt
 
 
 def test_purge_and_rls_collect_validate_their_inputs(tmp_path: Path) -> None:
@@ -89,3 +90,75 @@ def test_perf_query_selection_and_plan_summary() -> None:
     )
     assert study.detect_state("0006_rls") == "before" and study.detect_state("0007_perf") == "after"
     assert study.detect_state("0003_segments") is None and study.detect_state(None) is None
+
+
+# ------------------------------------------------ quality pass 2: the executing purge / rls runs
+
+
+def test_rls_path_substitution_pins_real_ids_per_collection():
+    """``/v1/patients/{id}/consents`` takes the *patient* id; a non-id parameter is left alone."""
+
+    class _Route:
+        def __init__(self, path: str, params: tuple[str, ...]) -> None:
+            self.path = path
+            self.param_convertors = dict.fromkeys(params)
+            self.endpoint = lambda: None
+            self.methods = {"GET"}
+
+    subjects = {"patient": "P", "session": "S", "note": "N", "alert": "7"}
+    for template, params, expected in [
+        ("/v1/patients/{id}/consents", ("id",), "/v1/patients/P/consents"),
+        ("/v1/sessions/{id}/segments", ("id",), "/v1/sessions/S/segments"),
+        ("/v1/notes/{id}", ("id",), "/v1/notes/N"),
+        ("/v1/alerts/{id}/ack", ("id",), "/v1/alerts/7/ack"),
+    ]:
+        path, pinned = rls_eval._concrete(_Route(template, params), subjects)
+        assert (path, pinned) == (expected, 1), template
+    # a collection with no seeded row is not pinned → no cross-tenant attempt is made
+    _, pinned = rls_eval._concrete(_Route("/v1/purge-jobs/{id}", ("id",)), subjects)
+    assert pinned == 0
+
+
+def test_rls_tally_caps_the_violation_list():
+    tally = rls_eval.Tally()
+    for i in range(60):
+        tally.leak(f"leak-{i}")
+    assert tally.leaks == 60 and len(tally.violations) == 50
+
+
+def test_purge_receipt_validity_requires_verified_and_matching_hash():
+    class _Job:
+        def __init__(self, state, receipt_hash):
+            self.state = state
+            self.receipt_hash = receipt_hash
+            self.steps = [{"step": "capture", "counts": {}}]
+            self.counts = {"objects": 1}
+            self.dek_fingerprints = ["a" * 64]
+
+    good = receipt.receipt_hash([{"step": "capture", "counts": {}}], {"objects": 1}, ["a" * 64])
+    assert purge_eval._receipt_valid(_Job("verified", good))
+    assert not purge_eval._receipt_valid(_Job("completed", good))
+    assert not purge_eval._receipt_valid(_Job("verified", None))
+    assert not purge_eval._receipt_valid(_Job("verified", b"\x00" * 32))
+
+
+def test_purge_percentage_helper_is_zero_for_an_empty_run():
+    assert purge_eval._pct(3, 4) == 75.0
+    assert purge_eval._pct(0, 0) == 0.0
+
+
+def test_protocol_parses_both_hypothesis_statistics_wordings():
+    """Hypothesis ≥ 6.9x prints "N passing, M failing, and K invalid test cases"."""
+    output = (
+        "tests/ws/test_ingest_core_props.py::test_no_loss:\n"
+        "  - during generate phase (1.02 seconds):\n"
+        "    - 250 passing examples, 0 failing examples, 3 invalid examples\n"
+        "tests/ws/test_watch_core_props.py::TestWatchCoreStateMachine::runTest:\n"
+        "  - during generate phase (13.17 seconds):\n"
+        "    - 1000 passing, 0 failing, and 207 invalid test cases\n"
+    )
+    counts = protocol_eval.parse_statistics(output)
+    assert counts == {
+        "tests/ws/test_ingest_core_props.py::test_no_loss": 250,
+        "tests/ws/test_watch_core_props.py::TestWatchCoreStateMachine::runTest": 1000,
+    }

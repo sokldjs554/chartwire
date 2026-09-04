@@ -1,0 +1,87 @@
+{
+  "seed": 42,
+  "git_sha": "316209103be3672288ffa4964dfc0b0e202f674d",
+  "generated_at": "2026-09-04T13:18:12+00:00",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
+  "ram_gb": 15.7,
+  "python": "3.11.15",
+  "pg_version": null,
+  "set": "ingrammar",
+  "detector_version": "lex-1",
+  "n_scripts": 200,
+  "n": 10313,
+  "tp": 192,
+  "fp": 0,
+  "fn": 0,
+  "tn": 10121,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1": 1.0,
+  "per_kind": {
+    "clinician_question": {
+      "n": 214,
+      "expected": 0,
+      "alerted": 0,
+      "fp": 0,
+      "fn": 0,
+      "fp_rate": 0.0
+    },
+    "hypothetical": {
+      "n": 37,
+      "expected": 0,
+      "alerted": 0,
+      "fp": 0,
+      "fn": 0,
+      "fp_rate": 0.0
+    },
+    "idiom": {
+      "n": 38,
+      "expected": 0,
+      "alerted": 0,
+      "fp": 0,
+      "fn": 0,
+      "fp_rate": 0.0
+    },
+    "negated": {
+      "n": 31,
+      "expected": 0,
+      "alerted": 0,
+      "fp": 0,
+      "fn": 0,
+      "fp_rate": 0.0
+    },
+    "none": {
+      "n": 9784,
+      "expected": 0,
+      "alerted": 0,
+      "fp": 0,
+      "fn": 0,
+      "fp_rate": 0.0
+    },
+    "positive": {
+      "n": 192,
+      "expected": 192,
+      "alerted": 192,
+      "fp": 0,
+      "fn": 0,
+      "fp_rate": null
+    },
+    "third_person": {
+      "n": 17,
+      "expected": 0,
+      "alerted": 0,
+      "fp": 0,
+      "fn": 0,
+      "fp_rate": 0.0
+    }
+  },
+  "past_kind": {
+    "n": 31,
+    "alerted": 0,
+    "severity_1": 0,
+    "note": "§9.4: severity−1 이면서 ≥1 이면 경보 — 생성기 골드(alert=false)와 다른 해석; P/R 에서 제외"
+  },
+  "sessions_with_expected_alert": 100,
+  "sessions_alerted": 100,
+  "fp_by_hit": {}
+}

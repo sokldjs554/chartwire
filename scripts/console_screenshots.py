@@ -3,11 +3,16 @@
     chartwire serve all --embedded --port 8000 &          # seeded demo (make demo)
     python scripts/console_screenshots.py [--base http://127.0.0.1:8000] [--out docs/images] [--speed 4]
 
-Flow (spec §13.3): login as the demo clinician → create a session (가상환자-0002, script s01) → open the
-viewer → start the JS recorder → risk banner → session end → SOAP draft → consent revoke → purge
-receipt → "복호화 시도". Every browser console error / page error is collected and printed; the exit
-code is 1 when any occurred. All data is synthetic. Requires ``playwright`` and a Chromium build
-(``PLAYWRIGHT_BROWSERS_PATH`` or ``--chromium``).
+Flow (spec §13.3): login as the demo clinician → create a session (가상환자-NNNN, script s01) → open the
+viewer → start the JS recorder → risk banner → session end → SOAP draft → consent revoke → **re-login as
+the demo admin** → purge receipt → "복호화 시도" → Ops. The role switch is not cosmetic: ``rbac.MATRIX``
+lets a clinician revoke a consent but only ``admin``/``auditor`` may read ``GET /v1/purge-jobs/{id}`` and
+call ``verify-decrypt`` (a clinician gets 403), and the Ops panel needs ``admin`` for the DLQ list.
+
+``--video-dir`` records the whole run as WebM (Playwright ``record_video_dir``); ``docs/images/demo.gif``
+is produced from it with the bundled ffmpeg (see the handoff / README). Every browser console error /
+page error is collected and printed; the exit code is 1 when any occurred. All data is synthetic.
+Requires ``playwright`` and a Chromium build (``PLAYWRIGHT_BROWSERS_PATH`` or ``--chromium``).
 """
 
 from __future__ import annotations
@@ -49,12 +54,36 @@ def wait_text(page: Page, selector: str, needle: str, timeout_s: float) -> str:
     raise TimeoutError(f"{selector!r} never contained {needle!r} (last: {text[:120]!r})")
 
 
-def run(base: str, out: Path, speed: float, duration_s: int, chromium: str | None, patient: str) -> int:
+def run(
+    base: str,
+    out: Path,
+    speed: float,
+    duration_s: int,
+    chromium: str | None,
+    patient: str,
+    admin_email: str = "admin@demo.clinic",
+    video_dir: Path | None = None,
+    shots: bool = True,
+) -> int:
     out.mkdir(parents=True, exist_ok=True)
     errors: list[str] = []
     with sync_playwright() as pw:
         browser = pw.chromium.launch(executable_path=chromium, args=["--lang=ko-KR"])
-        page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="ko-KR")
+        context = browser.new_context(
+            viewport={"width": 1440, "height": 1000},
+            locale="ko-KR",
+            record_video_dir=str(video_dir) if video_dir else None,
+            record_video_size={"width": 1440, "height": 1000} if video_dir else None,
+        )
+        page = context.new_page()
+
+        def shot(name: str) -> None:
+            if not shots:
+                return
+            page.evaluate("window.scrollTo(0, 0)")  # a click may have scrolled a panel into view
+            page.wait_for_timeout(150)
+            page.screenshot(path=str(out / f"{name}.png"))
+
         page.on("pageerror", lambda exc: errors.append(f"pageerror: {exc}"))
         page.on(
             "console",
@@ -91,14 +120,14 @@ def run(base: str, out: Path, speed: float, duration_s: int, chromium: str | Non
         page.click("#startBtn")
         wait_text(page, "#recLog", "welcome", 10)
         page.wait_for_timeout(6_000)
-        page.screenshot(path=str(out / f"{SHOTS[0]}.png"))
+        shot(SHOTS[0])
 
         # live chart: transcript lines and the risk banner (s01 carries one alert late in the script)
         page.click("button[data-tab='live']")
         page.wait_for_selector("#liveTranscript .seg", timeout=30_000)
         page.wait_for_selector("#risk.show", timeout=int((duration_s / speed + 30) * 1000))
         page.wait_for_timeout(500)
-        page.screenshot(path=str(out / f"{SHOTS[1]}.png"))
+        shot(SHOTS[1])
         page.click("#riskAck")
 
         # wait for the recorder to end and the stt-worker to finish; the draft arrives as a
@@ -116,27 +145,40 @@ def run(base: str, out: Path, speed: float, duration_s: int, chromium: str | Non
                 raise TimeoutError("note draft never appeared in the SOAP tab")
         page.click("#statements .stmt >> nth=0")
         page.wait_for_timeout(400)
-        page.screenshot(path=str(out / f"{SHOTS[2]}.png"))
+        shot(SHOTS[2])
 
-        # side panel: revoke → the console tracks the purge job → receipt → verify-decrypt
+        # side panel: revoke as the clinician (rbac: clinician|staff|admin) …
         page.click("#loadConsents")
         wait_text(page, "#consentSummary", "v", 10)
         page.click("#revokeBtn")
+        job_id = wait_until(lambda: page.input_value("#purgeJobId") or None, 20)
+
+        # … then re-login as the admin: GET /v1/purge-jobs/{id} and verify-decrypt are {admin, auditor}
+        page.fill("#email", admin_email)
+        page.click("#loginBtn")
+        wait_text(page, "#who", "admin", 10)
+        page.click("#trackPurge")
         wait_until(lambda: page.locator("#verifyDecrypt").is_enabled() or None, 60)
         page.click("#verifyDecrypt")
         wait_text(page, "#verifyOut", "failed", 15)
         page.wait_for_timeout(400)
-        page.screenshot(path=str(out / f"{SHOTS[3]}.png"))
+        shot(SHOTS[3])
 
         page.click("button[data-tab='ops']")
         page.check("#opsPoll")
         wait_text(page, "#opsInfo", "samples", 10)
         page.wait_for_timeout(500)
-        page.screenshot(path=str(out / f"{SHOTS[4]}.png"))
+        shot(SHOTS[4])
+        page.wait_for_timeout(1_500)
+        video = page.video
+        video_path = video.path() if video else None
+        context.close()  # the WebM is only flushed on context close
         browser.close()
 
     summary = {
         "session_id": session_id,
+        "purge_job_id": job_id,
+        "video": str(video_path) if video_path else None,
         "screenshots": [str(out / f"{name}.png") for name in SHOTS],
         "browser_errors": errors,
     }
@@ -152,8 +194,21 @@ def main() -> int:
     parser.add_argument("--duration", type=int, default=152, help="recorder length in seconds (s01 ≈ 151 s)")
     parser.add_argument("--chromium", default=None, help="Chromium executable (default: Playwright's)")
     parser.add_argument("--patient", default="가상환자-0002")
+    parser.add_argument("--admin", default="admin@demo.clinic", help="purge receipt / Ops 는 admin 권한")
+    parser.add_argument("--video-dir", type=Path, default=None, help="Playwright record_video_dir")
+    parser.add_argument("--no-shots", action="store_true", help="PNG 를 쓰지 않고 영상만 남긴다")
     args = parser.parse_args()
-    return run(args.base, args.out, args.speed, args.duration, args.chromium, args.patient)
+    return run(
+        args.base,
+        args.out,
+        args.speed,
+        args.duration,
+        args.chromium,
+        args.patient,
+        admin_email=args.admin,
+        video_dir=args.video_dir,
+        shots=not args.no_shots,
+    )
 
 
 if __name__ == "__main__":

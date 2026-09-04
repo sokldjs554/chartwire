@@ -84,6 +84,12 @@ def loadtest(
     pin: bool = typer.Option(True, "--pin/--no-pin", help="taskset/affinity 고정"),
     ramp: float = typer.Option(2.0, "--ramp", help="세션 시작을 이 시간에 걸쳐 분산 (s)"),
     tail_wait: float = typer.Option(20.0, "--tail-wait", help="마지막 bye{ended} 뒤 stt/뷰어 꼬리 대기 (s)"),
+    drain_wait: float = typer.Option(
+        120.0,
+        "--drain-wait",
+        help="DB 대조 전에 stt 파이프라인이 밀린 것을 소화할 때까지 기다리는 상한 (s). "
+        "§11.2 의 stt_offsets 불변식은 '최종' 불변식이므로 파이프라인이 따라잡은 뒤에 읽어야 한다",
+    ),
     migrate: bool = typer.Option(True, "--migrate/--no-migrate", help="역할·DB 생성 + upgrade head (멱등)"),
     workdir: Path | None = typer.Option(None, "--workdir", help="오브젝트/스크립트/로그 디렉터리"),
     keep_workdir: bool = typer.Option(False, "--keep-workdir"),
@@ -145,6 +151,7 @@ def loadtest(
         pin=pin,
         ramp_s=ramp,
         tail_wait_s=tail_wait,
+        drain_wait_s=drain_wait,
         migrate=migrate,
         workdir=workdir,
         keep_workdir=keep_workdir,

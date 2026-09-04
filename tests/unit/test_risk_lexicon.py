@@ -32,8 +32,12 @@ def test_spec_listed_phrases_have_spec_severity():
         "죽을 계획",
         "번개탄",
         "손목을 그",
-        "칼로",
     ):
+        assert sev[text] == 3, text
+    # §9.4 also lists the bare stem ``칼로``; it is carried as bounded forms only because the
+    # everyday sense (``칼로 사과를 깎다가``) outnumbers the self-harm one — handoff quality2 §6.
+    assert "칼로" not in sev
+    for text in ("칼로 그", "칼로 베", "칼로 찌르"):
         assert sev[text] == 3, text
     for text in (
         "죽고 싶",

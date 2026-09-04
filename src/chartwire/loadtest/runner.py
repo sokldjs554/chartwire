@@ -106,6 +106,7 @@ class RunConfig:
     pin: bool = True
     ramp_s: float = 2.0
     tail_wait_s: float = 20.0
+    drain_wait_s: float = 120.0
     migrate: bool = True
     workdir: Path | None = None
     keep_workdir: bool = False
@@ -305,6 +306,46 @@ async def seed_load_tenant(settings: Settings, cfg: RunConfig, workdir: Path) ->
         await app.dispose()
 
 
+async def clear_stale_state(settings: Settings, seeded: Seeded, redis: Any) -> int:
+    """Evict earlier runs' sessions from ``stt:active`` (and their hot keys). Returns how many.
+
+    This is the harness's own dirt, not a system defect: a session whose recorder never sent ``end``
+    stays in ``stt:active`` for ever by design (§7.4 — only the end-marker flush does ``SREM``),
+    while its ``audio_chunks`` rows point at objects under a *previous* run's workdir, which the
+    runner deletes when that run finishes, and at ``script_ref`` values that only existed in that
+    run's script set. A fresh stt-worker therefore acquires them, crashes on the missing script or
+    object, releases, re-acquires — and spends its session budget on the dead ones. That is exactly
+    what emptied scenario C after A n=200 left 170 sessions behind (``docs/dev/handoff/loadfix.md``).
+    Only sessions of the *load* tenant that are not part of this run are touched.
+    """
+    engine = make_engine(settings.database_url, pool_size=2, max_overflow=0)
+    try:
+        members = {str(m) for m in await redis.smembers(keys.STT_ACTIVE)}
+        current = {str(s) for s in seeded.session_ids}
+        candidates = members - current
+        if not candidates:
+            return 0
+        async with tenant_tx(engine, TenantCtx.service(seeded.tenant_id)) as s:
+            rows = await s.scalars(select(SessionModel.id).where(SessionModel.tenant_id == seeded.tenant_id))
+            stale = sorted(candidates & {str(r) for r in rows.all()})
+        if not stale:
+            return 0
+        async with redis.pipeline(transaction=False) as pipe:
+            for sid in stale:
+                pipe.srem(keys.STT_ACTIVE, sid)
+                pipe.delete(keys.sess(sid), keys.sess_chunks(sid), keys.sess_viewers(sid))
+                pipe.delete(keys.stt_owner(sid))
+                pipe.hdel(keys.STT_LAG, sid)
+            await pipe.execute()
+        log.warning(
+            "evicted stale loadtest sessions from stt:active",
+            extra={"stale": len(stale), "active_before": len(members)},
+        )
+        return len(stale)
+    finally:
+        await engine.dispose()
+
+
 # --------------------------------------------------------------------------- processes
 
 
@@ -495,6 +536,7 @@ async def db_check(settings: Settings, seeded: Seeded, sent: dict[str, int]) -> 
             ).all()
             final_seq = {str(r.id): r.final_seq for r in rows}
             check.sessions_ended = sum(1 for r in rows if r.state in ("ended", "transcribed", "drafted"))
+            check.sessions_transcribed = sum(1 for r in rows if r.state in ("transcribed", "drafted"))
             chunk_rows = (
                 await s.execute(
                     select(AudioChunk.session_id, func.count(), func.max(AudioChunk.seq))
@@ -717,6 +759,65 @@ async def _wait_recorders(clients: LoadClients, deadline_s: float) -> None:
         await asyncio.wait(pending, timeout=10.0)
 
 
+async def wait_stt_drain(
+    settings: Settings, seeded: Seeded, bound_s: float, *, stall_s: float = 30.0
+) -> tuple[bool, float]:
+    """Wait until the stt pipeline has caught up with every session that ended — i.e. no session of
+    this run is still sitting in state ``ended`` — and report ``(drained, waited_s)``.
+
+    §11.2 calls ``stt_offsets.last_chunk_seq == final_seq`` a **final** invariant, but the check used
+    to run a fixed 20 s after the last recorder. That turns the invariant into a race against the
+    stt-worker's backlog, which is why the same healthy system reported 100 % (A n=50/100), 70 %
+    (D, after a 15 s SIGSTOP) and 0 % (B, where ``SlowStt`` is 400 ms per chunk *by design*) — the
+    metric and the system were both right and the harness was reading them too early.
+
+    Bounded twice: ``bound_s`` overall, and ``stall_s`` without progress — a run whose worker is
+    saturated (A n=200) must not sit here for the whole bound. Viewers are still connected, so the
+    finals that arrive during the wait are still measured.
+
+    Progress is the **sum of ``stt_offsets.last_chunk_seq``**, not the number of sessions still
+    ``ended``: in scenario B every session finishes recording within a second of the others, so the
+    session count sits flat at N until the very end and a count-based stall detector gives up on a
+    pipeline that is chewing through its backlog at full speed. The offsets sum advances per chunk.
+    """
+    engine = make_engine(settings.database_url, pool_size=2, max_overflow=0)
+    started = time.monotonic()
+    deadline, best, best_at = started + bound_s, -1, started
+    try:
+        while time.monotonic() < deadline:
+            async with tenant_tx(engine, TenantCtx.service(seeded.tenant_id)) as s:
+                pending = int(
+                    await s.scalar(
+                        select(func.count())
+                        .select_from(SessionModel)
+                        .where(SessionModel.id.in_(seeded.session_ids), SessionModel.state == "ended")
+                    )
+                    or 0
+                )
+                progress = int(
+                    await s.scalar(
+                        select(func.coalesce(func.sum(SttOffset.last_chunk_seq), 0)).where(
+                            SttOffset.session_id.in_(seeded.session_ids)
+                        )
+                    )
+                    or 0
+                )
+            if pending == 0:
+                return True, time.monotonic() - started
+            if progress > best:
+                best, best_at = progress, time.monotonic()
+            elif time.monotonic() - best_at >= stall_s:
+                log.warning(
+                    "stt drain stalled",
+                    extra={"pending": pending, "chunks_transcribed": progress, "stall_s": stall_s},
+                )
+                break
+            await asyncio.sleep(2.0)
+    finally:
+        await engine.dispose()
+    return False, time.monotonic() - started
+
+
 async def _wait_viewers_tail(clients: LoadClients, tail_wait_s: float) -> None:
     """Give the stt-worker time to finish after the last ``bye{ended}``: wait until every viewer saw
     ``session.state{transcribed}`` (or ``ended`` for sessions the recorder stopped early), else the tail."""
@@ -747,8 +848,9 @@ async def run(settings: Settings, cfg: RunConfig) -> dict[str, Any]:
         "loadtest seeded",
         extra={"scenario": scenario.name, "sessions": len(seeded.session_ids), "workdir": str(workdir)},
     )
-    procs = spawn_processes(settings, cfg, workdir)
     redis = get_redis(settings.redis_url)
+    stale_evicted = await clear_stale_state(settings, seeded, redis)
+    procs = spawn_processes(settings, cfg, workdir)
     journal: list[dict[str, Any]] = []
     background: list[asyncio.Task[Any]] = []
     try:
@@ -781,6 +883,7 @@ async def run(settings: Settings, cfg: RunConfig) -> dict[str, Any]:
         await _start_clients(clients, cfg.ramp_s)
         await _wait_recorders(clients, deadline_s=cfg.duration_s + cfg.ramp_s + 30.0)
         recorders_done_s = time.monotonic() - t0
+        stt_drained, stt_drain_wait_s = await wait_stt_drain(settings, seeded, cfg.drain_wait_s)
         await _wait_viewers_tail(clients, cfg.tail_wait_s)
         wall_s = time.monotonic() - t0
         _cancel(background)
@@ -788,6 +891,7 @@ async def run(settings: Settings, cfg: RunConfig) -> dict[str, Any]:
         api_metrics = await scrape(next(p.metrics_url for p in procs if p.name == "api"))
         stt_metrics = await scrape(next(p.metrics_url for p in procs if p.name == "stt-worker"))
         sent = {s.session_id: s.sent for s in clients.stats}
+        db_check_at_s = time.monotonic() - t0
         check = await db_check(settings, seeded, sent)
         version = await pg_version(settings)
     finally:
@@ -812,6 +916,11 @@ async def run(settings: Settings, cfg: RunConfig) -> dict[str, Any]:
         else None,
         "process_exit_codes": {p.name: p.exit_code for p in procs},
         "workdir": str(workdir),
+        "database": db_name(settings.database_url),
+        "stale_sessions_evicted": stale_evicted,
+        "db_check_at_s": round(db_check_at_s, 1),
+        "stt_drained": stt_drained,
+        "stt_drain_wait_s": round(stt_drain_wait_s, 1),
         "metrics": {
             "ws_dropped_partials_total": api_metrics.get("ws_dropped_partials_total"),
             "ws_resume_total_ok": api_metrics.get('ws_resume_total{result="ok"}'),
@@ -850,7 +959,21 @@ def _build_report(
     if name == "A":
         existing = rpt.read_json(out / "A.json")
         run_entry = rpt.a_run(cfg.sessions, agg, resources, check, metrics=common["metrics"])
-        run_entry.update({k: common[k] for k in ("process_exit_codes", "workdir", "pinning")})
+        run_entry.update(
+            {
+                k: common[k]
+                for k in (
+                    "process_exit_codes",
+                    "workdir",
+                    "pinning",
+                    "database",
+                    "stale_sessions_evicted",
+                    "db_check_at_s",
+                    "stt_drained",
+                    "stt_drain_wait_s",
+                )
+            }
+        )
         body: dict[str, Any] = {
             "scenario": "A",
             "description": common["description"],

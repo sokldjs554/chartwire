@@ -1,0 +1,74 @@
+{
+  "seed": 42,
+  "git_sha": "316209103be3672288ffa4964dfc0b0e202f674d",
+  "generated_at": "2026-09-04T13:18:15+00:00",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
+  "ram_gb": 15.7,
+  "python": "3.11.15",
+  "pg_version": null,
+  "verifier_version": "rules-8.v1",
+  "n_sessions": 200,
+  "passes": 3,
+  "n_statements": 5918,
+  "rejected": 85,
+  "false_rejection_rate": 0.0144,
+  "by_transform": [
+    {
+      "transform": "ending_plain",
+      "total": 1305,
+      "rejected": 0,
+      "rate": 0.0,
+      "reasons": {}
+    },
+    {
+      "transform": "ending_formal",
+      "total": 1341,
+      "rejected": 0,
+      "rate": 0.0,
+      "reasons": {}
+    },
+    {
+      "transform": "particle_swap",
+      "total": 228,
+      "rejected": 0,
+      "rate": 0.0,
+      "reasons": {}
+    },
+    {
+      "transform": "synonym",
+      "total": 85,
+      "rejected": 85,
+      "rate": 1.0,
+      "reasons": {
+        "negation_mismatch": 85
+      }
+    },
+    {
+      "transform": "merge",
+      "total": 1282,
+      "rejected": 0,
+      "rate": 0.0,
+      "reasons": {}
+    },
+    {
+      "transform": "number_word",
+      "total": 559,
+      "rejected": 0,
+      "rate": 0.0,
+      "reasons": {}
+    },
+    {
+      "transform": "honorific_drop",
+      "total": 1118,
+      "rejected": 0,
+      "rate": 0.0,
+      "reasons": {}
+    }
+  ],
+  "residual_causes": [
+    {
+      "cause": "synonym:negation_mismatch",
+      "count": 85
+    }
+  ]
+}

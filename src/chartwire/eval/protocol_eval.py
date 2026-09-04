@@ -21,7 +21,9 @@ from typing import Any, Final
 
 PROPERTY_SUITES: Final[tuple[str, ...]] = ("tests/ws",)
 CHAOS_REPORT: Final = Path("docs/loadtest/D.json")
-_PASSING: Final = re.compile(r"(\d+) passing examples")
+_PASSING: Final = re.compile(r"(\d+) passing(?: examples|,\s*\d+ failing)")
+"""Hypothesis has written both ``N passing examples`` and
+``N passing, M failing, and K invalid test cases`` — accept either wording."""
 _TEST_HEADER: Final = re.compile(r"^(tests/\S+::\S+):$", re.MULTILINE)
 
 

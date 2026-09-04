@@ -1,0 +1,24 @@
+{
+  "seed": 42,
+  "git_sha": "316209103be3672288ffa4964dfc0b0e202f674d",
+  "generated_at": "2026-09-04T13:18:44+00:00",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
+  "ram_gb": 15.7,
+  "python": "3.11.15",
+  "pg_version": null,
+  "suites": [
+    "tests/ws"
+  ],
+  "exit_code": 0,
+  "hypothesis_examples": 2300,
+  "property_tests": 4,
+  "per_test": {
+    "tests/ws/test_codec.py::test_roundtrip_property": 100,
+    "tests/ws/test_credit.py::test_compute_is_clamped_and_monotone": 100,
+    "tests/ws/test_ingest_core_props.py::TestIngestCoreStateMachine::runTest": 1100,
+    "tests/ws/test_watch_core_props.py::TestWatchCoreStateMachine::runTest": 1000
+  },
+  "chaos_loss": 0,
+  "chaos_dup": 0,
+  "chaos_source": "docs/loadtest/D.json"
+}

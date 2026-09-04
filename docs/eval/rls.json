@@ -1,0 +1,21 @@
+{
+  "seed": 42,
+  "git_sha": "316209103be3672288ffa4964dfc0b0e202f674d",
+  "generated_at": "2026-09-04T13:15:12.020747+00:00",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
+  "ram_gb": 15.7,
+  "python": "3.11.15",
+  "pg_version": null,
+  "source": "var/eval/rls.json",
+  "attempts": 252,
+  "leaks": 0,
+  "routes": 37,
+  "roles": 5,
+  "cross_tenant_attempts": 30,
+  "role_denied": 104,
+  "role_allowed": 81,
+  "anonymous_rejected": 33,
+  "violations": [],
+  "duration_s": 2.24,
+  "db": "chartwire_test_f"
+}

@@ -36,6 +36,12 @@ class Settings(BaseSettings):
 
     # --- Redis / storage ---------------------------------------------------
     redis_url: str = "redis://localhost:6379/0"
+    redis_max_connections: int = 512
+    """Per-process Redis pool ceiling. redis-py's own default is **100**, and it is a hard cap, not a
+    queue: the 101st concurrent command raises ``MaxConnectionsError``. The stt-worker holds one
+    connection per owned session for the whole ``XREADGROUP … BLOCK`` window and the api has one
+    in-flight command per busy ws connection, so 100 is reached at ~100 sessions
+    (see ``docs/dev/handoff/loadfix.md``). Sized above the per-process session ceiling."""
     objectstore: str = "localfs:./var/objects"
     """``localfs:<dir>`` or ``s3://<bucket>``."""
 

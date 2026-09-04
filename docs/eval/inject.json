@@ -1,0 +1,98 @@
+{
+  "seed": 42,
+  "git_sha": "316209103be3672288ffa4964dfc0b0e202f674d",
+  "generated_at": "2026-09-04T13:18:14+00:00",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
+  "ram_gb": 15.7,
+  "python": "3.11.15",
+  "pg_version": null,
+  "verifier_version": "rules-8.v1",
+  "n_sessions": 200,
+  "n_per_class": 200,
+  "classes": [
+    {
+      "class": "number",
+      "mutation": "number_change",
+      "n": 200,
+      "detected": 200,
+      "detection_rate": 1.0,
+      "expected_reason": "numeric_mismatch",
+      "reasons": {
+        "numeric_mismatch": 200
+      }
+    },
+    {
+      "class": "drug",
+      "mutation": "drug_swap",
+      "n": 200,
+      "detected": 200,
+      "detection_rate": 1.0,
+      "expected_reason": "entity_mismatch",
+      "reasons": {
+        "entity_mismatch": 200
+      }
+    },
+    {
+      "class": "fabricated",
+      "mutation": "fabricated_statement",
+      "n": 200,
+      "detected": 200,
+      "detection_rate": 1.0,
+      "expected_reason": "quote_mismatch",
+      "reasons": {
+        "quote_mismatch": 200
+      }
+    },
+    {
+      "class": "seq",
+      "mutation": "evidence_seq_wrong",
+      "n": 200,
+      "detected": 200,
+      "detection_rate": 1.0,
+      "expected_reason": "fabricated_segment",
+      "reasons": {
+        "fabricated_segment": 200
+      }
+    },
+    {
+      "class": "diagnosis",
+      "mutation": "diagnosis_insert",
+      "n": 200,
+      "detected": 200,
+      "detection_rate": 1.0,
+      "expected_reason": "verdict_language",
+      "reasons": {
+        "verdict_language": 200
+      }
+    },
+    {
+      "class": "negation",
+      "mutation": "negation_flip",
+      "n": 200,
+      "detected": 198,
+      "detection_rate": 0.99,
+      "expected_reason": "negation_mismatch",
+      "reasons": {
+        "negation_mismatch": 198,
+        "supported": 2
+      }
+    },
+    {
+      "class": "speaker",
+      "mutation": "speaker_swap",
+      "n": 200,
+      "detected": 200,
+      "detection_rate": 1.0,
+      "expected_reason": "speaker_mismatch",
+      "reasons": {
+        "numeric_mismatch": 107,
+        "speaker_mismatch": 48,
+        "negation_mismatch": 41,
+        "entity_mismatch": 4
+      }
+    }
+  ],
+  "false_flag_rate": 0.0,
+  "clean_statements": 21600,
+  "clean_flagged": 0
+}

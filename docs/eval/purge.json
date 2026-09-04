@@ -1,0 +1,23 @@
+{
+  "seed": 42,
+  "git_sha": "316209103be3672288ffa4964dfc0b0e202f674d",
+  "generated_at": "2026-09-04T13:15:08.411234+00:00",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
+  "ram_gb": 15.7,
+  "python": "3.11.15",
+  "pg_version": null,
+  "source": "var/eval/purge.json",
+  "sessions_purged": 50,
+  "patients_purged": 10,
+  "jobs": 60,
+  "residual_rows": 0,
+  "residual_objects": 0,
+  "residual_keys": 0,
+  "unwrap_failure_pct": 100.0,
+  "decrypt_failure_pct": 100.0,
+  "receipts_verified_pct": 100.0,
+  "signed_notes_surviving": 50,
+  "signed_notes_expected": 50,
+  "duration_s": 7.55,
+  "db": "chartwire_test_f"
+}

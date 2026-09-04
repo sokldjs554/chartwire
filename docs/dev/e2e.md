@@ -72,16 +72,41 @@ curl -s $A/v1/notes/$NID -H "$H" | jq '{status, legal_hold, statement_count, quo
 curl -s $A/v1/patients/$PID -H "$H" | jq '{pseudonym, name, consent_state}'   # name null, purged
 ```
 
-## 5. 콘솔 (Playwright)
+## 5. 콘솔 (Playwright) — 스크린샷과 데모 GIF
 
 ```bash
-python scripts/console_screenshots.py --chromium "$(find /opt/pw-browsers -name chrome -type f | head -1)" --out docs/images
-# 로그인 → 세션 생성(가상환자-0002, s01) → 뷰어 연결 → 녹음 시작(×4) → 위험 배너 → ACK → 종료 → SOAP 초안 → 동의 철회 → 영수증 → 복호화 시도 → Ops
-# 출력 JSON 의 browser_errors 가 비어 있어야 한다. 스크린샷: docs/images/01_recorder.png … 05_ops.png
+export PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
+python scripts/console_screenshots.py --chromium /opt/pw-browsers/chromium \
+    --patient 가상환자-0006 --out docs/images                       # PNG 5장
+python scripts/console_screenshots.py --chromium /opt/pw-browsers/chromium \
+    --patient 가상환자-0007 --video-dir var/demo-video               # 같은 흐름 + WebM 녹화
+# 로그인(clinician) → 세션 생성(--patient, s01) → 뷰어 연결 → 녹음 시작(×4) → 위험 배너 → ACK → 종료 → SOAP 초안
+#   → 동의 철회 → **admin 으로 재로그인** → 영수증 추적 → 복호화 시도 → Ops
+# 스크린샷: docs/images/01_recorder.png … 05_ops.png
+```
+
+- **환자를 매번 새로 고른다.** 흐름의 마지막이 동의 철회 + 환자 단위 파기라 한 번 쓴 환자는 `consent_state=purged` 가 되어 재사용할 수 없다
+  (`가상환자-0001…0020` 중 아직 `granted` 인 것을 고른다. 다 쓰면 `chartwire db downgrade base && chartwire db upgrade && chartwire seed --demo`).
+- **역할 전환은 의도된 것이다.** 임상의는 동의를 철회할 수 있지만 `GET /v1/purge-jobs/{id}` 와 `verify-decrypt` 는 `{admin, auditor}` 전용이라
+  (§4 에서 `$HA` 를 쓰는 것과 같은 이유) 콘솔의 추적 폴링이 **403 을 한 번 받고** 멈춘다. 드라이버는 그 지점에서 `--admin`(기본 `admin@demo.clinic`)으로
+  다시 로그인한다.
+- 그래서 출력 JSON 의 `browser_errors` 에는 **예상된 두 줄**이 남는다: 초안이 아직 없을 때의 `notes/latest` 404 와 위의 403. 그 밖의 오류는 0 이어야 한다.
+- GIF 만들기(12 fps, 폭 1100, ≤ 8 MB). Playwright 번들 ffmpeg 는 `scale` 필터뿐이라 **팔레트 필터도 gif 먹서도 없다** — 전체 빌드를 쓴다:
+
+```bash
+FF=$(python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())")   # uv pip install imageio-ffmpeg
+V=var/demo-video/*.webm
+"$FF" -y -i $V -vf "fps=12,scale=1100:-2:flags=lanczos,palettegen=max_colors=48:stats_mode=diff" var/palette.png
+"$FF" -y -i $V -i var/palette.png -lavfi "fps=12,scale=1100:-2:flags=lanczos[x];[x][1:v]paletteuse=dither=none:diff_mode=rectangle" \
+     -loop 0 docs/images/demo.gif
 ```
 
 ## 6. 종료
 
 ```bash
-kill %1   # SIGTERM → drain started → ws drain started → worker stopped → stt-worker stopped → exit 0
+kill -TERM <pid>   # 백그라운드 셸이 아니라 서버 프로세스 pid 로
+# drain started → ws drain started → stt-worker stopped {clean:true} → worker stopped {clean:true}
+# → Application shutdown complete → Finished server process
 ```
+
+`serve all --embedded` 를 `nohup … &` 로 띄웠다면 `$!` 는 래퍼 셸일 수 있다 — 로그의 `Started server process [PID]` 를 쓰는 편이 확실하다.

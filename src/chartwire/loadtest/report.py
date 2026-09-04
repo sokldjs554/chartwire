@@ -85,8 +85,14 @@ class DbCheck:
     chunk_rows: int = 0
     chunks_sent: int = 0
     sessions_ended: int = 0
+    sessions_transcribed: int = 0
+    """Sessions the stt-worker has already flushed (state ``transcribed`` or ``drafted``).
+    ``stt_offsets_complete`` cannot be read without it: both are sampled **at check time**, so a
+    scenario whose STT is deliberately behind (B: ``SlowStt`` 400 ms) reports a low count because the
+    pipeline had not drained yet — not because the invariant is broken."""
     stt_offsets_complete: int = 0
-    """Sessions whose ``stt_offsets.last_chunk_seq == sessions.final_seq`` (scenario D invariant)."""
+    """Sessions whose ``stt_offsets.last_chunk_seq == sessions.final_seq`` (scenario D invariant),
+    at check time — see :attr:`sessions_transcribed`."""
     segments_contiguous: int = 0
     """Sessions whose segment seqs are ``0..max`` without holes."""
     segment_rows: int = 0
@@ -104,6 +110,7 @@ class DbCheck:
             "chunk_rows": self.chunk_rows,
             "loss": self.loss,
             "sessions_ended": self.sessions_ended,
+            "sessions_transcribed": self.sessions_transcribed,
             "stt_offsets_complete": self.stt_offsets_complete,
             "segments_contiguous": self.segments_contiguous,
             "segment_rows": self.segment_rows,
@@ -369,6 +376,29 @@ def _resources_table(res: Mapping[str, Any]) -> list[str]:
     return lines
 
 
+def _db_table(entry: Mapping[str, Any], label: str) -> list[str]:
+    """DB 대조 표. ``stt_offsets_complete`` 는 **검사 시점**의 값이므로 파이프라인이 밀린 것을 소화했는지
+    (``stt_drained``)와 함께 읽어야 한다 — 그래서 같은 표에 넣는다."""
+    db = entry.get("db") or {}
+    ended = db.get("sessions_ended")
+    return [
+        "",
+        f"DB 대조 ({label}):",
+        "",
+        "| 항목 | 값 |",
+        "|---|---|",
+        f"| 세션 (ended / transcribed) | {_fmt(ended)} / {_fmt(db.get('sessions_transcribed'))} |",
+        f"| `stt_offsets.last_chunk_seq == final_seq` | {_fmt(db.get('stt_offsets_complete'))} / {_fmt(ended)} |",
+        f"| 세그먼트 seq 연속 세션 | {_fmt(db.get('segments_contiguous'))} / {_fmt(db.get('sessions'))} |",
+        f"| 세그먼트 행 / 위험 이벤트 | {_fmt(db.get('segment_rows'))} / {_fmt(db.get('risk_events'))} |",
+        f"| loss (전송 − 원장) | {_fmt(db.get('loss'))} |",
+        f"| stt 파이프라인 소화 완료 / 대기 (s) | {_fmt(entry.get('stt_drained'))} / {_fmt(entry.get('stt_drain_wait_s'), 1)} |",
+        f"| 검사 시각 (녹음 시작 후 s) | {_fmt(entry.get('db_check_at_s'), 1)} |",
+        f"| 이전 실행 잔여 세션 제거 | {_fmt(entry.get('stale_sessions_evicted'))} |",
+        f"| 데이터베이스 | `{entry.get('database') or '—'}` |",
+    ]
+
+
 def _header_line(rep: Mapping[str, Any]) -> str:
     return (
         f"seed {rep.get('seed')} · git `{str(rep.get('git_sha', ''))[:12]}` · {rep.get('generated_at')} · "
@@ -416,6 +446,7 @@ def render_results_md(reports: Mapping[str, Mapping[str, Any]]) -> str:
             out.append(f"자원 (N={run['n']}):")
             out.append("")
             out.extend(_resources_table(run.get("resources") or {}))
+            out.extend(_db_table(run, f"N={run['n']}"))
     else:
         out.append("미측정.")
     out.append("")
@@ -438,6 +469,7 @@ def render_results_md(reports: Mapping[str, Mapping[str, Any]]) -> str:
         out.append(f"| loss | {_fmt(b.get('loss'))} |")
         out.append("")
         out.extend(_resources_table(b.get("resources") or {}))
+        out.extend(_db_table(b, "N=50"))
     else:
         out.append("미측정.")
     out.append("")
@@ -457,6 +489,7 @@ def render_results_md(reports: Mapping[str, Mapping[str, Any]]) -> str:
         out.append(f"| 폐기된 partial (`ws_dropped_partials_total`) | {_fmt(c.get('dropped_partials'))} |")
         out.append(f"| 배달된 final | {_fmt(c.get('finals_delivered'))} |")
         out.append(f"| loss | {_fmt(c.get('loss'))} |")
+        out.extend(_db_table(c, "N=100"))
     else:
         out.append("미측정.")
     out.append("")
@@ -490,6 +523,7 @@ def render_results_md(reports: Mapping[str, Mapping[str, Any]]) -> str:
             out.append("|---|---|---|")
             for e in chaos:
                 out.append(f"| {_fmt(e.get('at_s'), 1)} | {e.get('kind')} | {_fmt(e.get('targets'))} |")
+        out.extend(_db_table(d, "N=100"))
     else:
         out.append("미측정.")
     out.append("")

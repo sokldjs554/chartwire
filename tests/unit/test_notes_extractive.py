@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from chartwire.notes.extractive import ExtractiveProvider, build_draft, classify
+from chartwire.notes.extractive import (
+    CUE_FAMILIES,
+    SYMPTOM_CUES,
+    ExtractiveProvider,
+    build_draft,
+    classify,
+    cue_family,
+)
 from chartwire.notes.policy import decide
 from chartwire.notes.schema import NoteStatus, parse_draft
 from chartwire.notes.verifier import verify
@@ -91,3 +98,71 @@ def test_coverage_is_one_by_construction(utterances: list[tuple[str, str]]):
     v = verify(d, segs)
     assert v.coverage == 1.0 and v.unsupported_count == 0
     assert decide(v).status is NoteStatus.verified
+
+
+# ------------------------------------------------------- quality pass 2: §10.1 fact-cue families
+
+
+@pytest.mark.parametrize(
+    ("text", "family"),
+    [
+        ("새벽 4시에 깨서 다시 못 자요", "sleep"),
+        ("하루에 5시간밖에 못 자요", "sleep"),
+        ("3주 동안 3kg 빠졌어요", "appetite"),
+        ("일주일에 3번 소주 2병 마셔요", "alcohol"),
+        ("에스시탈로프람 10mg 먹고 있어요", "medication"),
+        ("한 3주 됐어요", "duration"),
+        ("3주 전부터요", "duration"),
+    ],
+)
+def test_every_spec_10_1_fact_utterance_has_a_cue_family(text: str, family: str):
+    assert classify(seg(1, "patient", text)) == "S"
+    assert cue_family(text) == family
+
+
+def test_families_partition_the_spec_9_2_cue_list():
+    """The union of the families is exactly ``SYMPTOM_CUES`` — no cue is added twice or lost."""
+    assert SYMPTOM_CUES.pattern == "|".join(pattern for _, pattern in CUE_FAMILIES)
+    for cue in (
+        "잠",
+        "수면",
+        "입맛",
+        "식욕",
+        "기분",
+        "우울",
+        "불안",
+        "두근",
+        "집중",
+        "피곤",
+        "기운",
+        "약",
+        "복용",
+        "부작용",
+        "술",
+        "체중",
+    ):
+        assert SYMPTOM_CUES.search(cue), cue
+
+
+def test_repeated_utterance_is_charted_once():
+    segs = session(*[("patient", "한 3주 됐어요")] * 5, ("patient", "입맛이 없어요"))
+    d = build_draft(segs)
+    assert [st.evidence[0].seq for st in d.statements] == [1, 6]
+
+
+def test_scarce_families_get_a_slot_before_a_repeated_early_phase():
+    """A session whose early phases fill 12 slots still charts the medication and alcohol facts."""
+    early = [("patient", f"잠드는 데 {i}시간쯤 걸려요") for i in range(1, 13)]
+    late = [("patient", "에스시탈로프람 10mg 먹고 있어요"), ("patient", "일주일에 3번 소주 2병 마셔요")]
+    d = build_draft(session(*early, *late), max_per_section=12)
+    quotes = [st.evidence[0].quote for st in d.statements]
+    assert "에스시탈로프람 10mg 먹고 있어요" in quotes
+    assert "일주일에 3번 소주 2병 마셔요" in quotes
+    assert len(d.statements) == 12
+    seqs = [st.evidence[0].seq for st in d.statements]
+    assert seqs == sorted(seqs)  # §9.2: the draft is still emitted in seq order
+
+
+def test_coverage_stays_one_by_construction_after_the_family_split():
+    d = build_draft(CONSULTATION)
+    assert verify(d, CONSULTATION).coverage == 1.0

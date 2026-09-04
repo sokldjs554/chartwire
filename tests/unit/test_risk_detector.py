@@ -73,12 +73,27 @@ def test_hypothetical_kind():
     assert hit.scope.hypothetical and not hit.alerts
 
 
-def test_past_kind_lowers_severity_and_keeps_alert():
+def test_past_with_present_denial_is_suppressed():
+    """§9.4 as refined in ``docs/risk-detection.md`` §9 (quality pass 2)."""
     hit = one("작년엔 죽고 싶었는데 지금은 아니에요")
-    assert flags_on(hit) == {"past"}
-    assert hit.severity == 1 and hit.alerts
+    assert flags_on(hit) == {"past", "present_denial"}
+    assert hit.severity == 2 and not hit.alerts
     hit = one("예전엔 희망이 없다고 느꼈는데 요즘은 안 그래요")
-    assert hit.scope.past and hit.severity == 0 and not hit.alerts
+    assert hit.scope.past and hit.scope.present_denial and not hit.alerts
+
+
+@pytest.mark.parametrize(
+    ("text", "severity"),
+    [
+        ("작년부터 죽고 싶었어요", 1),
+        ("예전에 손목을 그은 적이 있어요", 2),
+        ("어릴 때부터 자해를 했어요", 1),
+    ],
+)
+def test_past_without_present_denial_alerts_one_severity_lower(text: str, severity: int):
+    hit = one(text)
+    assert hit.scope.past and not hit.scope.present_denial
+    assert hit.severity == severity and hit.alerts
 
 
 def test_third_person_kind():
@@ -158,3 +173,104 @@ def test_risk_hit_alert_property_matches_spec_rule():
     assert RiskHit("self_harm", 1, "자해", 0, 2, quiet).alerts
     assert not RiskHit("self_harm", 0, "자해", 0, 2, quiet).alerts
     assert not RiskHit("self_harm", 3, "자해", 0, 2, ScopeFlags(idiom=True)).alerts
+
+
+# --------------------------------------------------------------- quality pass 2: stem families
+
+
+@pytest.mark.parametrize(
+    ("family", "text", "category"),
+    [
+        # 방언 어미·표기 변형 — 어간은 접두이므로 어미(-데이/-예/-당께/-유)는 그대로 붙어 매칭된다
+        ("dialect", "죽고 싶데이", "suicidal_ideation"),
+        ("dialect", "살기 싫어예", "suicidal_ideation"),
+        ("dialect", "죽고 싶당께요", "suicidal_ideation"),
+        ("dialect", "죽구 싶어유", "suicidal_ideation"),
+        ("dialect", "죽어불고 싶어라", "suicidal_ideation"),
+        ("spelling", "죽고싶어요", "suicidal_ideation"),
+        ("spelling", "사라지구 싶어요", "suicidal_ideation"),
+        ("spelling", "뒤지고 싶어요", "suicidal_ideation"),
+        # 간접 사고
+        ("indirect", "살아서 뭐하나 싶어요", "suicidal_ideation"),
+        ("indirect", "아침에 눈 안 떠졌으면 좋겠어요", "suicidal_ideation"),
+        ("indirect", "잠들어서 안 깨고 싶어요", "suicidal_ideation"),
+        ("indirect", "세상 뜨고 싶어요", "suicidal_ideation"),
+        ("indirect", "이제 다 놓고 싶어요", "suicidal_ideation"),
+        ("indirect", "그냥 끝내고 싶어요", "suicidal_ideation"),
+        ("indirect", "제가 없어졌으면 좋겠어요", "suicidal_ideation"),
+        ("indirect", "요즘 나쁜 생각이 자꾸 들어요", "suicidal_ideation"),
+        ("indirect", "극단적인 선택을 생각해요", "suicidal_ideation"),
+        # 수단·계획
+        ("means", "약 모아두고 있어요", "suicidal_ideation"),
+        ("means", "옥상에 올라가 봤어요", "suicidal_ideation"),
+        ("means", "한강 다리에 가봤어요", "suicidal_ideation"),
+        ("means", "목 매려고 끈을 샀어요", "suicidal_ideation"),
+        ("means", "번개탄을 사놨어요", "suicidal_ideation"),
+        ("means", "수면제 한꺼번에 먹으려고요", "suicidal_ideation"),
+        ("means", "손목 그어요", "self_harm"),
+        # 자해
+        ("self_harm", "팔을 그었어요", "self_harm"),
+        ("self_harm", "상처 내고 나면 좀 나아요", "self_harm"),
+        ("self_harm", "머리 박고 싶어요", "self_harm"),
+        ("self_harm", "자해 충동이 심해요", "self_harm"),
+        ("self_harm", "피 보고 싶어요", "self_harm"),
+        ("self_harm", "허벅지를 꼬집어요", "self_harm"),
+        ("self_harm", "담뱃불로 지졌어요", "self_harm"),
+        # 타해
+        ("harm_to_others", "다 죽여버리고 싶어요", "harm_to_others"),
+        ("harm_to_others", "때려죽이고 싶어요", "harm_to_others"),
+        ("harm_to_others", "해치고 싶은 마음이 들어요", "harm_to_others"),
+        ("harm_to_others", "칼로 찌르는 상상을 해요", "harm_to_others"),
+        ("harm_to_others", "불 지르고 싶어요", "harm_to_others"),
+        ("harm_to_others", "복수하고 싶어요", "harm_to_others"),
+        ("harm_to_others", "다 죽여버릴까 생각해요", "harm_to_others"),
+        # 급성 물질 사용
+        ("substance_acute", "술 마시고 약 먹었어요", "substance_acute"),
+        ("substance_acute", "소주에 약을 타서 먹었어요", "substance_acute"),
+        ("substance_acute", "필름 끊긴 적 많아요", "substance_acute"),
+        ("substance_acute", "블랙아웃이 자주 와요", "substance_acute"),
+        ("substance_acute", "며칠째 술만 마시고 있어요", "substance_acute"),
+        ("substance_acute", "술 마시고 운전했어요", "substance_acute"),
+        ("substance_acute", "약 과다복용한 적 있어요", "substance_acute"),
+    ],
+)
+def test_new_stem_families_alert(family: str, text: str, category: str):
+    hit = one(text)
+    assert hit.category == category, family
+    assert hit.alerts and not hit.suppressed, family
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "손목시계를 새로 샀어요",
+        "손목이 아파서 병원 갔어요",
+        "손목 터널 증후군이래요",
+        "칼로 사과를 깎다가 베었어요",
+        "노트에 선을 그었어요",
+        "밑줄 그어 놨어요",
+        "가방을 뒤지고 싶었는데 참았어요",
+        "정확히 꼬집어 말하기 어려워요",
+        "성적에 목매고 싶지 않아요",
+        "자살골을 넣었어요",
+        "자살률 통계를 봤어요",
+        "연탄구이 집에 갔어요",
+        "죽을 맛이에요",
+        "죽기 살기로 공부했어요",
+        "죽고 못 사는 사이예요",
+        "유튜브에서 자해 관련 영상을 봤어요",
+    ],
+)
+def test_broadened_stems_do_not_alert_on_everyday_senses(text: str):
+    hits = scan(text, "patient")
+    assert not hits or not hits[0].alerts, hits
+
+
+@pytest.mark.parametrize(
+    ("spaced", "unspaced"),
+    [("죽고 싶어요", "죽고싶어요"), ("손목 그어요", "손목그어요"), ("약 모아 뒀어요", "약모아뒀어요")],
+)
+def test_matching_ignores_whitespace(spaced: str, unspaced: str):
+    a, b = one(spaced), one(unspaced)
+    assert (a.phrase, a.category, a.severity) == (b.phrase, b.category, b.severity)
+    assert b.alerts

@@ -1,6 +1,6 @@
 # 품질 패스 핸드오프 (WP-F Phase 1 §5 요청 1–4)
 
-> 상태: **진행 중**. 작업 규칙: `src/chartwire/eval/data/`·`docs/eval/*.json` 은 열지 않는다(누출 통제). 단위 테스트만 실행(`tests/unit`). git 상태는 바꾸지 않는다.
+> 상태: **중단됨 — `docs/dev/handoff/quality2.md` 가 이어받아 완료했다** (체크리스트 전 항목 + WP-F 요청 5 포함). 이 문서는 그 실행의 기준선(§1)만 남긴다. 작업 규칙: `src/chartwire/eval/data/`·`docs/eval/*.json` 은 열지 않는다(누출 통제). 단위 테스트만 실행(`tests/unit`). git 상태는 바꾸지 않는다.
 
 ## 0. 체크리스트
 

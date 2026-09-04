@@ -1,7 +1,7 @@
 {
   "seed": 42,
-  "git_sha": "bd9b2df4593286813acc598770cb329cfa22ce09",
-  "generated_at": "2026-09-04T11:32:01+00:00",
+  "git_sha": "316209103be3672288ffa4964dfc0b0e202f674d",
+  "generated_at": "2026-09-04T12:29:37+00:00",
   "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
   "ram_gb": 15.7,
   "python": "3.11.15",
@@ -19,27 +19,32 @@
     "client": "3"
   },
   "process_exit_codes": {
-    "api": -9,
+    "api": -15,
     "worker": 0,
     "stt-worker": 0
   },
-  "workdir": "var/loadtest/D-n100-1788521399",
+  "workdir": "var/loadtest/D-n100-1788524876",
+  "database": "chartwire_load",
+  "stale_sessions_evicted": 0,
+  "db_check_at_s": 97.3,
+  "stt_drained": true,
+  "stt_drain_wait_s": 30.2,
   "metrics": {
     "ws_dropped_partials_total": 0.0,
     "ws_resume_total_ok": 140.0,
     "ws_resume_total_gap": 0.0,
-    "stt_rebuilds_total": 135.0,
-    "stt_lag_chunks": 1667.0
+    "stt_rebuilds_total": 57.0,
+    "stt_lag_chunks": 308.0
   },
   "resume_success_pct": 100.0,
   "reconnects": 140,
   "resumes_ok": 140,
   "superseded_closes": 0,
-  "rebuild_count": 135,
+  "rebuild_count": 57,
   "loss": 0,
   "dup": 0,
   "invariants": {
-    "stt_offsets_complete_pct": 70.0,
+    "stt_offsets_complete_pct": 100.0,
     "segments_contiguous_pct": 100.0,
     "sessions_ended_pct": 100.0
   },
@@ -72,7 +77,7 @@
     {
       "kind": "stt_sigstop",
       "at_s": 40.0,
-      "targets": 2594
+      "targets": 7277
     },
     {
       "kind": "kill_sockets",
@@ -82,7 +87,7 @@
     {
       "kind": "stt_sigcont",
       "at_s": 55.0,
-      "targets": 2594
+      "targets": 7277
     }
   ],
   "clients": {
@@ -90,43 +95,43 @@
     "duration_s": 60,
     "ramp_s": 2.0,
     "chunks_sent": 30000,
-    "chunks_resent": 384,
+    "chunks_resent": 361,
     "chunks_per_s": 500.0,
     "ack_samples": 30000,
-    "ack_p50_ms": 174.0,
-    "ack_p95_ms": 885.0,
-    "ack_p99_ms": 1734.6,
-    "final_samples": 1659,
-    "final_e2e_p50_ms": 21909.2,
-    "final_e2e_p95_ms": 70701.4,
-    "alert_samples": 88,
-    "alert_sessions": 38,
-    "alert_e2e_p50_ms": 37.1,
-    "alert_e2e_p95_ms": 62.8,
-    "credit_min": 0,
-    "credit_zero_sessions": 39,
-    "credit_zero_at_s": 55.31,
-    "credit_waits": 39,
-    "pause_count": 11,
+    "ack_p50_ms": 170.5,
+    "ack_p95_ms": 516.4,
+    "ack_p99_ms": 1091.5,
+    "final_samples": 1891,
+    "final_e2e_p50_ms": 788.0,
+    "final_e2e_p95_ms": 39992.9,
+    "alert_samples": 137,
+    "alert_sessions": 56,
+    "alert_e2e_p50_ms": 37.5,
+    "alert_e2e_p95_ms": 63.7,
+    "credit_min": 8,
+    "credit_zero_sessions": 0,
+    "credit_zero_at_s": null,
+    "credit_waits": 0,
+    "pause_count": 0,
     "nacks": 0,
     "reconnects": 140,
     "resumes_ok": 140,
     "resume_success_pct": 100.0,
     "superseded_closes": 0,
     "loss_client": 0,
-    "finals": 3862,
+    "finals": 5164,
     "final_dups": 0,
     "final_out_of_order": 0,
-    "partials": 12355,
-    "alerts": 88,
+    "partials": 13891,
+    "alerts": 137,
     "lagged_dropped": 0,
-    "viewer_reconnects": 2,
+    "viewer_reconnects": 0,
     "outcomes": {
       "ended": 100
     },
     "errors": 90,
-    "recorders_done_s": 69.8,
-    "wall_s": 89.8
+    "recorders_done_s": 67.0,
+    "wall_s": 97.2
   },
   "db": {
     "sessions": 100,
@@ -134,66 +139,67 @@
     "chunk_rows": 30000,
     "loss": 0,
     "sessions_ended": 100,
-    "stt_offsets_complete": 70,
+    "sessions_transcribed": 100,
+    "stt_offsets_complete": 100,
     "segments_contiguous": 100,
-    "segment_rows": 3890,
-    "risk_events": 88,
+    "segment_rows": 5164,
+    "risk_events": 137,
     "sessions_with_loss": 0
   },
   "resources": {
     "api": {
-      "samples": 89,
-      "cpu_pct_mean": 63.0,
-      "cpu_pct_max": 102.2,
-      "rss_mb_start": 135.1,
-      "rss_mb_max": 172.9,
-      "rss_mb_end": 172.9,
-      "rss_slope_mb_per_min": 13.729
+      "samples": 96,
+      "cpu_pct_mean": 62.9,
+      "cpu_pct_max": 112.1,
+      "rss_mb_start": 135.2,
+      "rss_mb_max": 171.9,
+      "rss_mb_end": 171.9,
+      "rss_slope_mb_per_min": 12.427
     },
     "worker": {
-      "samples": 89,
-      "cpu_pct_mean": 9.5,
-      "cpu_pct_max": 62.5,
-      "rss_mb_start": 123.9,
+      "samples": 96,
+      "cpu_pct_mean": 3.5,
+      "cpu_pct_max": 68.7,
+      "rss_mb_start": 124.8,
       "rss_mb_max": 132.1,
       "rss_mb_end": 132.1,
-      "rss_slope_mb_per_min": 3.204
+      "rss_slope_mb_per_min": 4.286
     },
     "stt-worker": {
-      "samples": 89,
-      "cpu_pct_mean": 78.2,
-      "cpu_pct_max": 105.6,
-      "rss_mb_start": 107.0,
-      "rss_mb_max": 135.5,
-      "rss_mb_end": 135.3,
-      "rss_slope_mb_per_min": 16.841
+      "samples": 96,
+      "cpu_pct_mean": 68.6,
+      "cpu_pct_max": 101.5,
+      "rss_mb_start": 93.7,
+      "rss_mb_max": 127.2,
+      "rss_mb_end": 127.1,
+      "rss_slope_mb_per_min": 12.68
     },
     "postgres": {
-      "samples": 89,
-      "cpu_pct_mean": 5.3,
-      "cpu_pct_max": 25.0,
-      "rss_mb_start": 2007.3,
-      "rss_mb_max": 2134.0,
-      "rss_mb_end": 1700.3,
-      "rss_slope_mb_per_min": -281.526
+      "samples": 96,
+      "cpu_pct_mean": 1.0,
+      "cpu_pct_max": 7.0,
+      "rss_mb_start": 1094.7,
+      "rss_mb_max": 1129.3,
+      "rss_mb_end": 1093.9,
+      "rss_slope_mb_per_min": -13.984
     },
     "redis": {
-      "samples": 89,
-      "cpu_pct_mean": 5.0,
-      "cpu_pct_max": 10.0,
-      "rss_mb_start": 30.1,
-      "rss_mb_max": 32.7,
-      "rss_mb_end": 13.8,
-      "rss_slope_mb_per_min": -15.006
+      "samples": 96,
+      "cpu_pct_mean": 5.7,
+      "cpu_pct_max": 11.9,
+      "rss_mb_start": 41.8,
+      "rss_mb_max": 44.8,
+      "rss_mb_end": 14.1,
+      "rss_slope_mb_per_min": -22.643
     },
     "client": {
-      "samples": 89,
-      "cpu_pct_mean": 9.2,
-      "cpu_pct_max": 16.6,
-      "rss_mb_start": 139.9,
-      "rss_mb_max": 248.1,
-      "rss_mb_end": 248.1,
-      "rss_slope_mb_per_min": 63.624
+      "samples": 96,
+      "cpu_pct_mean": 9.4,
+      "cpu_pct_max": 19.9,
+      "rss_mb_start": 139.7,
+      "rss_mb_max": 248.0,
+      "rss_mb_end": 248.0,
+      "rss_slope_mb_per_min": 55.681
     }
   },
   "caption": "same host, 4 vCPU, loopback, STT simulator, client-confounded"

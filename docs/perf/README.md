@@ -10,21 +10,21 @@
 
 | 항목 | 값 |
 |---|---|
-<!-- row:perf.bulk.tenants -->| 테넌트 | <!-- num:perf.bulk.tenants -->—<!-- /num --> |
+<!-- row:perf.bulk.tenants -->| 테넌트 | <!-- num:perf.bulk.tenants -->8<!-- /num --> |
 <!-- /row -->
-<!-- row:perf.bulk.sessions -->| 세션 (× 100 세그먼트) | <!-- num:perf.bulk.sessions -->—<!-- /num --> |
+<!-- row:perf.bulk.sessions -->| 세션 (× 100 세그먼트) | <!-- num:perf.bulk.sessions -->20000<!-- /num --> |
 <!-- /row -->
-<!-- row:perf.bulk.patients -->| 환자 | <!-- num:perf.bulk.patients -->—<!-- /num --> |
+<!-- row:perf.bulk.patients -->| 환자 | <!-- num:perf.bulk.patients -->50000<!-- /num --> |
 <!-- /row -->
-<!-- row:perf.bulk.segments -->| `transcript_segments` (24개 월 파티션) | <!-- num:perf.bulk.segments -->—<!-- /num --> |
+<!-- row:perf.bulk.segments -->| `transcript_segments` (24개 월 파티션) | <!-- num:perf.bulk.segments -->2000000<!-- /num --> |
 <!-- /row -->
-<!-- row:perf.bulk.search -->| `segment_search` (세션의 60 %) | <!-- num:perf.bulk.search -->—<!-- /num --> |
+<!-- row:perf.bulk.search -->| `segment_search` (세션의 60 %) | <!-- num:perf.bulk.search -->1205000<!-- /num --> |
 <!-- /row -->
-<!-- row:perf.bulk.risk -->| `risk_events` (세그먼트의 2 %, 그중 1 % 미확인) | <!-- num:perf.bulk.risk -->—<!-- /num --> |
+<!-- row:perf.bulk.risk -->| `risk_events` (세그먼트의 2 %, 그중 1 % 미확인) | <!-- num:perf.bulk.risk -->40017<!-- /num --> |
 <!-- /row -->
-<!-- row:perf.bulk.outbox -->| `outbox_events` (99.9 % done) | <!-- num:perf.bulk.outbox -->—<!-- /num --> |
+<!-- row:perf.bulk.outbox -->| `outbox_events` (99.9 % done) | <!-- num:perf.bulk.outbox -->2000000<!-- /num --> |
 <!-- /row -->
-<!-- row:perf.bulk.total_s -->| 적재 + VACUUM ANALYZE 시간 | <!-- num:perf.bulk.total_s -->—<!-- /num --> s |
+<!-- row:perf.bulk.total_s -->| 적재 + VACUUM ANALYZE 시간 | <!-- num:perf.bulk.total_s -->108<!-- /num --> s |
 <!-- /row -->
 
 - 키워드 비율(`segment_search.text`): `불면` 2 %(그중 `불면증` 0.5 %, 부분 문자열 포함), `에스시탈로프람` 0.3 %, `자해` 0.2 %.
@@ -46,7 +46,7 @@ chartwire db downgrade 0006 && chartwire perf study --state before --out docs/pe
 chartwire db upgrade head  && chartwire perf study --state after  --out docs/perf
 ```
 
-<!-- row:perf.pg_version -->PostgreSQL <!-- num:perf.pg_version -->—<!-- /num -->
+<!-- row:perf.pg_version -->PostgreSQL <!-- num:perf.pg_version -->16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)<!-- /num -->
 <!-- /row -->
 설정은 `summary.json.states.*.settings` (`shared_buffers`, `work_mem`, `jit` …) · 헤더에 git sha, CPU, RAM, 시드.
 
@@ -54,35 +54,60 @@ chartwire db upgrade head  && chartwire perf study --state after  --out docs/per
 
 | # | 쿼리 (앱이 실행하는 그대로) | before (0006) | after (0007) | 무엇을 보여주나 |
 |---|---|---|---|---|
-<!-- row:perf.Q1 -->| Q1 | 환자 종단 타임라인 6개월 `ORDER BY created_at DESC, id DESC LIMIT 50` | <!-- num:perf.Q1.before_ms -->—<!-- /num --> (<!-- num:perf.Q1.before_plan -->—<!-- /num -->) | <!-- num:perf.Q1.after_ms -->—<!-- /num --> (<!-- num:perf.Q1.after_plan -->—<!-- /num -->) | 파티션 프루닝 + 무중단 파티션 인덱스 `ix_segments_patient_time` |
+<!-- row:perf.Q1 -->| Q1 | 환자 종단 타임라인 6개월 `ORDER BY created_at DESC, id DESC LIMIT 50` | <!-- num:perf.Q1.before_ms -->27.4<!-- /num --> (<!-- num:perf.Q1.before_plan -->Limit<!-- /num -->) | <!-- num:perf.Q1.after_ms -->2.5<!-- /num --> (<!-- num:perf.Q1.after_plan -->Limit<!-- /num -->) | 파티션 프루닝 + 무중단 파티션 인덱스 `ix_segments_patient_time` |
 <!-- /row -->
-<!-- row:perf.Q1a -->| Q1a | 세션 replay `seq > :a` — `created_at` 조건 없음 / `>= started_at` / 상·하한 | <!-- num:perf.Q1a_without.before_ms -->—<!-- /num --> / <!-- num:perf.Q1a_with.before_ms -->—<!-- /num --> / <!-- num:perf.Q1a_bounded.before_ms -->—<!-- /num --> | <!-- num:perf.Q1a_without.after_ms -->—<!-- /num --> / <!-- num:perf.Q1a_with.after_ms -->—<!-- /num --> / <!-- num:perf.Q1a_bounded.after_ms -->—<!-- /num --> | 파티션 키가 조건에 있어야 프루닝; 하한만 주면 **과거** 파티션만 잘린다 |
+<!-- row:perf.Q1a -->| Q1a | 세션 replay `seq > :a` — `created_at` 조건 없음 / `>= started_at` / 상·하한 | <!-- num:perf.Q1a_without.before_ms -->2.3<!-- /num --> / <!-- num:perf.Q1a_with.before_ms -->1.0<!-- /num --> / <!-- num:perf.Q1a_bounded.before_ms -->0.7<!-- /num --> | <!-- num:perf.Q1a_without.after_ms -->2.6<!-- /num --> / <!-- num:perf.Q1a_with.after_ms -->1.2<!-- /num --> / <!-- num:perf.Q1a_bounded.after_ms -->1.0<!-- /num --> | 파티션 키가 조건에 있어야 프루닝; 하한만 주면 **과거** 파티션만 잘린다 |
 <!-- /row -->
-<!-- row:perf.Q1b -->| Q1b | keyset 100번째 페이지 vs `OFFSET 5000` | <!-- num:perf.Q1b_keyset.before_ms -->—<!-- /num --> / <!-- num:perf.Q1b_offset.before_ms -->—<!-- /num --> | <!-- num:perf.Q1b_keyset.after_ms -->—<!-- /num --> / <!-- num:perf.Q1b_offset.after_ms -->—<!-- /num --> | OFFSET 은 건너뛰는 행을 전부 읽는다 |
+<!-- row:perf.Q1b -->| Q1b | keyset 100번째 페이지 vs `OFFSET 5000` | <!-- num:perf.Q1b_keyset.before_ms -->21.1<!-- /num --> / <!-- num:perf.Q1b_offset.before_ms -->27.0<!-- /num --> | <!-- num:perf.Q1b_keyset.after_ms -->3.1<!-- /num --> / <!-- num:perf.Q1b_offset.after_ms -->2.9<!-- /num --> | OFFSET 은 건너뛰는 행을 전부 읽는다 |
 <!-- /row -->
-<!-- row:perf.Q2a -->| Q2a | `text ILIKE '%불면%'` as app (2음절) | <!-- num:perf.Q2a.before_ms -->—<!-- /num --> | <!-- num:perf.Q2a.after_ms -->—<!-- /num --> (<!-- num:perf.Q2a.after_plan -->—<!-- /num -->) | 2음절은 트라이그램이 없다 — 정직한 한계; API 는 3자 이상만 |
+<!-- row:perf.Q2a -->| Q2a | `text ILIKE '%불면%'` as app (2음절) | <!-- num:perf.Q2a.before_ms -->40.1<!-- /num --> | <!-- num:perf.Q2a.after_ms -->44.6<!-- /num --> (<!-- num:perf.Q2a.after_plan -->Limit<!-- /num -->) | 2음절은 트라이그램이 없다 — 정직한 한계; API 는 3자 이상만 |
 <!-- /row -->
-<!-- row:perf.Q2b -->| Q2b | `text ILIKE '%불면증%'` as app (RLS) | <!-- num:perf.Q2b.before_ms -->—<!-- /num --> | <!-- num:perf.Q2b.after_ms -->—<!-- /num --> (<!-- num:perf.Q2b.after_plan -->—<!-- /num -->) | **GIN 이 있어도 미사용** — `texticlike` 가 leakproof 가 아님 (`leakproof.txt`, ADR-0005) |
+<!-- row:perf.Q2b -->| Q2b | `text ILIKE '%불면증%'` as app (RLS) | <!-- num:perf.Q2b.before_ms -->40.1<!-- /num --> | <!-- num:perf.Q2b.after_ms -->41.2<!-- /num --> (<!-- num:perf.Q2b.after_plan -->Limit<!-- /num -->) | **GIN 이 있어도 미사용** — `texticlike` 가 leakproof 가 아님 (`leakproof.txt`, ADR-0005) |
 <!-- /row -->
-<!-- row:perf.Q2c -->| Q2c | 같은 쿼리 as owner (RLS 면제 = `search_segments` 실행 컨텍스트) | <!-- num:perf.Q2c.before_ms -->—<!-- /num --> | <!-- num:perf.Q2c.after_ms -->—<!-- /num --> (<!-- num:perf.Q2c.after_plan -->—<!-- /num -->) | 해결책: SECURITY DEFINER 경계 |
+<!-- row:perf.Q2c -->| Q2c | 같은 쿼리 as owner (RLS 면제 = `search_segments` 실행 컨텍스트) | <!-- num:perf.Q2c.before_ms -->44.3<!-- /num --> | <!-- num:perf.Q2c.after_ms -->6.0<!-- /num --> (<!-- num:perf.Q2c.after_plan -->Limit<!-- /num -->) | 해결책: SECURITY DEFINER 경계 |
 <!-- /row -->
-<!-- row:perf.Q2d -->| Q2d | `search_segments('불면증','text')` / `('불면','term')` as app (wall time) | — (0007 이전 함수 없음) | <!-- num:perf.Q2d_text.after_ms -->—<!-- /num --> / <!-- num:perf.Q2d_term.after_ms -->—<!-- /num --> | app 역할에서의 end-to-end 수정; `terms @>` 는 배열 GIN |
+<!-- row:perf.Q2d -->| Q2d | `search_segments('불면증','text')` / `('불면','term')` as app (wall time) | — (0007 이전 함수 없음) | <!-- num:perf.Q2d_text.after_ms -->5.8<!-- /num --> / <!-- num:perf.Q2d_term.after_ms -->22.1<!-- /num --> | app 역할에서의 end-to-end 수정; `terms @>` 는 배열 GIN |
 <!-- /row -->
-<!-- row:perf.Q3 -->| Q3 | 미확인 경보 `ORDER BY sla_deadline_at LIMIT 100` | <!-- num:perf.Q3.before_ms -->—<!-- /num --> (<!-- num:perf.Q3.before_plan -->—<!-- /num -->) | <!-- num:perf.Q3.after_ms -->—<!-- /num --> (<!-- num:perf.Q3.after_plan -->—<!-- /num -->) | 부분 인덱스 `ix_risk_open_sla` (대시보드가 초당 폴링) |
+<!-- row:perf.Q3 -->| Q3 | 미확인 경보 `ORDER BY sla_deadline_at LIMIT 100` | <!-- num:perf.Q3.before_ms -->1.6<!-- /num --> (<!-- num:perf.Q3.before_plan -->Limit<!-- /num -->) | <!-- num:perf.Q3.after_ms -->0.7<!-- /num --> (<!-- num:perf.Q3.after_plan -->Limit<!-- /num -->) | 부분 인덱스 `ix_risk_open_sla` (대시보드가 초당 폴링) |
 <!-- /row -->
-<!-- row:perf.Q4 -->| Q4 | outbox 클레임 `status='pending' … FOR UPDATE SKIP LOCKED` (2 M 행) | <!-- num:perf.Q4.before_ms -->—<!-- /num --> (<!-- num:perf.Q4.before_plan -->—<!-- /num -->) | <!-- num:perf.Q4.after_ms -->—<!-- /num --> (<!-- num:perf.Q4.after_plan -->—<!-- /num -->) | 부분 인덱스 `ix_outbox_pending`; dead tuple <!-- num:perf.pgstattuple.after.dead_tuple_percent -->—<!-- /num --> % (`pgstattuple`) |
+<!-- row:perf.Q4 -->| Q4 | outbox 클레임 `status='pending' … FOR UPDATE SKIP LOCKED` (2 M 행) | <!-- num:perf.Q4.before_ms -->207.1<!-- /num --> (<!-- num:perf.Q4.before_plan -->Limit<!-- /num -->) | <!-- num:perf.Q4.after_ms -->0.4<!-- /num --> (<!-- num:perf.Q4.after_plan -->Limit<!-- /num -->) | 부분 인덱스 `ix_outbox_pending`; dead tuple <!-- num:perf.pgstattuple.after.dead_tuple_percent -->0.10<!-- /num --> % (`pgstattuple`) |
 <!-- /row -->
-<!-- row:perf.Q5 -->| Q5 | RLS 오버헤드: Q1 / Q3 를 app(정책) vs superuser(우회) | Q1 <!-- num:perf.rls_overhead.before.q1_pct -->—<!-- /num --> %, Q3 <!-- num:perf.rls_overhead.before.q3_pct -->—<!-- /num --> % | Q1 <!-- num:perf.rls_overhead.after.q1_pct -->—<!-- /num --> %, Q3 <!-- num:perf.rls_overhead.after.q3_pct -->—<!-- /num --> % | 정책 형태 인라인 <!-- num:perf.Q5_form_inline.after_ms -->—<!-- /num --> vs InitPlan <!-- num:perf.Q5_form_initplan.after_ms -->—<!-- /num --> (superuser 에뮬레이션) |
+<!-- row:perf.Q5 -->| Q5 | RLS 오버헤드: Q1 / Q3 를 app(정책) vs superuser(우회) | Q1 <!-- num:perf.rls_overhead.before.q1_pct -->+14.9<!-- /num --> %, Q3 <!-- num:perf.rls_overhead.before.q3_pct -->+3.8<!-- /num --> % | Q1 <!-- num:perf.rls_overhead.after.q1_pct -->+19.0<!-- /num --> %, Q3 <!-- num:perf.rls_overhead.after.q3_pct -->-19.2<!-- /num --> % | 정책 형태 인라인 <!-- num:perf.Q5_form_inline.after_ms -->2.5<!-- /num --> vs InitPlan <!-- num:perf.Q5_form_initplan.after_ms -->2.2<!-- /num --> (superuser 에뮬레이션) |
 <!-- /row -->
-<!-- row:perf.Q6 -->| Q6 | 환자 이름 `name_hmac = :h` (50 K 환자) | <!-- num:perf.Q6.before_ms -->—<!-- /num --> | <!-- num:perf.Q6.after_ms -->—<!-- /num --> (<!-- num:perf.Q6.after_plan -->—<!-- /num -->) | 암호화 컬럼의 HMAC 블라인드 인덱스 정확 일치 |
+<!-- row:perf.Q6 -->| Q6 | 환자 이름 `name_hmac = :h` (50 K 환자) | <!-- num:perf.Q6.before_ms -->0.3<!-- /num --> | <!-- num:perf.Q6.after_ms -->0.3<!-- /num --> (<!-- num:perf.Q6.after_plan -->Result<!-- /num -->) | 암호화 컬럼의 HMAC 블라인드 인덱스 정확 일치 |
 <!-- /row -->
 
 `(…)` 안은 플랜 최상위 노드(`summary.json.queries[].{state}_plan`); 인덱스 이름과 노드 목록은 `{state}_indexes` / `{state}_node_types`, 5회 샘플은 `{state}_samples_ms`.
 
-### Q2 세 플랜 나란히 (after)
+### Q2 세 플랜 나란히 (after) — 같은 SQL, 다른 역할, 다른 플랜
 
-`plans/q2b_after.json`(app, RLS) · `plans/q2c_after.json`(owner) 를 비교하면 같은 SQL 이 역할에 따라 다른 플랜을 받는다는 것이 보인다.
-Q2d 는 plpgsql 함수 호출이라 플랜 파일이 없고 wall time 만 기록한다. 서술은 측정 뒤 통합자가 플랜을 인용해 채운다.
+세 실행 모두 **같은 SQL**(`segment_search` 에서 `tenant_id = :t AND text ILIKE :pattern`, `ORDER BY segment_created_at DESC LIMIT 50`)이다.
+다른 것은 **누가 실행하는가**와 **패턴의 길이**뿐이고, 커밋된 플랜 파일이 그 차이를 그대로 보여준다.
+
+<!-- row:perf.q2.story -->
+| 실행 | 플랜 파일 | 플랜 (요약) | 중앙값 |
+|---|---|---|---|
+| **Q2a** `%불면%` as `chartwire_app` | `plans/q2a_after.json` | `Bitmap Heap Scan segment_search` ← `Bitmap Index Scan on ix_search_session (tenant_id = …)`, `Filter: (text ~~* '%불면%')` | <!-- num:perf.Q2a.after_ms -->44.6<!-- /num --> ms |
+| **Q2b** `%불면증%` as `chartwire_app` (RLS 적용) | `plans/q2b_after.json` | **똑같다** — 테넌트 인덱스로 비트맵을 만들고 텍스트는 `Filter` 로 버린다. GIN(`ix_search_text_trgm`)은 존재하지만 **선택되지 않는다** | <!-- num:perf.Q2b.after_ms -->41.2<!-- /num --> ms |
+| **Q2c** `%불면증%` as `chartwire_owner` (RLS 면제) | `plans/q2c_after.json` | `BitmapAnd(Bitmap Index Scan on ix_search_text_trgm (text ~~* '%불면증%'), Bitmap Index Scan on ix_search_session)` — 트라이그램 인덱스가 **쓰인다** | <!-- num:perf.Q2c.after_ms -->6.0<!-- /num --> ms |
+| **Q2d_text** `search_segments('불면증','text')` as `chartwire_app` | (없음 — 함수 호출) | `SECURITY DEFINER` 로 owner 컨텍스트에서 실행 + 함수 본문이 테넌트 qual 을 직접 건다 → Q2c 의 플랜을 **앱 역할에서** 얻는다 | <!-- num:perf.Q2d_text.after_ms -->5.8<!-- /num --> ms |
+<!-- /row -->
+
+읽는 법:
+
+1. **Q2a 와 Q2b 가 같은 플랜인 이유는 서로 다르다.** Q2a(`불면`, 2음절)는 `pg_trgm` 이 3-gram 이라 **트라이그램 자체가 만들어지지 않아** 인덱스로 좁힐 수 있는 것이 없다 —
+   GIN 이 있든 없든 결과가 같다(정직한 한국어 한계, API 는 자유 텍스트 검색을 3자 이상으로 제한하고 2음절 증상어는 `terms[]` 경로로 보낸다).
+   Q2b(`불면증`, 3음절)는 **인덱스로 좁힐 수 있는데도 안 쓴다**: RLS 정책이 걸린 테이블에서 플래너는 `leakproof` 가 아닌 연산자를 정책 qual 보다 먼저 평가할 수 없고,
+   `texticlike` 는 `proleakproof = false` 다(`leakproof.txt`). 그래서 텍스트 조건이 인덱스 조건이 아니라 **`Filter`** 로 내려간다.
+2. **Q2c 는 같은 SQL 을 owner 로 실행한 것뿐이다.** RLS 가 면제되니 텍스트 조건이 인덱스 조건이 될 수 있고, 플래너는 `BitmapAnd` 로 트라이그램 GIN 과 테넌트 인덱스를 함께 쓴다.
+   즉 **느린 원인은 데이터도 인덱스도 아니고 RLS 아래의 연산자 규칙**이라는 것이 이 한 쌍으로 증명된다.
+3. **Q2d 가 실제 해결책이다.** `search_segments(q, mode)` 는 `SECURITY DEFINER` 함수라 owner 권한으로 실행되고(= Q2c 의 컨텍스트),
+   본문에서 `tenant_id = current_setting('app.tenant_id')` 를 **직접** 붙여 테넌트 격리를 유지한다. 앱은 이 함수만 호출하고, 표의 wall time 이 Q2c 급으로 떨어진다.
+   격리가 함수 본문의 책임이 되므로 `search_segments` 는 통합 테스트(라우트 × 역할 × 테넌트)와 `chartwire eval rls --run` 이 함께 지킨다.
+4. **`Q2d_term` 이 `Q2d_text` 보다 느린 것은 인덱스 문제가 아니다.** `('불면','term')` 은 `terms @> ARRAY['불면']` 로 배열 GIN(`ix_search_terms`)을 타지만,
+   태거가 정규 증상어로 태깅한 행이 부분 문자열 히트보다 훨씬 많다 — **더 많은 행을 정렬해서 돌려주기 때문에** 더 걸린다(정확도-속도 트레이드오프이지 플랜 결함이 아니다).
+
+Q2d 는 plpgsql 함수 호출이라 `EXPLAIN` 이 `Function Scan` 한 줄이어서 플랜 파일을 남기지 않는다(스펙 §4.6: wall time only).
 
 ### Q4 bloat 관찰
 

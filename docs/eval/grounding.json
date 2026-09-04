@@ -1,0 +1,76 @@
+{
+  "seed": 42,
+  "git_sha": "316209103be3672288ffa4964dfc0b0e202f674d",
+  "generated_at": "2026-09-04T13:18:12+00:00",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
+  "ram_gb": 15.7,
+  "python": "3.11.15",
+  "pg_version": null,
+  "provider": "extractive",
+  "verifier_version": "rules-8.v1",
+  "n_sessions": 200,
+  "coverage": 1.0,
+  "coverage_note": "추출형 초안은 발화 전체를 인용하므로 구성상 1.0 (docs/grounding.md)",
+  "fact_recall": 0.5815,
+  "facts_total": 2879,
+  "facts_recalled": 1674,
+  "fact_recall_by_type": {
+    "alcohol": {
+      "total": 200,
+      "recalled": 191,
+      "recall": 0.955
+    },
+    "duration": {
+      "total": 1400,
+      "recalled": 438,
+      "recall": 0.3129
+    },
+    "early_awakening": {
+      "total": 156,
+      "recalled": 113,
+      "recall": 0.7244
+    },
+    "medication": {
+      "total": 312,
+      "recalled": 195,
+      "recall": 0.625
+    },
+    "plan_followup": {
+      "total": 200,
+      "recalled": 198,
+      "recall": 0.99
+    },
+    "plan_medication": {
+      "total": 151,
+      "recalled": 148,
+      "recall": 0.9801
+    },
+    "sleep_hours": {
+      "total": 143,
+      "recalled": 103,
+      "recall": 0.7203
+    },
+    "sleep_latency": {
+      "total": 152,
+      "recalled": 123,
+      "recall": 0.8092
+    },
+    "weight_loss": {
+      "total": 165,
+      "recalled": 165,
+      "recall": 1.0
+    }
+  },
+  "abstain_rate": 0.0,
+  "status_counts": {
+    "verified": 200
+  },
+  "statements_total": 3249,
+  "statements_supported": 3249,
+  "statements_per_session": 16.25,
+  "section_counts": {
+    "S": 2400,
+    "P": 758,
+    "O": 91
+  }
+}

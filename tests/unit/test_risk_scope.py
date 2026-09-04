@@ -33,14 +33,14 @@ def test_negation_outside_window_or_sentence_does_not_count():
     assert not classify(text, 0, 4, "patient").negated
 
 
-def test_past_consumes_present_negation():
+def test_past_with_present_denial_consumes_the_negation():
     text = "작년엔 죽고 싶었는데 지금은 아니에요"
     f = classify(text, 4, 8, "patient")
-    assert f.past and not f.negated
-    # past marker without a present-tense negation is not 'past'
+    assert f.past and f.present_denial and not f.negated and f.suppressed
+    # past marker without a present-tense denial: past, not suppressed (detector drops severity)
     text = "작년부터 죽고 싶었어요"
     f = classify(text, 5, 9, "patient")
-    assert not f.past and not f.negated
+    assert f.past and not f.present_denial and not f.negated and not f.suppressed
 
 
 def test_third_person_requires_particle_within_eight_syllables():
@@ -74,5 +74,7 @@ def test_idiom_overlap_and_context():
 def test_scope_flags_suppression_rule():
     assert not ScopeFlags().suppressed
     assert not ScopeFlags(past=True).suppressed
+    assert not ScopeFlags(present_denial=True).suppressed  # a denial needs the past frame
+    assert ScopeFlags(past=True, present_denial=True).suppressed
     for name in ("negated", "hypothetical", "third_person", "clinician_question", "idiom"):
         assert ScopeFlags(**{name: True}).suppressed

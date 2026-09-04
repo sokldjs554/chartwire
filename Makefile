@@ -90,8 +90,10 @@ bulk: ## 합성 대량 적재 (8 테넌트 / 2M 세그먼트, §4.6) → docs/pe
 cdk-synth: ## AWS CDK 합성 + cdk-nag + 템플릿 단정, 커밋된 템플릿과 diff 0 (§12.1)
 	cd infra/cdk && $(PY) app.py && $(PYTEST) tests -q && git diff --exit-code -- cdk.out/ChartwireStack.template.json
 
-readme-numbers: ## README 숫자 마커를 docs/{eval,loadtest,perf}/*.json 에서 채운다 (§11.4)
+readme-numbers: ## README + docs/perf/README.md 숫자 마커를 docs/{eval,loadtest,perf}/*.json 에서 채운다 (§11.4)
 	$(CHARTWIRE) readme-numbers --write
+	$(CHARTWIRE) readme-numbers --write --readme docs/perf/README.md
+	$(CHARTWIRE) loadtest results --out docs/loadtest
 
 demo: ## api + worker + stt-worker 를 한 프로세스로 (http://localhost:8000/console) — 시드된 데모, 합성 데이터만
 	$(CHARTWIRE) db bootstrap-roles && $(CHARTWIRE) db upgrade && $(CHARTWIRE) seed --demo --if-empty

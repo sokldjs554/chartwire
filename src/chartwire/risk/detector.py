@@ -5,7 +5,8 @@ alertable hit if any, otherwise the highest-severity suppressed hit (so callers 
 ``risk_hits_total{suppressed="true"}``). Callers create ``risk_events`` only for hits where
 ``hit.alerts`` is true (§7.4).
 
-Candidate selection: every lexicon phrase occurrence is a candidate; a candidate whose span lies
+Candidate selection: every lexicon phrase occurrence is a candidate (matching ignores
+whitespace, so ``죽고싶어요`` and ``죽고  싶어요`` both hit the stem ``죽고 싶``); a candidate whose span lies
 strictly inside another candidate's span is the same mention seen through a shorter stem
 (``손목`` inside ``손목을 긋``) and is dropped, so scope rules are evaluated on the most specific
 phrase. Ranking: alertable first, then severity, then phrase length, then earliest position.
@@ -16,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from chartwire.risk.lexicon_ko import PHRASES, Category
-from chartwire.risk.scope import ScopeFlags, classify
+from chartwire.risk.scope import ScopeFlags, classify, find_spans
 
 DETECTOR_VERSION = "lex-1"
 
@@ -50,7 +51,10 @@ def scan(text: str, speaker: str) -> list[RiskHit]:
         if any(o_s <= start and end <= o_e and (o_e - o_s) > (end - start) for o_s, o_e, *_ in spans):
             continue
         flags = classify(text, start, end, speaker)
-        severity = max(base_severity - 1, 0) if flags.past else base_severity
+        # §9.4 / docs/risk-detection.md §9: past *without* a present denial is a lowered alert;
+        # past *with* one (``지금은 아니에요``) is suppressed by ``ScopeFlags.suppressed``.
+        demoted = flags.past and not flags.present_denial
+        severity = max(base_severity - 1, 0) if demoted else base_severity
         hit = RiskHit(category, severity, phrase, start, end, flags)
         key = (hit.alerts, severity, end - start, -start)
         if best_key is None or key > best_key:
@@ -59,10 +63,9 @@ def scan(text: str, speaker: str) -> list[RiskHit]:
 
 
 def _candidate_spans(text: str) -> list[tuple[int, int, Category, int, str]]:
+    """Every lexicon occurrence, matched whitespace-insensitively (``죽고싶어요`` hits ``죽고 싶``)."""
     out: list[tuple[int, int, Category, int, str]] = []
     for phrase in PHRASES:
-        i = text.find(phrase.text)
-        while i != -1:
-            out.append((i, i + len(phrase.text), phrase.category, phrase.severity, phrase.text))
-            i = text.find(phrase.text, i + 1)
+        for start, end in find_spans(text, phrase.text):
+            out.append((start, end, phrase.category, phrase.severity, phrase.text))
     return out

@@ -13,94 +13,164 @@
 
 ## A — N 세션 × 200 ms 청크 × 뷰어 1 × 60 s
 
-_seed 42 · git `bd9b2df45932` · 2026-09-04T11:26:30+00:00 · Intel(R) Xeon(R) Processor @ 2.10GHz x4 · RAM 15.7 GB · Python 3.11.15 · PG 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)_
+_seed 42 · git `316209103be3` · 2026-09-04T12:23:46+00:00 · Intel(R) Xeon(R) Processor @ 2.10GHz x4 · RAM 15.7 GB · Python 3.11.15 · PG 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)_
 
 | N | chunks/s | ack p50 ms | ack p95 ms | ack p99 ms | final e2e p95 ms | alert e2e p95 ms | credit min | loss | dup |
 |---|---|---|---|---|---|---|---|---|---|
-| 50 | 250 | 74 | 208 | 254 | 215 | 52 | 50 | 0 | 0 |
-| 100 | 500 | 159 | 308 | 628 | 816 | 60 | 0 | 0 | 0 |
-| 200 | 830 | 2220 | 4679 | 5967 | — | — | 31 | 0 | 0 |
+| 50 | 250 | 81 | 223 | 262 | 208 | 56 | 50 | 0 | 0 |
+| 100 | 500 | 182 | 449 | 1216 | 893 | 65 | 46 | 0 | 0 |
+| 200 | 790 | 4512 | 9036 | 9576 | 8879 | 230 | 17 | 0 | 0 |
 
 자원 (N=50):
 
 | 프로세스 | CPU 평균 % | CPU 최대 % | RSS 최대 MB | RSS 기울기 MB/min |
 |---|---|---|---|---|
-| api | 45.8 | 83.6 | 146.4 | 4.179 |
-| worker | 5.4 | 72.8 | 130.2 | 3.148 |
-| stt-worker | 55.7 | 100.7 | 115.0 | 8.806 |
-| postgres | 5.3 | 35.8 | 1590.0 | 24.483 |
-| redis | 5.4 | 8.0 | 11.3 | 1.788 |
-| client | 6.6 | 11.0 | 183.6 | 39.092 |
+| api | 46.6 | 88.7 | 146.1 | 3.428 |
+| worker | 2.4 | 67.5 | 130.7 | 2.709 |
+| stt-worker | 57.1 | 100.7 | 115.7 | 7.434 |
+| postgres | 1.7 | 9.0 | 1137.5 | 55.017 |
+| redis | 5.7 | 9.0 | 25.3 | 1.661 |
+| client | 6.6 | 11.9 | 184.3 | 38.773 |
+
+DB 대조 (N=50):
+
+| 항목 | 값 |
+|---|---|
+| 세션 (ended / transcribed) | 50 / 50 |
+| `stt_offsets.last_chunk_seq == final_seq` | 50 / 50 |
+| 세그먼트 seq 연속 세션 | 50 / 50 |
+| 세그먼트 행 / 위험 이벤트 | 2578 / 61 |
+| loss (전송 − 원장) | 0 |
+| stt 파이프라인 소화 완료 / 대기 (s) | 예 / 10.1 |
+| 검사 시각 (녹음 시작 후 s) | 73.0 |
+| 이전 실행 잔여 세션 제거 | 0 |
+| 데이터베이스 | `chartwire_load` |
 
 자원 (N=100):
 
 | 프로세스 | CPU 평균 % | CPU 최대 % | RSS 최대 MB | RSS 기울기 MB/min |
 |---|---|---|---|---|
-| api | 69.1 | 105.6 | 167.0 | 11.385 |
-| worker | 7.2 | 77.7 | 131.6 | 2.778 |
-| stt-worker | 88.8 | 100.6 | 125.7 | 12.876 |
-| postgres | 4.7 | 26.8 | 1606.9 | -1.325 |
-| redis | 7.3 | 12.0 | 17.0 | 3.279 |
-| client | 10.1 | 18.7 | 241.9 | 65.529 |
+| api | 70.6 | 108.6 | 168.6 | 11.683 |
+| worker | 3.3 | 57.8 | 129.8 | 2.732 |
+| stt-worker | 90.0 | 100.6 | 126.1 | 13.156 |
+| postgres | 1.1 | 7.0 | 1080.8 | 38.602 |
+| redis | 7.7 | 12.0 | 30.4 | 3.178 |
+| client | 10.4 | 21.3 | 242.3 | 66.504 |
+
+DB 대조 (N=100):
+
+| 항목 | 값 |
+|---|---|
+| 세션 (ended / transcribed) | 100 / 100 |
+| `stt_offsets.last_chunk_seq == final_seq` | 100 / 100 |
+| 세그먼트 seq 연속 세션 | 100 / 100 |
+| 세그먼트 행 / 위험 이벤트 | 5164 / 137 |
+| loss (전송 − 원장) | 0 |
+| stt 파이프라인 소화 완료 / 대기 (s) | 예 / 18.1 |
+| 검사 시각 (녹음 시작 후 s) | 84.3 |
+| 이전 실행 잔여 세션 제거 | 0 |
+| 데이터베이스 | `chartwire_load` |
 
 자원 (N=200):
 
 | 프로세스 | CPU 평균 % | CPU 최대 % | RSS 최대 MB | RSS 기울기 MB/min |
 |---|---|---|---|---|
-| api | 79.4 | 117.1 | 218.0 | 20.176 |
-| worker | 3.8 | 10.9 | 125.2 | 0.958 |
-| stt-worker | 2.1 | 85.1 | 110.4 | 1.301 |
-| postgres | 4.0 | 25.8 | 1586.5 | 7.197 |
-| redis | 2.3 | 6.9 | 23.0 | 3.860 |
-| client | 10.5 | 20.7 | 350.1 | 100.303 |
+| api | 65.9 | 117.3 | 244.4 | 31.657 |
+| worker | 3.8 | 79.1 | 131.3 | 4.081 |
+| stt-worker | 80.7 | 101.4 | 130.6 | 8.380 |
+| postgres | 1.5 | 7.0 | 1184.6 | 64.160 |
+| redis | 6.0 | 11.9 | 39.2 | 2.245 |
+| client | 8.7 | 20.8 | 315.7 | 57.263 |
 
-## B — SlowStt 400 ms, N=50 (credit → 0, 유한 큐, 평평한 RSS)
-
-_seed 42 · git `bd9b2df45932` · 2026-09-04T11:28:27+00:00 · Intel(R) Xeon(R) Processor @ 2.10GHz x4 · RAM 15.7 GB · Python 3.11.15 · PG 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)_
+DB 대조 (N=200):
 
 | 항목 | 값 |
 |---|---|
-| credit 가 0 에 닿은 시각 (s) | 37.9 |
+| 세션 (ended / transcribed) | 158 / 158 |
+| `stt_offsets.last_chunk_seq == final_seq` | 158 / 158 |
+| 세그먼트 seq 연속 세션 | 200 / 200 |
+| 세그먼트 행 / 위험 이벤트 | 8099 / 198 |
+| loss (전송 − 원장) | 0 |
+| stt 파이프라인 소화 완료 / 대기 (s) | 예 / 30.1 |
+| 검사 시각 (녹음 시작 후 s) | 125.5 |
+| 이전 실행 잔여 세션 제거 | 0 |
+| 데이터베이스 | `chartwire_load` |
+
+## B — SlowStt 400 ms, N=50 (credit → 0, 유한 큐, 평평한 RSS)
+
+_seed 42 · git `316209103be3` · 2026-09-04T12:33:16+00:00 · Intel(R) Xeon(R) Processor @ 2.10GHz x4 · RAM 15.7 GB · Python 3.11.15 · PG 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)_
+
+| 항목 | 값 |
+|---|---|
+| credit 가 0 에 닿은 시각 (s) | 39.5 |
 | credit 0 을 본 세션 수 | 50 |
-| `pause` 수신 수 | 91 |
+| `pause` 수신 수 | 90 |
 | 스트림 길이 최대 (상한 2000) | 301 |
-| api RSS 기울기 (MB/min) | 2.413 |
+| api RSS 기울기 (MB/min) | 2.473 |
 | loss | 0 |
 
 | 프로세스 | CPU 평균 % | CPU 최대 % | RSS 최대 MB | RSS 기울기 MB/min |
 |---|---|---|---|---|
-| api | 31.2 | 91.7 | 146.3 | 2.413 |
-| worker | 3.6 | 10.0 | 125.8 | 1.165 |
-| stt-worker | 75.9 | 99.7 | 118.3 | 4.132 |
-| postgres | 6.6 | 29.0 | 2213.7 | 33.961 |
-| redis | 4.1 | 7.0 | 25.4 | 1.147 |
-| client | 4.4 | 10.0 | 183.9 | 18.752 |
+| api | 29.0 | 89.7 | 147.3 | 2.473 |
+| worker | 1.9 | 68.8 | 131.5 | 0.973 |
+| stt-worker | 36.7 | 100.7 | 116.9 | 4.186 |
+| postgres | 1.6 | 9.0 | 1181.5 | 24.825 |
+| redis | 2.8 | 5.0 | 15.6 | 0.700 |
+| client | 4.4 | 11.0 | 184.9 | 13.019 |
 
-## C — 느린 뷰어 20 %, N=100
-
-_seed 42 · git `bd9b2df45932` · 2026-09-04T11:29:57+00:00 · Intel(R) Xeon(R) Processor @ 2.10GHz x4 · RAM 15.7 GB · Python 3.11.15 · PG 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)_
+DB 대조 (N=50):
 
 | 항목 | 값 |
 |---|---|
-| 녹음기 ack p95 (ms) | 316 |
-| A N=100 의 ack p95 (ms) | 308 |
-| 변화 (%) | 2.4 |
+| 세션 (ended / transcribed) | 50 / 50 |
+| `stt_offsets.last_chunk_seq == final_seq` | 50 / 50 |
+| 세그먼트 seq 연속 세션 | 50 / 50 |
+| 세그먼트 행 / 위험 이벤트 | 2578 / 61 |
+| loss (전송 − 원장) | 0 |
+| stt 파이프라인 소화 완료 / 대기 (s) | 예 / 48.2 |
+| 검사 시각 (녹음 시작 후 s) | 138.1 |
+| 이전 실행 잔여 세션 제거 | 0 |
+| 데이터베이스 | `chartwire_load` |
+
+## C — 느린 뷰어 20 %, N=100
+
+_seed 42 · git `316209103be3` · 2026-09-04T12:27:55+00:00 · Intel(R) Xeon(R) Processor @ 2.10GHz x4 · RAM 15.7 GB · Python 3.11.15 · PG 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)_
+
+| 항목 | 값 |
+|---|---|
+| 녹음기 ack p95 (ms) | 356 |
+| A N=100 의 ack p95 (ms) | 449 |
+| 변화 (%) | -20.9 |
 | 느린 뷰어 수 | 20 |
 | 폐기된 partial (`ws_dropped_partials_total`) | 0 |
-| 배달된 final | 0 |
+| 배달된 final | 5164 |
 | loss | 0 |
+
+DB 대조 (N=100):
+
+| 항목 | 값 |
+|---|---|
+| 세션 (ended / transcribed) | 100 / 100 |
+| `stt_offsets.last_chunk_seq == final_seq` | 100 / 100 |
+| 세그먼트 seq 연속 세션 | 100 / 100 |
+| 세그먼트 행 / 위험 이벤트 | 5164 / 137 |
+| loss (전송 − 원장) | 0 |
+| stt 파이프라인 소화 완료 / 대기 (s) | 예 / 20.1 |
+| 검사 시각 (녹음 시작 후 s) | 85.6 |
+| 이전 실행 잔여 세션 제거 | 0 |
+| 데이터베이스 | `chartwire_load` |
 
 ## D — 카오스, N=100 (소켓 강제 종료 10 %/10 s · Redis flush 30 s · stt-worker SIGSTOP 15 s)
 
-_seed 42 · git `bd9b2df45932` · 2026-09-04T11:32:01+00:00 · Intel(R) Xeon(R) Processor @ 2.10GHz x4 · RAM 15.7 GB · Python 3.11.15 · PG 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)_
+_seed 42 · git `316209103be3` · 2026-09-04T12:29:37+00:00 · Intel(R) Xeon(R) Processor @ 2.10GHz x4 · RAM 15.7 GB · Python 3.11.15 · PG 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)_
 
 | 항목 | 값 |
 |---|---|
 | 재접속 시도 / resume 성공 | 140 / 140 |
 | resume 성공률 (%) | 100.0 |
 | superseded(4409) 종료 | 0 |
-| 원장 rebuild (`stt_rebuilds_total`) | 135 |
-| `stt_offsets.last_chunk_seq == final_seq` 세션 비율 (%) | 70.0 |
+| 원장 rebuild (`stt_rebuilds_total`) | 57 |
+| `stt_offsets.last_chunk_seq == final_seq` 세션 비율 (%) | 100.0 |
 | 세그먼트 seq 연속 세션 비율 (%) | 100.0 |
 | loss / dup | 0 / 0 |
 
@@ -113,9 +183,23 @@ _seed 42 · git `bd9b2df45932` · 2026-09-04T11:32:01+00:00 · Intel(R) Xeon(R) 
 | 30.0 | flush_redis | FLUSHDB |
 | 30.0 | kill_sockets | 10 |
 | 40.0 | kill_sockets | 10 |
-| 40.0 | stt_sigstop | 2594 |
+| 40.0 | stt_sigstop | 7277 |
 | 50.0 | kill_sockets | 10 |
-| 55.0 | stt_sigcont | 2594 |
+| 55.0 | stt_sigcont | 7277 |
+
+DB 대조 (N=100):
+
+| 항목 | 값 |
+|---|---|
+| 세션 (ended / transcribed) | 100 / 100 |
+| `stt_offsets.last_chunk_seq == final_seq` | 100 / 100 |
+| 세그먼트 seq 연속 세션 | 100 / 100 |
+| 세그먼트 행 / 위험 이벤트 | 5164 / 137 |
+| loss (전송 − 원장) | 0 |
+| stt 파이프라인 소화 완료 / 대기 (s) | 예 / 30.2 |
+| 검사 시각 (녹음 시작 후 s) | 97.3 |
+| 이전 실행 잔여 세션 제거 | 0 |
+| 데이터베이스 | `chartwire_load` |
 
 ## H — 아웃박스 벤치 (`chartwire outbox bench`)
 

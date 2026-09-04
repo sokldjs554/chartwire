@@ -1,0 +1,150 @@
+{
+  "seed": 42,
+  "git_sha": "316209103be3672288ffa4964dfc0b0e202f674d",
+  "generated_at": "2026-09-04T13:18:12+00:00",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
+  "ram_gb": 15.7,
+  "python": "3.11.15",
+  "pg_version": null,
+  "set": "heldout",
+  "detector_version": "lex-1",
+  "n": 300,
+  "tp": 71,
+  "fp": 22,
+  "fn": 53,
+  "tn": 154,
+  "precision": 0.7634,
+  "recall": 0.5726,
+  "f1": 0.6544,
+  "per_kind": {
+    "clinician_question": {
+      "n": 30,
+      "expected": 0,
+      "alerted": 2,
+      "fp": 2,
+      "fn": 0,
+      "fp_rate": 0.0667
+    },
+    "hypothetical": {
+      "n": 11,
+      "expected": 0,
+      "alerted": 2,
+      "fp": 2,
+      "fn": 0,
+      "fp_rate": 0.1818
+    },
+    "idiom": {
+      "n": 45,
+      "expected": 0,
+      "alerted": 5,
+      "fp": 5,
+      "fn": 0,
+      "fp_rate": 0.1111
+    },
+    "negated": {
+      "n": 30,
+      "expected": 0,
+      "alerted": 1,
+      "fp": 1,
+      "fn": 0,
+      "fp_rate": 0.0333
+    },
+    "past": {
+      "n": 14,
+      "expected": 0,
+      "alerted": 10,
+      "fp": 10,
+      "fn": 0,
+      "fp_rate": 0.7143
+    },
+    "positive": {
+      "n": 124,
+      "expected": 124,
+      "alerted": 71,
+      "fp": 0,
+      "fn": 53,
+      "fp_rate": null
+    },
+    "third_person": {
+      "n": 19,
+      "expected": 0,
+      "alerted": 2,
+      "fp": 2,
+      "fn": 0,
+      "fp_rate": 0.1053
+    },
+    "unrelated": {
+      "n": 27,
+      "expected": 0,
+      "alerted": 0,
+      "fp": 0,
+      "fn": 0,
+      "fp_rate": 0.0
+    }
+  },
+  "per_category": {
+    "harm_to_others": {
+      "n": 27,
+      "tp": 10,
+      "fp": 2,
+      "fn": 10,
+      "tn": 5,
+      "precision": 0.8333,
+      "recall": 0.5,
+      "f1": 0.625
+    },
+    "none": {
+      "n": 103,
+      "tp": 0,
+      "fp": 7,
+      "fn": 0,
+      "tn": 96,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "self_harm": {
+      "n": 39,
+      "tp": 16,
+      "fp": 3,
+      "fn": 8,
+      "tn": 12,
+      "precision": 0.8421,
+      "recall": 0.6667,
+      "f1": 0.7442
+    },
+    "substance_acute": {
+      "n": 23,
+      "tp": 6,
+      "fp": 3,
+      "fn": 10,
+      "tn": 4,
+      "precision": 0.6667,
+      "recall": 0.375,
+      "f1": 0.48
+    },
+    "suicidal_ideation": {
+      "n": 108,
+      "tp": 39,
+      "fp": 7,
+      "fn": 25,
+      "tn": 37,
+      "precision": 0.8478,
+      "recall": 0.6094,
+      "f1": 0.7091
+    }
+  },
+  "fp_by_hit": {
+    "suicidal_ideation:2": 7,
+    "suicidal_ideation:1": 4,
+    "suicidal_ideation:3": 3,
+    "harm_to_others:1": 2,
+    "substance_acute:3": 1,
+    "self_harm:3": 1,
+    "substance_acute:1": 1,
+    "self_harm:1": 1,
+    "self_harm:2": 1,
+    "substance_acute:2": 1
+  },
+  "frozen_sha256": "031a8f7dfa378a7d88b16fe464a14c4c75a848ec8fbbae0953ec8d59ade5a916"
+}

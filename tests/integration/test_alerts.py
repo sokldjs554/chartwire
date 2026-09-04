@@ -129,6 +129,7 @@ async def test_create_event_sets_sla_member_and_publishes_alert(
         "third_person": False,
         "clinician_question": False,
         "idiom": False,
+        "present_denial": False,
     }
     member = keys.alerts_sla_member(tenant_a.id, sev3.id)
     assert await redis.zscore(keys.ALERTS_SLA, member) == sev3.sla_deadline_at.timestamp() * 1000

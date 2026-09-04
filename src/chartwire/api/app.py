@@ -103,7 +103,9 @@ def build_deps(settings: Settings) -> AppDeps:
         engine=make_engine(
             settings.database_url, pool_size=pool, max_overflow=0 if settings.embedded else 10
         ),
-        redis=Redis.from_url(settings.redis_url, decode_responses=True),
+        redis=Redis.from_url(
+            settings.redis_url, decode_responses=True, max_connections=settings.redis_max_connections
+        ),
         kek=kek,
         keycache=KeyCache(kek),
         objectstore=from_spec(settings.objectstore),
