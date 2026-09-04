@@ -1,0 +1,1126 @@
+{
+  "seed": 7,
+  "git_sha": "a66b60787ec8d1b344bf75f5468c0878b5a6ffef",
+  "generated_at": "2026-09-04T07:16:55+00:00",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
+  "ram_gb": 15.7,
+  "python": "3.11.15",
+  "pg_version": "16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)",
+  "states": {
+    "before": {
+      "revision": "0006",
+      "generated_at": "2026-09-04T07:16:40+00:00",
+      "settings": {
+        "server_version": "16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)",
+        "shared_buffers": "2GB",
+        "work_mem": "64MB",
+        "effective_cache_size": "6GB",
+        "random_page_cost": "4",
+        "jit": "on"
+      },
+      "tenant": "bulk-7-01",
+      "runs": 5
+    },
+    "after": {
+      "revision": "0007",
+      "generated_at": "2026-09-04T07:16:55+00:00",
+      "settings": {
+        "server_version": "16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)",
+        "shared_buffers": "2GB",
+        "work_mem": "64MB",
+        "effective_cache_size": "6GB",
+        "random_page_cost": "4",
+        "jit": "on"
+      },
+      "tenant": "bulk-7-01",
+      "runs": 5
+    }
+  },
+  "queries": [
+    {
+      "id": "Q1",
+      "group": "Q1",
+      "label": "환자 종단 타임라인 6개월 LIMIT 50",
+      "role": "app",
+      "before_ms": 27.413,
+      "before_exec_ms": 24.234,
+      "before_rows": 50,
+      "before_plan": "Limit",
+      "before_indexes": [],
+      "before_node_types": [
+        "Limit",
+        "Gather Merge",
+        "Sort",
+        "Append",
+        "Result",
+        "Seq Scan"
+      ],
+      "before_samples_ms": [
+        26.304,
+        27.711,
+        27.413,
+        26.91,
+        27.521
+      ],
+      "before_note": null,
+      "after_ms": 2.499,
+      "after_exec_ms": 0.186,
+      "after_rows": 50,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "ix_segments_patient_time_y2026m03",
+        "ix_segments_patient_time_y2026m04",
+        "ix_segments_patient_time_y2026m05",
+        "ix_segments_patient_time_y2026m06",
+        "ix_segments_patient_time_y2026m07",
+        "ix_segments_patient_time_y2026m08",
+        "ix_segments_patient_time_y2026m09",
+        "ix_segments_patient_time_y2026m10",
+        "ix_segments_patient_time_y2026m11",
+        "ix_segments_patient_time_default"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Merge Append",
+        "Result",
+        "Index Scan"
+      ],
+      "after_samples_ms": [
+        2.723,
+        2.361,
+        2.383,
+        2.499,
+        2.614
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q1a_without",
+      "group": "Q1a",
+      "label": "세션 replay, created_at 조건 없음",
+      "role": "app",
+      "before_ms": 2.275,
+      "before_exec_ms": 0.362,
+      "before_rows": 49,
+      "before_plan": "Limit",
+      "before_indexes": [
+        "transcript_segments_y2024m10_session_id_seq_created_at_key",
+        "transcript_segments_y2024m11_session_id_seq_created_at_key",
+        "transcript_segments_y2024m12_session_id_seq_created_at_key",
+        "transcript_segments_y2025m01_session_id_seq_created_at_key",
+        "transcript_segments_y2025m02_session_id_seq_created_at_key",
+        "transcript_segments_y2025m03_session_id_seq_created_at_key",
+        "transcript_segments_y2025m04_session_id_seq_created_at_key",
+        "transcript_segments_y2025m05_session_id_seq_created_at_key",
+        "transcript_segments_y2025m06_session_id_seq_created_at_key",
+        "transcript_segments_y2025m07_session_id_seq_created_at_key",
+        "transcript_segments_y2025m08_session_id_seq_created_at_key",
+        "transcript_segments_y2025m09_session_id_seq_created_at_key",
+        "transcript_segments_y2025m10_session_id_seq_created_at_key",
+        "transcript_segments_y2025m11_session_id_seq_created_at_key",
+        "transcript_segments_y2025m12_session_id_seq_created_at_key",
+        "transcript_segments_y2026m01_session_id_seq_created_at_key",
+        "transcript_segments_y2026m02_session_id_seq_created_at_key",
+        "transcript_segments_y2026m03_session_id_seq_created_at_key",
+        "transcript_segments_y2026m04_session_id_seq_created_at_key",
+        "transcript_segments_y2026m05_session_id_seq_created_at_key",
+        "transcript_segments_y2026m06_session_id_seq_created_at_key",
+        "transcript_segments_y2026m07_session_id_seq_created_at_key",
+        "transcript_segments_y2026m08_session_id_seq_created_at_key",
+        "transcript_segments_y2026m09_session_id_seq_created_at_key"
+      ],
+      "before_node_types": [
+        "Limit",
+        "Sort",
+        "Append",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "before_samples_ms": [
+        2.709,
+        2.233,
+        2.173,
+        2.426,
+        2.275
+      ],
+      "before_note": null,
+      "after_ms": 2.615,
+      "after_exec_ms": 0.388,
+      "after_rows": 49,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "transcript_segments_y2024m10_session_id_seq_created_at_key",
+        "transcript_segments_y2024m11_session_id_seq_created_at_key",
+        "transcript_segments_y2024m12_session_id_seq_created_at_key",
+        "transcript_segments_y2025m01_session_id_seq_created_at_key",
+        "transcript_segments_y2025m02_session_id_seq_created_at_key",
+        "transcript_segments_y2025m03_session_id_seq_created_at_key",
+        "transcript_segments_y2025m04_session_id_seq_created_at_key",
+        "transcript_segments_y2025m05_session_id_seq_created_at_key",
+        "transcript_segments_y2025m06_session_id_seq_created_at_key",
+        "transcript_segments_y2025m07_session_id_seq_created_at_key",
+        "transcript_segments_y2025m08_session_id_seq_created_at_key",
+        "transcript_segments_y2025m09_session_id_seq_created_at_key",
+        "transcript_segments_y2025m10_session_id_seq_created_at_key",
+        "transcript_segments_y2025m11_session_id_seq_created_at_key",
+        "transcript_segments_y2025m12_session_id_seq_created_at_key",
+        "transcript_segments_y2026m01_session_id_seq_created_at_key",
+        "transcript_segments_y2026m02_session_id_seq_created_at_key",
+        "transcript_segments_y2026m03_session_id_seq_created_at_key",
+        "transcript_segments_y2026m04_session_id_seq_created_at_key",
+        "transcript_segments_y2026m05_session_id_seq_created_at_key",
+        "transcript_segments_y2026m06_session_id_seq_created_at_key",
+        "transcript_segments_y2026m07_session_id_seq_created_at_key",
+        "transcript_segments_y2026m08_session_id_seq_created_at_key",
+        "transcript_segments_y2026m09_session_id_seq_created_at_key"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Sort",
+        "Append",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "after_samples_ms": [
+        2.913,
+        2.601,
+        2.615,
+        2.677,
+        2.529
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q1a_with",
+      "group": "Q1a",
+      "label": "세션 replay, created_at >= started_at",
+      "role": "app",
+      "before_ms": 1.022,
+      "before_exec_ms": 0.097,
+      "before_rows": 49,
+      "before_plan": "Limit",
+      "before_indexes": [
+        "transcript_segments_y2026m07_session_id_seq_created_at_key",
+        "transcript_segments_y2026m08_session_id_seq_created_at_key",
+        "transcript_segments_y2026m09_session_id_seq_created_at_key"
+      ],
+      "before_node_types": [
+        "Limit",
+        "Sort",
+        "Append",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "before_samples_ms": [
+        1.022,
+        1.112,
+        0.867,
+        1.028,
+        0.87
+      ],
+      "before_note": null,
+      "after_ms": 1.211,
+      "after_exec_ms": 0.12,
+      "after_rows": 49,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "transcript_segments_y2026m07_session_id_seq_created_at_key",
+        "transcript_segments_y2026m08_session_id_seq_created_at_key",
+        "transcript_segments_y2026m09_session_id_seq_created_at_key"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Sort",
+        "Append",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "after_samples_ms": [
+        0.906,
+        1.223,
+        1.675,
+        1.021,
+        1.211
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q1a_bounded",
+      "group": "Q1a",
+      "label": "세션 replay, started_at ≤ created_at < started_at + 1 day",
+      "role": "app",
+      "before_ms": 0.744,
+      "before_exec_ms": 0.068,
+      "before_rows": 49,
+      "before_plan": "Limit",
+      "before_indexes": [
+        "transcript_segments_y2026m07_session_id_seq_created_at_key"
+      ],
+      "before_node_types": [
+        "Limit",
+        "Sort",
+        "Append",
+        "Index Scan"
+      ],
+      "before_samples_ms": [
+        0.744,
+        0.717,
+        0.669,
+        0.763,
+        0.807
+      ],
+      "before_note": null,
+      "after_ms": 0.983,
+      "after_exec_ms": 0.081,
+      "after_rows": 49,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "transcript_segments_y2026m07_session_id_seq_created_at_key"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Sort",
+        "Append",
+        "Index Scan"
+      ],
+      "after_samples_ms": [
+        0.983,
+        1.169,
+        0.923,
+        0.957,
+        1.047
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q1b_keyset",
+      "group": "Q1b",
+      "label": "타임라인 keyset 100번째 페이지",
+      "role": "app",
+      "before_ms": 21.145,
+      "before_exec_ms": 17.908,
+      "before_rows": 50,
+      "before_plan": "Limit",
+      "before_indexes": [
+        "transcript_segments_y2026m07_pkey",
+        "transcript_segments_y2026m08_pkey",
+        "transcript_segments_y2026m09_pkey"
+      ],
+      "before_node_types": [
+        "Limit",
+        "Sort",
+        "Gather",
+        "Append",
+        "Result",
+        "Seq Scan",
+        "Index Scan"
+      ],
+      "before_samples_ms": [
+        20.669,
+        21.145,
+        21.092,
+        22.467,
+        23.505
+      ],
+      "before_note": null,
+      "after_ms": 3.091,
+      "after_exec_ms": 0.224,
+      "after_rows": 50,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "ix_segments_patient_time_y2026m03",
+        "ix_segments_patient_time_y2026m04",
+        "ix_segments_patient_time_y2026m05",
+        "ix_segments_patient_time_y2026m06",
+        "ix_segments_patient_time_y2026m07",
+        "ix_segments_patient_time_y2026m08",
+        "transcript_segments_y2026m09_pkey",
+        "ix_segments_patient_time_y2026m10",
+        "ix_segments_patient_time_y2026m11",
+        "ix_segments_patient_time_default"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Merge Append",
+        "Result",
+        "Index Scan"
+      ],
+      "after_samples_ms": [
+        3.38,
+        3.256,
+        3.008,
+        3.091,
+        2.936
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q1b_offset",
+      "group": "Q1b",
+      "label": "타임라인 OFFSET 5000",
+      "role": "app",
+      "before_ms": 26.976,
+      "before_exec_ms": 24.086,
+      "before_rows": 0,
+      "before_plan": "Limit",
+      "before_indexes": [],
+      "before_node_types": [
+        "Limit",
+        "Gather Merge",
+        "Sort",
+        "Append",
+        "Result",
+        "Seq Scan"
+      ],
+      "before_samples_ms": [
+        26.976,
+        27.115,
+        27.432,
+        26.349,
+        26.62
+      ],
+      "before_note": null,
+      "after_ms": 2.853,
+      "after_exec_ms": 0.393,
+      "after_rows": 0,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "ix_segments_patient_time_y2026m03",
+        "ix_segments_patient_time_y2026m04",
+        "ix_segments_patient_time_y2026m05",
+        "ix_segments_patient_time_y2026m06",
+        "ix_segments_patient_time_y2026m07",
+        "ix_segments_patient_time_y2026m08",
+        "ix_segments_patient_time_y2026m09"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Sort",
+        "Append",
+        "Result",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "after_samples_ms": [
+        2.985,
+        2.882,
+        2.853,
+        2.658,
+        2.675
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q2a",
+      "group": "Q2",
+      "label": "ILIKE '%불면%' (2음절) as app",
+      "role": "app",
+      "before_ms": 40.093,
+      "before_exec_ms": 39.027,
+      "before_rows": 50,
+      "before_plan": "Limit",
+      "before_indexes": [
+        "ix_search_session"
+      ],
+      "before_node_types": [
+        "Limit",
+        "Gather Merge",
+        "Sort",
+        "Result",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "before_samples_ms": [
+        40.093,
+        39.781,
+        43.519,
+        46.433,
+        39.979
+      ],
+      "before_note": null,
+      "after_ms": 44.634,
+      "after_exec_ms": 43.801,
+      "after_rows": 50,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "ix_search_session"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Gather Merge",
+        "Sort",
+        "Result",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "after_samples_ms": [
+        51.384,
+        44.634,
+        45.319,
+        43.448,
+        43.352
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q2b",
+      "group": "Q2",
+      "label": "ILIKE '%불면증%' as app (RLS)",
+      "role": "app",
+      "before_ms": 40.108,
+      "before_exec_ms": 39.03,
+      "before_rows": 50,
+      "before_plan": "Limit",
+      "before_indexes": [
+        "ix_search_session"
+      ],
+      "before_node_types": [
+        "Limit",
+        "Gather Merge",
+        "Sort",
+        "Result",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "before_samples_ms": [
+        39.988,
+        40.108,
+        39.978,
+        41.331,
+        44.54
+      ],
+      "before_note": null,
+      "after_ms": 41.221,
+      "after_exec_ms": 39.952,
+      "after_rows": 50,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "ix_search_session"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Gather Merge",
+        "Sort",
+        "Result",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "after_samples_ms": [
+        41.173,
+        40.861,
+        41.221,
+        42.173,
+        42.303
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q2c",
+      "group": "Q2",
+      "label": "ILIKE '%불면증%' as owner (RLS 면제)",
+      "role": "owner",
+      "before_ms": 44.304,
+      "before_exec_ms": 43.217,
+      "before_rows": 50,
+      "before_plan": "Limit",
+      "before_indexes": [
+        "ix_search_session"
+      ],
+      "before_node_types": [
+        "Limit",
+        "Gather Merge",
+        "Sort",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "before_samples_ms": [
+        46.862,
+        45.575,
+        43.003,
+        42.926,
+        44.304
+      ],
+      "before_note": null,
+      "after_ms": 5.997,
+      "after_exec_ms": 5.099,
+      "after_rows": 50,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "ix_search_text_trgm",
+        "ix_search_session"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Sort",
+        "Bitmap Heap Scan",
+        "BitmapAnd",
+        "Bitmap Index Scan"
+      ],
+      "after_samples_ms": [
+        6.173,
+        5.796,
+        5.997,
+        5.997,
+        6.005
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q2d_text",
+      "group": "Q2",
+      "label": "search_segments('불면증','text') as app",
+      "role": "app",
+      "before_ms": null,
+      "before_exec_ms": null,
+      "before_rows": null,
+      "before_plan": null,
+      "before_indexes": null,
+      "before_node_types": null,
+      "before_samples_ms": [],
+      "before_note": "0007 이전에는 없는 객체",
+      "after_ms": 5.806,
+      "after_exec_ms": null,
+      "after_rows": 50,
+      "after_plan": null,
+      "after_indexes": null,
+      "after_node_types": null,
+      "after_samples_ms": [
+        5.863,
+        5.806,
+        5.884,
+        5.756,
+        5.699
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q2d_term",
+      "group": "Q2",
+      "label": "search_segments('불면','term') as app",
+      "role": "app",
+      "before_ms": null,
+      "before_exec_ms": null,
+      "before_rows": null,
+      "before_plan": null,
+      "before_indexes": null,
+      "before_node_types": null,
+      "before_samples_ms": [],
+      "before_note": "0007 이전에는 없는 객체",
+      "after_ms": 22.091,
+      "after_exec_ms": null,
+      "after_rows": 50,
+      "after_plan": null,
+      "after_indexes": null,
+      "after_node_types": null,
+      "after_samples_ms": [
+        22.091,
+        21.71,
+        22.339,
+        21.772,
+        22.554
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q3",
+      "group": "Q3",
+      "label": "미확인 경보 SLA 순 LIMIT 100",
+      "role": "app",
+      "before_ms": 1.629,
+      "before_exec_ms": 0.939,
+      "before_rows": 55,
+      "before_plan": "Limit",
+      "before_indexes": [
+        "ix_risk_tenant_time"
+      ],
+      "before_node_types": [
+        "Limit",
+        "Sort",
+        "Result",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "before_samples_ms": [
+        1.821,
+        1.465,
+        1.629,
+        1.953,
+        1.407
+      ],
+      "before_note": null,
+      "after_ms": 0.704,
+      "after_exec_ms": 0.126,
+      "after_rows": 55,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "ix_risk_open_sla"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Sort",
+        "Result",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "after_samples_ms": [
+        0.54,
+        0.704,
+        0.87,
+        0.704,
+        0.545
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q4",
+      "group": "Q4",
+      "label": "outbox 클레임 FOR UPDATE SKIP LOCKED",
+      "role": "app",
+      "before_ms": 207.073,
+      "before_exec_ms": 206.116,
+      "before_rows": 5,
+      "before_plan": "Limit",
+      "before_indexes": [],
+      "before_node_types": [
+        "Limit",
+        "LockRows",
+        "Sort",
+        "Seq Scan"
+      ],
+      "before_samples_ms": [
+        203.766,
+        207.073,
+        211.078,
+        206.841,
+        221.045
+      ],
+      "before_note": null,
+      "after_ms": 0.445,
+      "after_exec_ms": 0.114,
+      "after_rows": 15,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "ix_outbox_pending"
+      ],
+      "after_node_types": [
+        "Limit",
+        "LockRows",
+        "Index Scan"
+      ],
+      "after_samples_ms": [
+        0.638,
+        0.445,
+        0.387,
+        0.362,
+        0.534
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q5_q1_app",
+      "group": "Q5",
+      "label": "Q1 as app (RLS 적용)",
+      "role": "app",
+      "before_ms": 61.356,
+      "before_exec_ms": 58.489,
+      "before_rows": 50,
+      "before_plan": "Limit",
+      "before_indexes": [],
+      "before_node_types": [
+        "Limit",
+        "Gather Merge",
+        "Sort",
+        "Append",
+        "Result",
+        "Seq Scan"
+      ],
+      "before_samples_ms": [
+        65.548,
+        62.036,
+        61.356,
+        56.488,
+        57.345
+      ],
+      "before_note": null,
+      "after_ms": 2.429,
+      "after_exec_ms": 0.213,
+      "after_rows": 50,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "ix_segments_patient_time_y2026m03",
+        "ix_segments_patient_time_y2026m04",
+        "ix_segments_patient_time_y2026m05",
+        "ix_segments_patient_time_y2026m06",
+        "ix_segments_patient_time_y2026m07",
+        "ix_segments_patient_time_y2026m08",
+        "ix_segments_patient_time_y2026m09",
+        "ix_segments_patient_time_y2026m10",
+        "ix_segments_patient_time_y2026m11",
+        "ix_segments_patient_time_default"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Merge Append",
+        "Result",
+        "Index Scan"
+      ],
+      "after_samples_ms": [
+        2.322,
+        2.429,
+        2.486,
+        2.466,
+        2.288
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q5_q1_su",
+      "group": "Q5",
+      "label": "Q1 as superuser (RLS 우회)",
+      "role": "superuser",
+      "before_ms": 53.39,
+      "before_exec_ms": 50.782,
+      "before_rows": 50,
+      "before_plan": "Limit",
+      "before_indexes": [],
+      "before_node_types": [
+        "Limit",
+        "Gather Merge",
+        "Sort",
+        "Append",
+        "Seq Scan"
+      ],
+      "before_samples_ms": [
+        57.119,
+        53.39,
+        52.852,
+        51.294,
+        65.433
+      ],
+      "before_note": null,
+      "after_ms": 2.041,
+      "after_exec_ms": 0.13,
+      "after_rows": 50,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "ix_segments_patient_time_y2026m03",
+        "ix_segments_patient_time_y2026m04",
+        "ix_segments_patient_time_y2026m05",
+        "ix_segments_patient_time_y2026m06",
+        "ix_segments_patient_time_y2026m07",
+        "ix_segments_patient_time_y2026m08",
+        "ix_segments_patient_time_y2026m09",
+        "ix_segments_patient_time_y2026m10",
+        "ix_segments_patient_time_y2026m11",
+        "ix_segments_patient_time_default"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Merge Append",
+        "Index Scan"
+      ],
+      "after_samples_ms": [
+        1.932,
+        2.041,
+        2.042,
+        2.204,
+        2.01
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q5_q3_app",
+      "group": "Q5",
+      "label": "Q3 as app (RLS 적용)",
+      "role": "app",
+      "before_ms": 1.328,
+      "before_exec_ms": 0.808,
+      "before_rows": 55,
+      "before_plan": "Limit",
+      "before_indexes": [
+        "ix_risk_tenant_time"
+      ],
+      "before_node_types": [
+        "Limit",
+        "Sort",
+        "Result",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "before_samples_ms": [
+        1.347,
+        1.443,
+        1.321,
+        1.328,
+        1.267
+      ],
+      "before_note": null,
+      "after_ms": 0.433,
+      "after_exec_ms": 0.095,
+      "after_rows": 55,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "ix_risk_open_sla"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Sort",
+        "Result",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "after_samples_ms": [
+        0.678,
+        0.515,
+        0.433,
+        0.419,
+        0.385
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q5_q3_su",
+      "group": "Q5",
+      "label": "Q3 as superuser (RLS 우회)",
+      "role": "superuser",
+      "before_ms": 1.28,
+      "before_exec_ms": 0.762,
+      "before_rows": 55,
+      "before_plan": "Limit",
+      "before_indexes": [
+        "ix_risk_tenant_time"
+      ],
+      "before_node_types": [
+        "Limit",
+        "Sort",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "before_samples_ms": [
+        1.172,
+        1.363,
+        1.217,
+        1.473,
+        1.28
+      ],
+      "before_note": null,
+      "after_ms": 0.536,
+      "after_exec_ms": 0.098,
+      "after_rows": 55,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "ix_risk_open_sla"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Sort",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "after_samples_ms": [
+        0.587,
+        0.536,
+        0.419,
+        0.575,
+        0.388
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q5_form_inline",
+      "group": "Q5",
+      "label": "정책 형태 NULLIF(current_setting()) 인라인",
+      "role": "superuser",
+      "before_ms": 64.697,
+      "before_exec_ms": 61.444,
+      "before_rows": 50,
+      "before_plan": "Limit",
+      "before_indexes": [],
+      "before_node_types": [
+        "Limit",
+        "Gather Merge",
+        "Sort",
+        "Append",
+        "Result",
+        "Seq Scan"
+      ],
+      "before_samples_ms": [
+        53.296,
+        50.92,
+        64.697,
+        66.3,
+        67.956
+      ],
+      "before_note": null,
+      "after_ms": 2.489,
+      "after_exec_ms": 0.185,
+      "after_rows": 50,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "ix_segments_patient_time_y2026m03",
+        "ix_segments_patient_time_y2026m04",
+        "ix_segments_patient_time_y2026m05",
+        "ix_segments_patient_time_y2026m06",
+        "ix_segments_patient_time_y2026m07",
+        "ix_segments_patient_time_y2026m08",
+        "ix_segments_patient_time_y2026m09",
+        "ix_segments_patient_time_y2026m10",
+        "ix_segments_patient_time_y2026m11",
+        "ix_segments_patient_time_default"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Merge Append",
+        "Result",
+        "Index Scan"
+      ],
+      "after_samples_ms": [
+        2.626,
+        2.325,
+        2.489,
+        2.458,
+        2.522
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q5_form_initplan",
+      "group": "Q5",
+      "label": "정책 형태 (SELECT NULLIF(...)) InitPlan",
+      "role": "superuser",
+      "before_ms": 48.278,
+      "before_exec_ms": 45.251,
+      "before_rows": 50,
+      "before_plan": "Limit",
+      "before_indexes": [],
+      "before_node_types": [
+        "Limit",
+        "Result",
+        "Gather Merge",
+        "Sort",
+        "Append",
+        "Seq Scan"
+      ],
+      "before_samples_ms": [
+        51.244,
+        56.837,
+        43.099,
+        48.278,
+        47.8
+      ],
+      "before_note": null,
+      "after_ms": 2.228,
+      "after_exec_ms": 0.161,
+      "after_rows": 50,
+      "after_plan": "Limit",
+      "after_indexes": [
+        "ix_segments_patient_time_y2026m03",
+        "ix_segments_patient_time_y2026m04",
+        "ix_segments_patient_time_y2026m05",
+        "ix_segments_patient_time_y2026m06",
+        "ix_segments_patient_time_y2026m07",
+        "ix_segments_patient_time_y2026m08",
+        "ix_segments_patient_time_y2026m09",
+        "ix_segments_patient_time_y2026m10",
+        "ix_segments_patient_time_y2026m11",
+        "ix_segments_patient_time_default"
+      ],
+      "after_node_types": [
+        "Limit",
+        "Result",
+        "Merge Append",
+        "Index Scan"
+      ],
+      "after_samples_ms": [
+        2.228,
+        2.419,
+        2.509,
+        2.123,
+        2.22
+      ],
+      "after_note": null
+    },
+    {
+      "id": "Q6",
+      "group": "Q6",
+      "label": "환자 이름 블라인드 인덱스 name_hmac",
+      "role": "app",
+      "before_ms": 0.307,
+      "before_exec_ms": 0.027,
+      "before_rows": 1,
+      "before_plan": "Result",
+      "before_indexes": [
+        "ix_patients_name_hmac"
+      ],
+      "before_node_types": [
+        "Result",
+        "Index Scan"
+      ],
+      "before_samples_ms": [
+        0.339,
+        0.33,
+        0.288,
+        0.263,
+        0.307
+      ],
+      "before_note": null,
+      "after_ms": 0.261,
+      "after_exec_ms": 0.021,
+      "after_rows": 1,
+      "after_plan": "Result",
+      "after_indexes": [
+        "ix_patients_name_hmac"
+      ],
+      "after_node_types": [
+        "Result",
+        "Index Scan"
+      ],
+      "after_samples_ms": [
+        0.453,
+        0.316,
+        0.257,
+        0.253,
+        0.261
+      ],
+      "after_note": null
+    }
+  ],
+  "rls_overhead": {
+    "before": {
+      "q1_pct": 14.9,
+      "q3_pct": 3.8
+    },
+    "after": {
+      "q1_pct": 19.0,
+      "q3_pct": -19.2
+    }
+  },
+  "pgstattuple": {
+    "before": {
+      "table": "outbox_events",
+      "table_len_bytes": 446480384,
+      "tuple_count": 2000010,
+      "dead_tuple_count": 1102,
+      "dead_tuple_percent": 0.08,
+      "free_percent": 0.99
+    },
+    "after": {
+      "table": "outbox_events",
+      "table_len_bytes": 446480384,
+      "tuple_count": 2000010,
+      "dead_tuple_count": 1500,
+      "dead_tuple_percent": 0.1,
+      "free_percent": 0.96
+    }
+  }
+}

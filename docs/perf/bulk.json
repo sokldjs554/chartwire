@@ -1,0 +1,83 @@
+{
+  "seed": 7,
+  "git_sha": "a66b60787ec8d1b344bf75f5468c0878b5a6ffef",
+  "generated_at": "2026-09-04T07:16:10+00:00",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
+  "ram_gb": 15.7,
+  "python": "3.11.15",
+  "pg_version": null,
+  "plan": {
+    "seed": 7,
+    "tenants": 8,
+    "segments": 2000000,
+    "sessions": 20000,
+    "patients": 50000,
+    "months": 24
+  },
+  "tenant_ids": [
+    "812c44da-b1c7-4108-a1a5-9d71eb9f097a",
+    "6593ad74-04e2-49e8-bfef-4ec97411da3a",
+    "71cb5bc9-dadf-423e-965e-49e62fffaca4",
+    "9a180cdb-6b4e-4966-97f5-8118ba3618b0",
+    "127f5a17-f37a-4e5f-ab26-6dc4e43720d7",
+    "febef667-42ec-4f1a-88be-7e5088a9d399",
+    "85d3184b-1f77-4fea-b8e1-2c73a761f995",
+    "7ca1d0ae-060a-44f3-ba1b-f24a2d6205e9"
+  ],
+  "partitions": [
+    "transcript_segments_y2024m10",
+    "transcript_segments_y2024m11",
+    "transcript_segments_y2024m12",
+    "transcript_segments_y2025m01",
+    "transcript_segments_y2025m02",
+    "transcript_segments_y2025m03",
+    "transcript_segments_y2025m04",
+    "transcript_segments_y2025m05",
+    "transcript_segments_y2025m06",
+    "transcript_segments_y2025m07",
+    "transcript_segments_y2025m08",
+    "transcript_segments_y2025m09",
+    "transcript_segments_y2025m10",
+    "transcript_segments_y2025m11",
+    "transcript_segments_y2025m12",
+    "transcript_segments_y2026m01",
+    "transcript_segments_y2026m02",
+    "transcript_segments_y2026m03",
+    "transcript_segments_y2026m04",
+    "transcript_segments_y2026m05",
+    "transcript_segments_y2026m06",
+    "transcript_segments_y2026m07",
+    "transcript_segments_y2026m08",
+    "transcript_segments_y2026m09",
+    "transcript_segments_y2026m10"
+  ],
+  "counts": {
+    "patients": 50000,
+    "sessions": 20000,
+    "segments": 2000000,
+    "search": 1205000,
+    "risk": 40017,
+    "risk_open": 437,
+    "outbox": 2000000,
+    "outbox_pending": 2095
+  },
+  "timings_s": {
+    "partitions": 0.18,
+    "pool": 0.014,
+    "tenants": 0.011,
+    "tenant_01": 11.058,
+    "tenant_02": 13.585,
+    "tenant_03": 14.039,
+    "tenant_04": 12.698,
+    "tenant_05": 12.713,
+    "tenant_06": 13.648,
+    "tenant_07": 13.283,
+    "tenant_08": 12.851,
+    "vacuum_analyze": 4.209
+  },
+  "total_s": 108.325,
+  "segment_id_range": [
+    201,
+    2000200
+  ]
+}
