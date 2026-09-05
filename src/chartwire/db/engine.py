@@ -13,7 +13,9 @@ SYNC_DRIVER = "postgresql+psycopg"
 
 def _with_driver(url: str | URL, driver: str) -> URL:
     parsed = make_url(url)
-    if not parsed.drivername.startswith("postgresql"):
+    # Managed hosts (Render, Heroku-style add-ons) hand out plain ``postgresql://`` or the legacy
+    # ``postgres://`` scheme with no driver; both name the same server and get the driver we need.
+    if parsed.drivername != "postgres" and not parsed.drivername.startswith("postgresql"):
         raise ValueError(f"not a PostgreSQL URL: {parsed.drivername}")
     return parsed.set(drivername=driver)
 
