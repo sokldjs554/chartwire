@@ -30,7 +30,7 @@ from typing import Any, cast
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from starlette.exceptions import HTTPException
@@ -291,6 +291,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if index is None:
             raise AppError("CW-4040", 404, "console/index.html 이 없습니다")
         return FileResponse(index, media_type="text/html; charset=utf-8")
+
+    @app.get("/", include_in_schema=False)
+    async def root() -> Response:
+        # 배포 URL 을 그대로 열면 콘솔로 보낸다 — 루트에서 CW-4040 problem+json 을 받는 혼란을 막는 안내용 302.
+        # 콘솔의 정식 위치는 여전히 /console (spec §13.3). /console·/docs 와 같은 탐색용 경로라 API 가 아니며,
+        # RBAC 매트릭스(§6.9) 밖에 있다 — tests/integration/test_rbac_matrix.py 가 같은 이유로 건너뛴다.
+        return RedirectResponse("/console", status_code=302)
 
     install_error_handlers(app)
 

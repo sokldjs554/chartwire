@@ -27,6 +27,7 @@ from tests.integration.api_support import build_app, client, headers, make_deps,
 pytestmark = pytest.mark.integration
 
 SKIP_PREFIXES = ("/console", "/docs", "/openapi")
+SKIP_PATHS = ("/",)  # 루트 → /console 302: 탐색용, API 가 아니다
 
 
 def api_routes(app: FastAPI) -> list[APIRoute]:
@@ -41,7 +42,7 @@ def api_routes(app: FastAPI) -> list[APIRoute]:
             elif hasattr(route, "routes"):
                 yield from walk(route.routes)
 
-    return [r for r in walk(app.routes) if not r.path.startswith(SKIP_PREFIXES)]
+    return [r for r in walk(app.routes) if not r.path.startswith(SKIP_PREFIXES) and r.path not in SKIP_PATHS]
 
 
 def concrete_path(route: APIRoute) -> str:

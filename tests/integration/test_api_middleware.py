@@ -141,6 +141,10 @@ async def test_body_limit_cors_and_console(api, tenant_a, settings):
     )
     assert "access-control-allow-origin" not in denied.headers
 
+    root = await api.get("/")
+    assert root.status_code == 302 and root.headers["location"] == "/console", (
+        "배포 URL 루트는 콘솔로 안내한다"
+    )
     page = await api.get("/console")
     assert page.status_code == 200 and page.headers["content-type"].startswith("text/html")
     assert (
