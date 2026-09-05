@@ -10,6 +10,9 @@
 # 소유자로 접속해도 테넌트 격리는 유지되지만, `search_segments()` 의 owner 면제가 사라져 검색이 느린
 # RLS 경로(§4.6 Q2b)로 떨어진다 — docs/limitations.md 에 적어 두었다.
 # 무료 티어 한계(콜드 스타트, 무료 DB 만료)는 docs/limitations.md 에 적혀 있고 README 는 동작할 때만 URL 을 보여준다.
+#
+# 블루프린트 스펙의 최상위 키는 services / databases / envVarGroups 뿐이다. Key Value(Redis 호환) 인스턴스는
+# 별도 최상위 키가 아니라 services 안의 `type: keyvalue` 항목으로 선언한다 (아래 chartwire-kv).
 services:
   - type: web
     name: chartwire
@@ -17,13 +20,13 @@ services:
     plan: free
     region: singapore
     dockerfilePath: ./Dockerfile
-    dockerCommand: chartwire serve all --embedded
-    # 마이그레이션과 데모 시드는 배포 전에 한 번 돈다. `preDeployCommand` 가 이 플랜/인스턴스 타입에서
-    # 거부되면 위 dockerCommand 와 아래 preDeployCommand 를 지우고 다음 한 줄로 대체하면 된다.
-    # 두 명령 모두 멱등이라 매 기동마다 실행돼도 안전하다(`db upgrade` 는 head 면 no-op,
-    # `seed --demo --if-empty` 는 데모 테넌트가 있으면 건너뛴다):
-    #   dockerCommand: sh -c "chartwire db upgrade && chartwire seed --demo --if-empty && chartwire serve all --embedded"
-    preDeployCommand: chartwire db upgrade && chartwire seed --demo --if-empty
+    # 기동 순서: 마이그레이션 → 데모 시드 → 서버. Dockerfile 의 ENTRYPOINT(tini) 는 그대로 남고 CMD 만 바뀐다;
+    # `exec` 로 서버가 PID 를 이어받아 SIGTERM 이 곧장 도달한다 (§6.4 drain). 두 준비 명령은 멱등이라
+    # 매 기동마다 실행돼도 안전하다 (`db upgrade` 는 head 면 no-op, `seed --demo --if-empty` 는 데모 테넌트가
+    # 있으면 건너뛴다). spec §12.2 의 `preDeployCommand` 분리는 무료 인스턴스 타입에서 지원되지 않아 쓰지 않는다;
+    # 유료 인스턴스라면 `dockerCommand: chartwire serve all --embedded` 와
+    # `preDeployCommand: chartwire db upgrade && chartwire seed --demo --if-empty` 로 나눠도 같은 결과다.
+    dockerCommand: sh -c "chartwire db upgrade && chartwire seed --demo --if-empty && exec chartwire serve all --embedded"
     healthCheckPath: /healthz
     autoDeploy: true
     envVars:
@@ -59,17 +62,17 @@ services:
       - key: PORT
         value: "8000"
 
+  # Render Key Value (Redis 호환) — 재구축 가능한 캐시이므로 무료 플랜의 비영속 스토리지로 충분하다 (ADR-0002).
+  - type: keyvalue
+    name: chartwire-kv
+    plan: free
+    region: singapore
+    maxmemoryPolicy: noeviction      # 스트림/세션 해시가 조용히 사라지지 않게 한다; 넘치면 XADD 가 실패해 fail-closed
+    ipAllowList: []                  # 내부 네트워크에서만 접속
+
 databases:
   - name: chartwire-db
     plan: free
     region: singapore
     postgresMajorVersion: "16"
     ipAllowList: []                  # 내부 네트워크에서만 접속
-
-# Render Key Value (Redis 호환) — 재구축 가능한 캐시이므로 무료 플랜의 비영속 스토리지로 충분하다 (ADR-0002).
-keyvalues:
-  - name: chartwire-kv
-    plan: free
-    region: singapore
-    maxmemoryPolicy: noeviction      # 스트림/세션 해시가 조용히 사라지지 않게 한다; 넘치면 XADD 가 실패해 fail-closed
-    ipAllowList: []
