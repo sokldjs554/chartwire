@@ -29,6 +29,11 @@ jobs:
       - run: ruff format --check src tests scripts
       - name: mypy --strict (pyproject overrides list the strict modules)
         run: mypy src/chartwire/ws/core.py src/chartwire/ws/codec.py src/chartwire/notes/verifier.py src/chartwire/crypto src/chartwire/outbox
+      # setuptools/pip/wheel 은 이 프로젝트의 의존성이 아니라 러너가 미리 넣어 둔 빌드 도구다. 낡은 채로
+      # 두면 그쪽에 새 권고가 뜰 때마다 프로젝트와 무관하게 감사가 빨개진다(PYSEC-2026-3447 이 그랬다).
+      # 감사 전에 올려 두고, 선언된 의존성에 대한 게이트는 그대로 유지한다.
+      - name: 빌드 도구 최신화 (감사 대상은 선언된 의존성이어야 한다)
+        run: pip install --upgrade pip setuptools wheel
       - name: pip-audit
         run: pip-audit --progress-spinner off
 
