@@ -55,6 +55,16 @@ from chartwire.notes.korean import report_form, transform_ending
         ("회사원이에요", "회사원이라고 함", "회사원이다", "회사원입니다"),
         ("그건 아니에요", "그건 아니라고 함", "그건 아니다", "그건 아닙니다"),
         ("숨이 막혀요", "숨이 막힌다고 함", "숨이 막힌다", "숨이 막힙니다"),
+        # ㅂ-irregular: the contracted 워/와 hides a ㅂ stem
+        (
+            "약 먹고 좀 어지러워요",
+            "약 먹고 좀 어지럽다고 함",
+            "약 먹고 좀 어지럽다",
+            "약 먹고 좀 어지럽습니다",
+        ),
+        ("밤이 무서워요", "밤이 무섭다고 함", "밤이 무섭다", "밤이 무섭습니다"),
+        ("낮에 자주 누워요", "낮에 자주 눕는다고 함", "낮에 자주 눕는다", "낮에 자주 눕습니다"),
+        ("주말엔 푹 쉬어요", "주말엔 푹 쉰다고 함", "주말엔 푹 쉰다", "주말엔 푹 쉽니다"),
     ],
 )
 def test_endings(utterance: str, report: str, plain: str, formal: str):
@@ -63,7 +73,9 @@ def test_endings(utterance: str, report: str, plain: str, formal: str):
     assert transform_ending(utterance, "formal") == formal
 
 
-@pytest.mark.parametrize("utterance", ["네네", "힘드네요", "약을 먹고 있거든요", "그게요…", "음"])
+@pytest.mark.parametrize(
+    "utterance", ["네네", "힘드네요", "약을 먹고 있거든요", "그게요…", "음", "아내가 가보라고 해서요"]
+)
 def test_unknown_endings_fall_back_to_direct_quotation(utterance: str):
     assert transform_ending(utterance, "plain") is None
     assert report_form(utterance) == f"“{utterance.rstrip('…')}”라고 함"

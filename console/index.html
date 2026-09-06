@@ -17,6 +17,7 @@
   --accent: #2456c9; --accent-ink: #ffffff; --ok: #1a7f4b; --warn: #b7791f; --bad: #c0392b;
   --partial: #9aa3ad; --clinician: #2456c9; --patient: #8a3ffc; --unknown: #667085;
   --sev1: #e0b400; --sev2: #e67e22; --sev3: #c0392b; --mark: #fff3a3;
+  --hero-a: #e9f0ff; --hero-b: #f6f7f9;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
@@ -24,6 +25,7 @@
     --bg: #111418; --panel: #1a1f26; --ink: #e6e9ee; --muted: #98a2b3; --line: #2b323c;
     --accent: #6d9cff; --accent-ink: #0b1220; --ok: #4cc38a; --warn: #e2b85a; --bad: #ff6b5c;
     --partial: #6b7480; --clinician: #8db3ff; --patient: #c39bff; --unknown: #98a2b3; --mark: #5b4b00;
+    --hero-a: #16213a; --hero-b: #111418;
   }
 }
 * { box-sizing: border-box; }
@@ -43,7 +45,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 12px; pa
 .grow { flex: 1 1 160px; }
 label { color: var(--muted); font-size: 12px; }
 label.chk { display: inline-flex; align-items: center; gap: 4px; color: var(--ink); font-size: 13px; }
-input[type=text], input[type=password], input[type=number], select, textarea { background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; min-width: 0; }
+input[type=text], input[type=search], input[type=password], input[type=number], select, textarea { background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; min-width: 0; }
 textarea { width: 100%; min-height: 90px; resize: vertical; }
 button.btn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 6px; padding: 6px 12px; font: inherit; font-weight: 600; cursor: pointer; }
 button.btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
@@ -95,12 +97,55 @@ header .links a, header .links button.link { color: var(--accent); background: n
 #steps button i { font-style: normal; width: 18px; height: 18px; border-radius: 50%; border: 1px solid currentColor; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
 #steps button.active { color: var(--accent); border-color: var(--accent); }
 #steps button.done { color: var(--ok); border-color: var(--ok); } #steps button.done i { background: var(--ok); color: #fff; border-color: var(--ok); }
-/* 소개 화면 */
-#intro { grid-column: 1 / -1; }
-.intro h2 { margin: 0 0 6px; font-size: 20px; }
-.intro .lead { color: var(--muted); margin: 0 0 12px; max-width: 960px; }
-.intro .cols { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 14px; }
-@media (max-width: 960px) { .intro .cols { grid-template-columns: 1fr; } }
+/* 홈 — 환영 · 검색 · 배너 · 기능 카드 · 대본 · 시작하기 */
+#intro { grid-column: 1 / -1; padding: 0; overflow: hidden; }
+.workspace { display: contents; }
+.workspace.hidden { display: none !important; }
+.hero { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; padding: 26px 24px 20px; background: linear-gradient(135deg, var(--hero-a), var(--hero-b)); border-bottom: 1px solid var(--line); }
+@media (max-width: 960px) { .hero { grid-template-columns: 1fr; } }
+.hero .eyebrow { margin: 0 0 6px; color: var(--accent); font-weight: 700; font-size: 12px; letter-spacing: .04em; }
+.hero h2 { margin: 0 0 10px; font-size: 26px; line-height: 1.25; }
+.hero h2 em { font-style: normal; color: var(--accent); }
+.hero .lead { color: var(--muted); margin: 0 0 14px; max-width: 720px; }
+.hero h2, .hero .lead, .banners p, .feat p, .tpl p, .home-section .sub, .hint { word-break: keep-all; overflow-wrap: break-word; }
+.search { display: flex; gap: 8px; max-width: 640px; margin: 0; }
+.search input { flex: 1; font-size: 15px; padding: 10px 12px; border-radius: 8px; }
+.hint { font-size: 12px; color: var(--muted); margin: 6px 0 10px; min-height: 18px; }
+.hero .cta { margin: 4px 0 12px; }
+.hero a.btn { text-decoration: none; display: inline-block; }
+.stats { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); }
+.stats b { color: var(--ink); font-family: var(--mono); }
+.banners { position: relative; min-height: 210px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); overflow: hidden; }
+.banners .slide { position: absolute; inset: 0; padding: 18px 18px 44px; opacity: 0; transition: opacity .5s; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.banners .slide.active { opacity: 1; z-index: 1; pointer-events: auto; }
+.banners .kicker { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: .05em; }
+.banners h3 { margin: 0; font-size: 18px; }
+.banners p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.banners .facts { margin: 6px 0 0; padding-left: 16px; color: var(--muted); font-size: 12px; line-height: 1.7; word-break: keep-all; }
+.banners .facts code { font-family: var(--mono); font-size: 11px; color: var(--ink); }
+.banners .go { margin-top: auto; align-self: flex-start; }
+.banners .dots { position: absolute; left: 14px; bottom: 12px; display: flex; gap: 6px; z-index: 2; }
+.banners .dots button { width: 9px; height: 9px; border-radius: 50%; border: 0; background: var(--line); padding: 0; cursor: pointer; }
+.banners .dots button.active { background: var(--accent); }
+.banners .nav { position: absolute; right: 10px; bottom: 8px; z-index: 2; display: flex; gap: 4px; }
+.banners .nav button { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; padding: 1px 8px; cursor: pointer; font: inherit; font-size: 12px; }
+.home-section { padding: 16px 24px; border-bottom: 1px solid var(--line); }
+.home-section h3 { margin: 0 0 2px; font-size: 16px; }
+.home-section .sub { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.feat, .tpl { text-align: left; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; font: inherit; color: inherit; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.feat { cursor: pointer; }
+.feat:hover, .tpl:hover { border-color: var(--accent); }
+.feat .num { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.feat .head { display: flex; gap: 8px; align-items: center; }
+.feat b, .tpl b { font-size: 14px; }
+.feat p, .tpl p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.feat .role, .tpl .meta { margin-top: auto; font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.tpl .refs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tpl .refs button { font-size: 11px; padding: 2px 8px; }
+.empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
+.start { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 14px; padding: 16px 24px 20px; }
+@media (max-width: 960px) { .start { grid-template-columns: 1fr; } }
 .intro ol.tour { margin: 0; padding: 0; list-style: none; counter-reset: step; }
 .intro ol.tour li { counter-increment: step; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
 .intro ol.tour li::before { content: counter(step); width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-weight: 700; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
@@ -143,7 +188,7 @@ details.raw summary { cursor: pointer; color: var(--muted); font-size: 12px; mar
     <button class="btn" id="loginBtn">로그인</button>
     <span id="who" class="muted">로그인 전</span>
   </div>
-  <div class="links"><button class="link" id="introToggle">소개</button><a href="https://github.com/sokldjs554/chartwire" target="_blank" rel="noopener">GitHub</a></div>
+  <div class="links"><button class="link" id="introToggle">홈</button><a href="https://github.com/sokldjs554/chartwire" target="_blank" rel="noopener">GitHub</a></div>
 </header>
 <nav id="steps" aria-label="데모 단계">
   <button data-step="rec" data-tab="rec"><i>1</i>녹음</button>
@@ -154,9 +199,84 @@ details.raw summary { cursor: pointer; color: var(--muted); font-size: 12px; mar
 </nav>
 <main>
 <section class="panel intro" id="intro">
-  <h2>chartwire — 정신과 진료실 실시간 음성차팅의 밑바닥</h2>
-  <p class="lead">진료실에서 녹음된 음성이 <b>한 청크도 잃지 않고</b> 저장되고, 위험 발화가 <b>수 초 안에</b> 경보가 되며, 초안의 모든 문장이 <b>근거 발화</b>를 가리키고, 환자가 동의를 거두면 <b>파기 영수증</b>이 남는 백엔드입니다. STT·LLM 제품이 아니라 그 밑에 깔리는 신뢰성·컴플라이언스 층이고, 이 콘솔은 그 층을 브라우저에서 그대로 두드려 보는 데모입니다. 모든 데이터는 합성이며 API 키 없이 동작합니다.</p>
-  <div class="cols">
+  <div class="hero">
+    <div>
+      <p class="eyebrow">CHARTWIRE · 정신과 진료실 실시간 음성차팅의 밑바닥 · 데모 콘솔</p>
+      <h2>환영합니다. 진료실의 목소리를 <em>한 청크도 잃지 않고</em> 저장하고, 위험 발화를 <em>수 초 안에</em> 알리고, 지웠다는 <em>증거</em>까지 남기는 백엔드입니다.</h2>
+      <p class="lead">STT·LLM 제품이 아니라 그 밑에 깔리는 신뢰성·컴플라이언스 층입니다 — 초안의 모든 문장이 근거 발화를 가리키고, 환자가 동의를 거두면 파기 영수증이 남습니다. 이 콘솔은 그 층을 브라우저에서 그대로 두드려 보는 데모이며, 모든 데이터는 합성이고 API 키 없이 동작합니다.</p>
+      <form class="search" id="homeSearchForm" role="search">
+        <input type="search" id="homeSearch" placeholder="기능을 검색해서 바로 들어가세요 — 예: 경보, 영수증, 초안, 대본, 지표" autocomplete="off" aria-label="기능 검색">
+        <button class="btn" type="submit">들어가기</button>
+      </form>
+      <div class="hint" id="searchHint">검색어를 치면 아래 기능·대본 카드가 걸러지고, Enter 를 누르면 첫 결과로 들어갑니다 (필요하면 데모 계정으로 자동 로그인).</div>
+      <div class="row cta">
+        <button class="btn" id="quickStart">데모 계정으로 시작 (clinician)</button>
+        <button class="btn secondary hidden" id="backToConsole">콘솔로 돌아가기</button>
+        <a class="btn secondary" href="https://github.com/sokldjs554/chartwire" target="_blank" rel="noopener">GitHub 소스 · 실측 수치</a>
+      </div>
+      <div class="stats" id="homeStats"><span>합성 대본 <b>20</b>개</span><span>주호소 <b>8</b>가지</span><span>데모 역할 <b>4</b>개</span><span>API 키 <b>없음</b></span></div>
+    </div>
+    <div class="banners" id="banners" aria-label="배너">
+      <div class="slide active" data-feature="consent">
+        <span class="kicker">지웠다는 증거</span>
+        <h3>동의를 거두면 파기 영수증이 남습니다</h3>
+        <p>철회 → 아웃박스 → 파기 파이프라인. 삭제 건수·검증 항목·재계산 해시가 붙은 영수증과, 세션 DEK 가 파기되어 <b>복호화가 실패하는</b> 판정표까지.</p>
+        <ul class="facts">
+          <li>세션 DEK crypto-shred + 행·오브젝트·Redis 키 하드 삭제, 환자 이름 색인 파기</li>
+          <li><code>receipt_hash = sha256(steps · counts · dek_fingerprints)</code> — 콘솔이 다시 계산해 대조</li>
+          <li>서명된 노트는 법적 보존 기간 동안 남고, 본문 근거는 그대로 읽힌다</li>
+        </ul>
+        <button class="btn go" type="button">영수증 보러 가기</button>
+      </div>
+      <div class="slide" data-feature="rec">
+        <span class="kicker">한 청크도 잃지 않는 녹음</span>
+        <h3>ack 는 PostgreSQL 에 커밋된 뒤에만 올라갑니다</h3>
+        <p>200 ms 청크 · seq · credit · resume. 녹음 중에 <b>네트워크 끊기 5초</b>를 눌러 보세요 — 재접속 뒤 빠진 청크가 재전송되고 손실 0 으로 끝납니다.</p>
+        <ul class="facts">
+          <li>12 B 헤더(<code>magic 0x4357 · seq · offset_ms</code>) + 6,400 B 페이로드, 링 버퍼 150 청크</li>
+          <li>ack 는 <code>audio_chunks</code> 원장이 50 ms 그룹 커밋을 마친 뒤에만 — 인메모리 ack 없음</li>
+          <li>재접속은 <code>resume{last_sent_seq}</code> → 서버가 빠진 구간을 알려 주고 클라이언트가 다시 보낸다</li>
+        </ul>
+        <button class="btn go" type="button">녹음 시작하기</button>
+      </div>
+      <div class="slide" data-feature="live">
+        <span class="kicker">위험 발화 경보</span>
+        <h3>자살·자해·타해 발화는 수 초 안에 배너가 됩니다</h3>
+        <p>결정적 한국어 위험 사전 + 범위 규칙(부정·가정·과거·타인·질문·관용구). SLA 카운트다운과 ACK, 미처리 시 에스컬레이션.</p>
+        <ul class="facts">
+          <li>"죽고 싶다는 생각까지는 없어요"는 경보가 아니다 — 부정 범위 규칙</li>
+          <li>세그먼트 저장과 위험 이벤트 기록이 한 트랜잭션, 경보는 pub/sub 으로 뷰어에</li>
+          <li>모델 없음 · API 키 없음 — 같은 입력에 같은 판정, 리뷰할 수 있는 규칙</li>
+        </ul>
+        <button class="btn go" type="button">라이브 전사 보기</button>
+      </div>
+      <div class="slide" data-feature="scripts">
+        <span class="kicker">8가지 주호소 · 20개 대본</span>
+        <h3>대본마다 대화·경보·초안이 다릅니다</h3>
+        <p>초진 우울 · 재진 약물조정 · 불안/공황 · 불면 · 성인 ADHD 추적 · 적응/스트레스 · 알코올 · 강박 — 주호소가 질문과 답, 계획까지 바꿉니다.</p>
+        <ul class="facts">
+          <li>불면이면 취침·각성 시각과 수면제, 알코올이면 음주량과 금단 증상을 묻는다</li>
+          <li>초진은 "지금 드시는 약이 있으세요?", 재진은 "지난번 이후로 어떠셨어요?"로 시작</li>
+          <li>계획도 주호소를 따른다 — 수면일지, 간 기능 검사, 노출·반응방지 치료 의뢰…</li>
+        </ul>
+        <button class="btn go" type="button">대본 고르기</button>
+      </div>
+      <div class="dots" id="bannerDots"></div>
+      <div class="nav"><button type="button" id="bannerPrev" aria-label="이전 배너">‹</button><button type="button" id="bannerNext" aria-label="다음 배너">›</button></div>
+    </div>
+  </div>
+  <div class="home-section">
+    <h3>서비스</h3>
+    <p class="sub">카드를 누르면 그 기능으로 들어갑니다. 로그인 전이면 필요한 데모 계정으로 자동 로그인합니다 (④·⑤·운영 지표는 admin).</p>
+    <div class="cards" id="features"></div>
+    <div class="empty hidden" id="featuresEmpty">검색 결과가 없습니다.</div>
+  </div>
+  <div class="home-section">
+    <h3>대본 둘러보기 — 8가지 주호소</h3>
+    <p class="sub">합성 대본은 주호소가 대화의 질문·답·계획을 바꿉니다. 대본을 고르면 세션 만들기 화면으로 들어갑니다 (새 가상환자 → 세션 생성).</p>
+    <div class="cards" id="templates"></div>
+  </div>
+  <div class="start">
     <div>
       <h3 style="margin:0 0 4px">5분 투어 — 위의 단계 표시를 따라가면 됩니다</h3>
       <ol class="tour">
@@ -169,15 +289,14 @@ details.raw summary { cursor: pointer; color: var(--muted); font-size: 12px; mar
     </div>
     <div>
       <div class="card">
-        <h3>바로 시작</h3>
-        <div class="row"><button class="btn" id="quickStart">데모 계정으로 시작 (clinician)</button></div>
+        <h3>데모 계정</h3>
         <table class="kv acct">
           <tr><td>clinician</td><td>녹음 · 초안 · 서명 · 동의 철회</td></tr>
           <tr><td>staff</td><td>세션 · 환자 · 동의 관리</td></tr>
           <tr><td>admin</td><td>파기 작업 · 영수증 · 복호화 시도 · DLQ</td></tr>
           <tr><td>auditor</td><td>영수증 · 감사 로그 (읽기)</td></tr>
         </table>
-        <div class="note">테넌트 <code>demo</code> · 비밀번호 <code>demo1234!</code> · 이메일은 <code>역할@demo.clinic</code>. 역할마다 보이는 것이 다른 이유는 라우트 × 역할 매트릭스(<code>auth/rbac.py</code>)입니다.</div>
+        <div class="note">테넌트 <code>demo</code> · 비밀번호 <code>demo1234!</code> · 이메일은 <code>역할@demo.clinic</code>. 역할마다 보이는 것이 다른 이유는 라우트 × 역할 매트릭스(<code>auth/rbac.py</code>)입니다. 헤더의 계정 선택기로 언제든 바꿔 로그인할 수 있습니다.</div>
       </div>
       <div class="card" style="margin-top:10px">
         <h3>알아 둘 것</h3>
@@ -190,6 +309,7 @@ details.raw summary { cursor: pointer; color: var(--muted); font-size: 12px; mar
     </div>
   </div>
 </section>
+<div id="workspace" class="workspace hidden">
 <section class="panel">
   <div class="tabs" role="tablist">
     <button role="tab" data-tab="rec" aria-selected="true">Recorder</button>
@@ -204,7 +324,7 @@ details.raw summary { cursor: pointer; color: var(--muted); font-size: 12px; mar
       <button class="btn secondary" id="refreshSessions">새로고침</button>
       <span id="sessionInfo" class="muted mono"></span>
     </div>
-    <details>
+    <details id="createDetails">
       <summary class="muted">세션 만들기 (가상환자 + 동의 + script_ref)</summary>
       <div class="row">
         <label>환자 이름(정확 일치) <input type="text" id="patientName" value="가상환자-0001" size="14"></label>
@@ -331,6 +451,7 @@ details.raw summary { cursor: pointer; color: var(--muted); font-size: 12px; mar
     <div id="dlqList" class="muted" style="font-size:12px"></div>
   </div>
 </aside>
+</div>
 </main>
 <div id="toasts"></div>
 <script>
@@ -452,16 +573,177 @@ const tour = {
     });
   },
 };
-document.querySelectorAll('#steps button[data-step]').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+/* 홈(랜딩)과 작업 화면은 번갈아 보인다: 로그인·기능 진입이 작업 화면을 열고, 헤더의 "홈"이 되돌린다. */
 const intro = {
   open: true,
-  show(on) { this.open = on; $('intro').classList.toggle('hidden', !on); },
+  show(on) {
+    this.open = on;
+    $('intro').classList.toggle('hidden', !on);
+    $('workspace').classList.toggle('hidden', on);
+    $('backToConsole').classList.toggle('hidden', !(on && state.token));
+    if (on) banner.start(); else banner.stop();
+  },
 };
+/* 기능 카드 · 배너 · 검색이 들어가는 곳. role 은 그 기능에 필요한 데모 계정(로그인 전이거나 역할이 다르면 그 계정으로 로그인). */
+const FEATURES = [
+  { key: 'rec', num: 1, title: '녹음 (Recorder)', tab: 'rec', role: 'clinician', step: 'rec',
+    desc: '브라우저 녹음기가 12 B 헤더가 붙은 200 ms 청크를 WebSocket 으로 보냅니다. ack 는 PostgreSQL 커밋 뒤에만 올라가고, "네트워크 끊기 5초"로 재접속·재전송을 봅니다.',
+    tags: '녹음 recorder websocket ack credit 재전송 resume 청크 seq 시작' },
+  { key: 'live', num: 2, title: '라이브 전사 · 위험 경보', tab: 'live', role: 'clinician', step: 'live',
+    desc: 'partial 이 final 로 확정되고, 위험 발화에서 배너와 SLA 카운트다운이 뜹니다. ACK 로 닫고, 미처리면 에스컬레이션됩니다.',
+    tags: '라이브 전사 경보 위험 alert sla ack 뷰어 watch 자살 자해 실시간' },
+  { key: 'soap', num: 3, title: 'SOAP 초안 · 근거 · 서명', tab: 'soap', role: 'clinician', step: 'soap',
+    desc: '녹음이 끝나면 워커가 초안을 만들고 note.status 가 오면 자동으로 불러옵니다. 문장을 누르면 근거 발화가 하이라이트되고, A(평가)는 직접 적어 서명합니다.',
+    tags: 'soap 초안 노트 근거 인용 서명 assessment 검증 draft 문장' },
+  { key: 'consent', num: 4, title: '동의 철회 · 파기 영수증', tab: 'consent', role: 'clinician', step: 'purge',
+    desc: '동의를 철회하면 아웃박스를 거쳐 파기 파이프라인이 돌고, 삭제 건수·검증 항목·재계산 해시가 붙은 영수증이 남습니다 (영수증 조회는 admin·auditor).',
+    tags: '동의 철회 파기 영수증 purge consent receipt 삭제 해시 revoke' },
+  { key: 'verify', num: 5, title: '복호화 시도 (admin)', tab: 'consent', role: 'admin', step: 'verify',
+    desc: '영수증의 표본 암호문을 다시 풀어 봅니다. 세션 DEK 가 파기되어 failed:dek_destroyed 가 나와야 정상 — "지웠다"의 증거입니다.',
+    tags: '복호화 dek 파기 증거 verify decrypt admin 감사 auditor 암호' },
+  { key: 'ops', title: '운영 지표 · DLQ (admin)', tab: 'ops', role: 'admin',
+    desc: '/metrics 를 2초마다 읽어 WS 연결, 원장 flush p95, 아웃박스 적체, SLA 초과 경보, 데드레터를 보여 주고 DLQ 를 재처리합니다.',
+    tags: '운영 지표 metrics ops dlq 데드레터 prometheus 모니터링 아웃박스 outbox' },
+  { key: 'scripts', title: '대본 고르기 — 8가지 주호소', tab: 'rec', role: 'clinician',
+    desc: '20개 합성 대본은 주호소마다 대화·경보·초안이 다릅니다. 대본을 고르고 새 가상환자로 세션을 만듭니다.',
+    tags: '대본 script 주호소 세션 환자 시나리오 합성 우울 불면 공황 알코올 강박 adhd 스트레스 약물' },
+  { key: 'api', title: 'API 문서 (OpenAPI)', href: '/docs',
+    desc: 'FastAPI 가 만든 /docs — 콘솔이 부르는 REST 엔드포인트와 problem+json 오류 형식, 역할별 403.',
+    tags: 'api openapi docs rest swagger 문서 endpoint' },
+];
+const STEP_FEATURE = { rec: 'rec', live: 'live', soap: 'soap', purge: 'consent', verify: 'verify' };
+const TAB_KO = { rec: 'Recorder 탭', live: 'Live chart 탭', soap: 'SOAP draft 탭', consent: '사이드 패널 Consent & purge', ops: '사이드 패널 Ops' };
+/* 주호소별 소개 — 대본 카탈로그(/console/scripts.json)의 template 이름과 같아야 카드에 대본이 붙는다 (synth/vocab_ko.py CHIEF_COMPLAINTS). */
+const TEMPLATE_INFO = {
+  '초진 우울': { desc: '두 달째 가라앉는 기분으로 처음 온 환자. 아침의 기분·기운·흥미 저하를 묻고 항우울제를 처음 처방합니다.', tags: '우울 초진 처방 depression' },
+  '재진 약물조정': { desc: '약을 바꾼 뒤 어지럼·졸림·구갈을 호소하는 재진. 부작용을 살피고 용량을 줄이거나 유지합니다.', tags: '재진 부작용 용량 어지러움 약물' },
+  '불안/공황': { desc: '지하철에서 숨이 막혀 내린 환자. 발작의 양상·빈도·지속 시간을 묻고 호흡 연습과 공황 일지를 처방합니다.', tags: '공황 불안 발작 호흡 panic' },
+  '불면': { desc: '한 달 넘게 잠을 못 자는 환자. 취침·각성 시각, 수면제, 자기 전 음주를 묻고 수면일지와 수면 위생을 처방합니다.', tags: '수면 잠 불면 수면제 insomnia' },
+  '성인 ADHD 추적': { desc: '약 효과가 오후에 떨어지는 재진. 회의 집중·실수·마감을 묻고 용량을 올리거나 검사를 잡습니다.', tags: 'adhd 집중 메틸페니데이트 추적 딴생각' },
+  '적응/스트레스': { desc: '부서 이동 뒤 긴장·소화불량·두통이 생긴 환자. 직장 상황과 신체 증상을 묻고 상담을 의뢰합니다.', tags: '스트레스 적응 직장 긴장 두통' },
+  '알코올': { desc: '술을 줄이려는데 잘 안 되는 환자. 음주량·금단 증상·필름 끊김을 묻고 간 기능 검사와 금주 프로그램을 잡습니다.', tags: '알코올 술 금주 음주 alcohol' },
+  '강박': { desc: '확인·씻기에 하루 몇 시간을 쓰는 환자. 의식 행동에 드는 시간과 침투 사고를 묻고 노출·반응방지 치료를 의뢰합니다.', tags: '강박 확인 씻기 ocd 침투' },
+};
+async function enterFeature(key, opts = {}) {
+  const f = FEATURES.find((x) => x.key === key);
+  if (!f) return;
+  if (f.href) { window.open(apiBase() + f.href, '_blank', 'noopener'); return; }
+  if (!state.token || (f.role && state.role !== f.role)) {
+    $('demoAccount').value = f.role; $('email').value = DEMO_EMAILS[f.role]; $('password').value = 'demo1234!';
+    if (!(await login())) return;
+  }
+  intro.show(false);
+  showTab(f.tab);
+  if (f.step) tour.mark(f.step, false);
+  if (key === 'scripts') {
+    $('createDetails').open = true;
+    if (opts.script) $('scriptSel').value = opts.script;
+    toast(`${opts.script ? catalog.label(opts.script) + ' — ' : ''}"새 가상환자" 다음 "세션 생성"을 누르면 이 대본으로 녹음할 수 있습니다`, 'ok');
+  }
+  if (window.scrollTo) window.scrollTo(0, 0);
+}
+const home = {
+  render() {
+    const feats = $('features'); feats.innerHTML = '';
+    for (const f of FEATURES) {
+      const card = document.createElement('button');
+      card.type = 'button'; card.className = 'feat'; card.dataset.keys = `${f.title} ${f.desc} ${f.tags}`.toLowerCase();
+      card.innerHTML = `<div class="head">${f.num ? `<span class="num">${f.num}</span>` : ''}<b>${esc(f.title)}</b></div><p>${esc(f.desc)}</p><span class="role">${f.href ? '새 탭에서 열림' : `${f.role} · ${TAB_KO[f.tab]}`}</span>`;
+      card.addEventListener('click', () => enterFeature(f.key));
+      feats.appendChild(card);
+    }
+    const box = $('templates'); box.innerHTML = '';
+    const byTemplate = new Map();
+    for (const sc of state.catalog.values()) { if (!byTemplate.has(sc.template)) byTemplate.set(sc.template, []); byTemplate.get(sc.template).push(sc); }
+    const names = [...new Set([...Object.keys(TEMPLATE_INFO), ...byTemplate.keys()])];
+    let alerts = 0;
+    for (const name of names) {
+      const info = TEMPLATE_INFO[name] || { desc: '', tags: '' };
+      const scripts = (byTemplate.get(name) || []).sort((a, b) => a.script_ref.localeCompare(b.script_ref));
+      const card = document.createElement('div');
+      card.className = 'tpl'; card.dataset.keys = `${name} ${info.desc} ${info.tags} ${scripts.map((sc) => sc.script_ref).join(' ')}`.toLowerCase();
+      card.innerHTML = `<b>${esc(name)}</b><p>${esc(info.desc)}</p>`;
+      const meta = document.createElement('span'); meta.className = 'meta';
+      meta.textContent = scripts.length ? `대본 ${scripts.length}개 · ${scripts.map((sc) => sc.n_utterances).join('/')} 발화` : '대본 카탈로그 없음 (seed --demo)';
+      card.appendChild(meta);
+      const refs = document.createElement('div'); refs.className = 'refs';
+      for (const sc of scripts) {
+        alerts += sc.n_expected_alerts || 0;
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn secondary'; b.textContent = `${sc.script_ref} · 경보 ${sc.n_expected_alerts}`;
+        b.addEventListener('click', () => enterFeature('scripts', { script: sc.script_ref }));
+        refs.appendChild(b);
+      }
+      card.appendChild(refs);
+      box.appendChild(card);
+    }
+    if (state.catalog.size) $('homeStats').innerHTML = `<span>합성 대본 <b>${state.catalog.size}</b>개</span><span>주호소 <b>${byTemplate.size}</b>가지</span><span>예상 경보 <b>${alerts}</b>건</span><span>데모 역할 <b>4</b>개</span><span>API 키 <b>없음</b></span>`;
+    this.filter();
+  },
+  filter() {
+    const q = ($('homeSearch').value || '').trim().toLowerCase();
+    const words = q.split(/\s+/).filter(Boolean);
+    let shown = 0, first = null;
+    document.querySelectorAll('#features .feat, #templates .tpl').forEach((el) => {
+      const hit = words.every((w) => el.dataset.keys.includes(w));
+      el.classList.toggle('hidden', !hit);
+      if (hit) { shown++; if (!first) first = el; }
+    });
+    $('featuresEmpty').classList.toggle('hidden', !q || shown > 0);
+    $('searchHint').textContent = q
+      ? (shown ? `${shown}개 결과 — Enter 를 누르면 첫 결과로 들어갑니다` : '검색 결과가 없습니다 — 경보 · 영수증 · 초안 · 대본 · 지표 · 녹음 · 복호화 · api 로 찾아보세요')
+      : '검색어를 치면 아래 기능·대본 카드가 걸러지고, Enter 를 누르면 첫 결과로 들어갑니다 (필요하면 데모 계정으로 자동 로그인).';
+    return first;
+  },
+  enterFirst() {
+    const first = this.filter();
+    if (!first) return;
+    if (first.classList.contains('feat')) { first.click(); return; }
+    const b = first.querySelector('.refs button');
+    if (b) b.click(); else enterFeature('scripts');
+  },
+};
+const banner = {
+  i: 0, timer: null,
+  slides() { return [...document.querySelectorAll('#banners .slide')]; },
+  go(i) {
+    const slides = this.slides();
+    if (!slides.length) return;
+    this.i = (i + slides.length) % slides.length;
+    slides.forEach((el, k) => el.classList.toggle('active', k === this.i));
+    document.querySelectorAll('#bannerDots button').forEach((b, k) => b.classList.toggle('active', k === this.i));
+  },
+  start() { this.stop(); if (!this.slides().length) return; this.timer = setInterval(() => this.go(this.i + 1), 6000); },
+  stop() { if (this.timer) { clearInterval(this.timer); this.timer = null; } },
+  init() {
+    const slides = this.slides();
+    if (!slides.length) return;
+    const dots = $('bannerDots');
+    slides.forEach((el, k) => {
+      const d = document.createElement('button'); d.type = 'button'; d.setAttribute('aria-label', `배너 ${k + 1}`);
+      d.addEventListener('click', () => { this.go(k); this.start(); });
+      dots.appendChild(d);
+      const go = el.querySelector('.go');
+      if (go) go.addEventListener('click', () => enterFeature(el.dataset.feature));
+    });
+    $('bannerPrev').addEventListener('click', () => { this.go(this.i - 1); this.start(); });
+    $('bannerNext').addEventListener('click', () => { this.go(this.i + 1); this.start(); });
+    $('banners').addEventListener('mouseenter', () => this.stop());
+    $('banners').addEventListener('mouseleave', () => this.start());
+    this.go(0);
+  },
+};
+document.querySelectorAll('#steps button[data-step]').forEach((b) => b.addEventListener('click', () => {
+  if (state.token) { intro.show(false); showTab(b.dataset.tab); } else enterFeature(STEP_FEATURE[b.dataset.step]);
+}));
 $('introToggle').addEventListener('click', () => intro.show(!intro.open));
+$('backToConsole').addEventListener('click', () => intro.show(false));
 $('quickStart').addEventListener('click', () => {
   $('demoAccount').value = 'clinician'; $('email').value = DEMO_EMAILS.clinician; $('password').value = 'demo1234!';
-  $('loginBtn').click();
+  login();
 });
+$('homeSearch').addEventListener('input', () => home.filter());
+$('homeSearchForm').addEventListener('submit', (ev) => { ev.preventDefault(); home.enterFirst(); });
 /* /console/scripts.json — seed 가 쓴 index.json 의 메타데이터(템플릿 · 발화 수 · 예상 경보 수). 없어도 동작한다. */
 const catalog = {
   async load() {
@@ -470,6 +752,7 @@ const catalog = {
       if (r.ok) for (const sc of ((await r.json()) || {}).scripts || []) state.catalog.set(sc.script_ref, sc);
     } catch { /* 카탈로그 없음 — script_ref 만 보여 준다 */ }
     this.fillScriptSel();
+    home.render();
   },
   meta(ref) { return state.catalog.get(ref) || null; },
   label(ref) { const m = this.meta(ref); return m ? `${ref} · ${m.template} · ${m.n_utterances}발화 · 예상 경보 ${m.n_expected_alerts}건` : ref; },
@@ -506,10 +789,10 @@ function refreshButtons() {
   $('purgeBtn').disabled = !(sess && state.role === 'admin');
   $('loadDlq').disabled = !(authed && state.role === 'admin');
 }
-$('loginBtn').addEventListener('click', async () => {
+async function login() {
   const body = { tenant_slug: $('tenant').value.trim(), email: $('email').value.trim(), password: $('password').value };
   const out = await tryApi('POST', '/v1/auth/token', body);
-  if (!out) return;
+  if (!out) return false;
   state.token = out.access_token;
   const me = await tryApi('GET', '/v1/me');
   state.role = (me && (me.role || (me.principal && me.principal.role))) || $('demoAccount').value;
@@ -520,7 +803,9 @@ $('loginBtn').addEventListener('click', async () => {
   refreshButtons();
   await catalog.load();
   sessions.refresh(state.sessionId);
-});
+  return true;
+}
+$('loginBtn').addEventListener('click', () => login());
 
 /* ───────────────────────── 세션 · 환자 · 동의 ───────────────────────── */
 const sessions = {
@@ -1258,6 +1543,8 @@ $('loadDlq').addEventListener('click', () => ops.loadDlq());
 $('banner').textContent = SYNTHETIC_BANNER;
 refreshButtons();
 tour.render();
+banner.init();
+intro.show(true);
 catalog.load();
 window.addEventListener('beforeunload', () => { if (recorder && !recorder.done) recorder.finish('page_unload'); viewer.disconnect(); });
 </script>

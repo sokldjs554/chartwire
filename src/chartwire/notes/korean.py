@@ -42,6 +42,43 @@ _CONTRACTED_STEMS = {
     "불러": "부르",
     "그래": "그렇",
     "어때": "어떻",
+    "쉬어": "쉬",
+}
+# ㅂ-irregular predicates: the contracted ``X워/X와`` hides a ㅂ stem (``어지러워`` → ``어지럽``) that the
+# vowel arithmetic below would read as a ㅜ-stem verb (``어지러운다고``). Table = (stem, is_adjective).
+_BIEUP_IRREGULAR: dict[str, tuple[str, bool]] = {
+    "어지러워": ("어지럽", True),
+    "어려워": ("어렵", True),
+    "쉬워": ("쉽", True),
+    "무서워": ("무섭", True),
+    "두려워": ("두렵", True),
+    "괴로워": ("괴롭", True),
+    "외로워": ("외롭", True),
+    "즐거워": ("즐겁", True),
+    "반가워": ("반갑", True),
+    "고마워": ("고맙", True),
+    "더워": ("덥", True),
+    "추워": ("춥", True),
+    "가벼워": ("가볍", True),
+    "무거워": ("무겁", True),
+    "시끄러워": ("시끄럽", True),
+    "부드러워": ("부드럽", True),
+    "차가워": ("차갑", True),
+    "뜨거워": ("뜨겁", True),
+    "간지러워": ("간지럽", True),
+    "가려워": ("가렵", True),
+    "부끄러워": ("부끄럽", True),
+    "그리워": ("그립", True),
+    "미워": ("밉", True),
+    "새로워": ("새롭", True),
+    "지겨워": ("지겹", True),
+    "아까워": ("아깝", True),
+    "안타까워": ("안타깝", True),
+    "서러워": ("서럽", True),
+    "매워": ("맵", True),
+    "누워": ("눕", False),
+    "주워": ("줍", False),
+    "도와": ("돕", False),
 }
 # stems (after decontraction) that take 다고/다 rather than ㄴ다고/는다고.
 _ADJECTIVE_STEMS = frozenset(
@@ -81,7 +118,22 @@ _ADJECTIVE_BATCHIM_STEMS = frozenset(
 )
 # endings whose stem is not recoverable by the rules below (ㄹ-drop before 네, sentence-final
 # particles, the promissive 게요); they fall back to the direct-quotation form.
-_UNHANDLED_ENDINGS = ("네요", "거든요", "잖아요", "데요", "고요", "까요", "게요", "죠")
+# ``해서요`` / ``어서요`` / ``라서요`` are connective fragments (``…가보라고 해서요``), not predicates; the particle
+# ``에서요`` (``회사에서요``) is handled by ``_PARTICLE_ENDINGS`` below and must not be caught here.
+_UNHANDLED_ENDINGS = (
+    "네요",
+    "거든요",
+    "잖아요",
+    "데요",
+    "고요",
+    "까요",
+    "게요",
+    "죠",
+    "해서요",
+    "어서요",
+    "아서요",
+    "라서요",
+)
 # 조사로 끝나는 명사구 + 요 (``4주 전부터요``, ``작년까지요``): 마지막 음절이 열린 음절이라 아래의 어간 규칙이
 # 동사로 오해해 ``부턴다고 함`` 을 만든다. 용언이 아니므로 활용하지 않고 인용형 ``…라고 함`` 으로 보고한다.
 # 단음절 조사(가·나·이·로·도·만)는 동사 어간의 끝음절과 겹치므로(``가요`` 는 ``간다고 함``) 판정하지 않는다.
@@ -126,6 +178,9 @@ def _stem(body: str) -> tuple[str, bool] | None:
                 plain == "하" and any(stem[:-1].endswith(n) for n in _ADJECTIVE_HA_NOUNS)
             )
             return stem, adjective
+    for contracted, (plain, adjective) in _BIEUP_IRREGULAR.items():
+        if body.endswith(contracted):
+            return body[: -len(contracted)] + plain, adjective
     parts = _syllable(body[-1])
     if parts is None or parts[2] != 0 or parts[1] not in _DECONTRACT:
         return None

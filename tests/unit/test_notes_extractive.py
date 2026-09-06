@@ -117,6 +117,15 @@ def test_coverage_is_one_by_construction(utterances: list[tuple[str, str]]):
         ("에스시탈로프람 10mg 먹고 있어요", "medication"),
         ("한 3주 됐어요", "duration"),
         ("3주 전부터요", "duration"),
+        # 주호소별 발화 (vocab_ko.ChiefComplaint)
+        ("확인하는 데만 하루 3시간은 써요", "compulsion"),
+        ("문을 잠갔는지 계속 확인하러 돌아가요", "compulsion"),
+        ("공황이 한 번 오면 20분쯤 가요", "anxiety"),
+        ("출근만 생각하면 가슴이 답답해요", "anxiety"),
+        ("회의 중에 딴생각이 훨씬 줄었어요", "concentration"),
+        ("물건을 어디 뒀는지 자꾸 잊어버려요", "concentration"),
+        ("소화가 안 되고 머리가 자주 아파요", "somatic"),
+        ("잠을 못 자니까 낮에 머리가 멍해요", "sleep"),
     ],
 )
 def test_every_spec_10_1_fact_utterance_has_a_cue_family(text: str, family: str):
@@ -152,6 +161,20 @@ def test_repeated_utterance_is_charted_once():
     segs = session(*[("patient", "한 3주 됐어요")] * 5, ("patient", "입맛이 없어요"))
     d = build_draft(segs)
     assert [st.evidence[0].seq for st in d.statements] == [1, 6]
+
+
+def test_quantified_statement_outranks_vague_ones_in_its_family():
+    """Twelve vague sleep lines come first; the one with a number is still charted (cap 12, one family)."""
+    vague = [
+        ("patient", f"잠이 안 와서 {w} 뒤척여요")
+        for w in ("계속", "자꾸", "매일", "밤새", "새벽까지", "한참")
+    ]
+    vague += [("patient", f"잠들기가 {w} 힘들어요") for w in ("너무", "정말", "진짜", "요즘", "계속", "늘")]
+    segs = session(*vague, ("patient", "하루에 5시간밖에 못 자요"))
+    d = build_draft(segs, max_per_section=12)
+    quotes = [st.evidence[0].quote for st in d.statements]
+    assert "하루에 5시간밖에 못 자요" in quotes and len(d.statements) == 12
+    assert [st.evidence[0].seq for st in d.statements] == sorted(st.evidence[0].seq for st in d.statements)
 
 
 def test_scarce_families_get_a_slot_before_a_repeated_early_phase():

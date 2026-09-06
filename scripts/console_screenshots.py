@@ -3,9 +3,10 @@
     chartwire serve all --embedded --port 8000 &          # seeded demo (make demo)
     python scripts/console_screenshots.py [--base http://127.0.0.1:8000] [--out docs/images] [--speed 4]
 
-Flow (spec §13.3): login as the demo clinician → create a session (가상환자-NNNN, script s01) → open the
-viewer → start the JS recorder → risk banner → session end → SOAP draft → consent revoke → **re-login as
-the demo admin** → purge receipt → "복호화 시도" → Ops. The role switch is not cosmetic: ``rbac.MATRIX``
+Flow (spec §13.3): login as the demo clinician → create a session (가상환자-NNNN; ``--script auto`` picks the
+first demo script whose catalog entry expects an alert, and the recorder length follows that script's
+``total_ms``) → open the viewer → start the JS recorder → risk banner → session end → SOAP draft →
+consent revoke → **re-login as the demo admin** → purge receipt → "복호화 시도" → Ops. The role switch is not cosmetic: ``rbac.MATRIX``
 lets a clinician revoke a consent but only ``admin``/``auditor`` may read ``GET /v1/purge-jobs/{id}`` and
 call ``verify-decrypt`` (a clinician gets 403), and the Ops panel needs ``admin`` for the DLQ list.
 
@@ -57,16 +58,39 @@ def wait_text(page: Page, selector: str, needle: str, timeout_s: float) -> str:
     raise TimeoutError(f"{selector!r} never contained {needle!r} (last: {text[:120]!r})")
 
 
+def pick_script(page: Page, base: str, script: str, duration_s: int | None) -> tuple[str, int]:
+    """Resolve ``auto`` against ``/console/scripts.json`` (the catalog ``seed --demo`` wrote).
+
+    ``auto`` → the first script with an expected alert (the flow waits for the risk banner); a missing
+    duration → that script's ``total_ms`` plus a 2 s tail, so the recorder covers the whole consultation.
+    """
+    catalog: dict[str, dict[str, int]] = {}
+    try:
+        res = page.request.get(f"{base}/console/scripts.json")
+        if res.ok:
+            catalog = {row["script_ref"]: row for row in res.json().get("scripts", [])}
+    except Exception:
+        catalog = {}  # the catalog is optional: fall back to s01 / 180 s
+    if script == "auto":
+        script = next(
+            (ref for ref in sorted(catalog) if catalog[ref].get("n_expected_alerts", 0) >= 1), "s01"
+        )
+    if duration_s is None:
+        duration_s = int(catalog[script]["total_ms"] / 1000) + 2 if script in catalog else 180
+    return script, duration_s
+
+
 def run(
     base: str,
     out: Path,
     speed: float,
-    duration_s: int,
+    duration_s: int | None,
     chromium: str | None,
     patient: str,
     admin_email: str = "admin@demo.clinic",
     video_dir: Path | None = None,
     shots: bool = True,
+    script: str = "auto",
 ) -> int:
     out.mkdir(parents=True, exist_ok=True)
     errors: list[str] = []
@@ -79,6 +103,7 @@ def run(
             record_video_size={"width": 1440, "height": 1000} if video_dir else None,
         )
         page = context.new_page()
+        script, duration_s = pick_script(page, base, script, duration_s)
 
         def shot(name: str, *, keep_scroll: bool = False) -> None:
             if not shots:
@@ -102,12 +127,12 @@ def run(
         page.click("#loginBtn")
         wait_text(page, "#who", "clinician", 10)
 
-        # a fresh session for the run: patient by exact blind-index name, script s01
+        # a fresh session for the run: patient by exact blind-index name, the chosen script
         page.click("details > summary")
         page.fill("#patientName", patient)
         page.click("#findPatient")
         wait_text(page, "#patientInfo", "consent=", 10)
-        page.select_option("#scriptSel", "s01")
+        page.select_option("#scriptSel", script)
         page.click("#createSession")
         session_id = wait_until(lambda: page.input_value("#sessionSel") or None, 10)
 
@@ -128,7 +153,7 @@ def run(
         page.wait_for_timeout(6_000)
         shot(SHOTS[1])
 
-        # live chart: transcript lines and the risk banner (s01 carries one alert late in the script)
+        # live chart: transcript lines and the risk banner (the chosen script expects at least one alert)
         page.click("button[data-tab='live']")
         page.wait_for_selector("#liveTranscript .seg", timeout=30_000)
         page.wait_for_selector("#risk.show", timeout=int((duration_s / speed + 30) * 1000))
@@ -168,20 +193,25 @@ def run(
         page.click("#verifyDecrypt")
         wait_text(page, "#verifyOut", "failed", 15)
         page.wait_for_timeout(400)
-        # 토스트는 5 s 뒤 사라지는 순간적인 안내라 정적 캡처에서는 걷어내고, 영수증과 판정이 화면에 들어오게 스크롤한다
-        page.evaluate("() => { document.getElementById('toasts').innerHTML = ''; }")
-        # 영수증은 문서다: 960 px 아래의 1열 레이아웃에서 전체 폭으로 찍어야 표가 읽힌다 (사이드 패널 360 px 는 좁다)
-        page.set_viewport_size(
-            {"width": 900, "height": 1400}
-        )  # 합계 · 검증 · 해시 · 판정까지 한 장에 (단계는 접혀 있다)
-        page.locator("#verifyOut").scroll_into_view_if_needed()
-        page.evaluate(
-            "() => window.scrollTo(0, window.scrollY + document.getElementById('receipt').getBoundingClientRect().top - 44)"
-        )  # 44 px = 고정 배너 높이 — 영수증 제목이 배너 밑에 숨지 않게
-        page.wait_for_timeout(300)
-        shot(SHOTS[4], keep_scroll=True)  # 영수증 위치를 그대로 찍는다
-        page.set_viewport_size({"width": 1440, "height": 1000})
-        page.evaluate("() => window.scrollTo(0, 0)")
+        if shots:
+            # 토스트는 5 s 뒤 사라지는 순간적인 안내라 정적 캡처에서는 걷어내고, 영수증과 판정이 화면에 들어오게 스크롤한다
+            page.evaluate("() => { document.getElementById('toasts').innerHTML = ''; }")
+            # 영수증은 문서다: 960 px 아래의 1열 레이아웃에서 전체 폭으로 찍어야 표가 읽힌다 (사이드 패널 360 px 는 좁다).
+            # 영상(--no-shots)에서는 뷰포트를 바꾸지 않는다 — 녹화 프레임은 1440×1000 으로 고정이라 검은 여백만 남는다.
+            page.set_viewport_size(
+                {"width": 900, "height": 1400}
+            )  # 합계 · 검증 · 해시 · 판정까지 한 장에 (단계는 접혀 있다)
+            page.locator("#verifyOut").scroll_into_view_if_needed()
+            page.evaluate(
+                "() => window.scrollTo(0, window.scrollY + document.getElementById('receipt').getBoundingClientRect().top - 44)"
+            )  # 44 px = 고정 배너 높이 — 영수증 제목이 배너 밑에 숨지 않게
+            page.wait_for_timeout(300)
+            shot(SHOTS[4], keep_scroll=True)  # 영수증 위치를 그대로 찍는다
+            page.set_viewport_size({"width": 1440, "height": 1000})
+            page.evaluate("() => window.scrollTo(0, 0)")
+        else:
+            page.locator("#verifyOut").scroll_into_view_if_needed()  # 영상에는 판정표가 보이게만 한다
+            page.wait_for_timeout(1_500)
 
         page.click("button[data-tab='ops']")
         page.check("#opsPoll")
@@ -195,6 +225,8 @@ def run(
         browser.close()
 
     summary = {
+        "script": script,
+        "duration_s": duration_s,
         "session_id": session_id,
         "purge_job_id": job_id,
         "video": str(video_path) if video_path else None,
@@ -210,7 +242,17 @@ def main() -> int:
     parser.add_argument("--base", default="http://127.0.0.1:8000")
     parser.add_argument("--out", type=Path, default=Path("docs/images"))
     parser.add_argument("--speed", type=float, default=4.0)
-    parser.add_argument("--duration", type=int, default=152, help="recorder length in seconds (s01 ≈ 151 s)")
+    parser.add_argument(
+        "--script",
+        default="auto",
+        help="demo script_ref; auto = first script whose catalog entry expects an alert",
+    )
+    parser.add_argument(
+        "--duration",
+        type=int,
+        default=None,
+        help="recorder length in seconds (default: the script's total_ms + 2 s)",
+    )
     parser.add_argument("--chromium", default=None, help="Chromium executable (default: Playwright's)")
     parser.add_argument("--patient", default="가상환자-0002")
     parser.add_argument("--admin", default="admin@demo.clinic", help="purge receipt / Ops 는 admin 권한")
@@ -227,6 +269,7 @@ def main() -> int:
         admin_email=args.admin,
         video_dir=args.video_dir,
         shots=not args.no_shots,
+        script=args.script,
     )
 
 

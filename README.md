@@ -125,7 +125,7 @@ Q2 는 **같은 SQL 이 실행 역할에 따라 다른 플랜을 받는다**는 
 <!-- /row -->
 <!-- row:eval.inject -->| 환각 주입 검출률 — fabricated / seq / diagnosis / number / drug / negation / speaker | <!-- num:eval.inject.fabricated.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.seq.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.diagnosis.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.number.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.drug.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.negation.detection_rate -->0.99<!-- /num --> / <!-- num:eval.inject.speaker.detection_rate -->1.00<!-- /num --> | 클래스당 <!-- num:eval.inject.n_per_class -->200<!-- /num --> 변이, 오탐(false flag) <!-- num:eval.inject.false_flag_rate -->0.000<!-- /num --> — **구성상 높다**: 변이를 검증기와 **같은** 사전·정규식(`DRUGS`/`DIAGNOSES`, `NEGATION_RE`, `NUMERIC_UNIT_RE`)에서 뽑으므로 규칙 배선의 회귀 점검이지 사전 밖 표현에 대한 일반화 근거가 아니다 |
 <!-- /row -->
-<!-- row:eval.paraphrase -->| 패러프레이즈 오거부율 | <!-- num:eval.paraphrase.false_rejection_rate -->0.013<!-- /num --> | 검증기가 정직한 바꿔쓰기를 얼마나 거부하는가 (잔여 원인: `docs/eval/README.md`) |
+<!-- row:eval.paraphrase -->| 패러프레이즈 오거부율 | <!-- num:eval.paraphrase.false_rejection_rate -->0.011<!-- /num --> | 검증기가 정직한 바꿔쓰기를 얼마나 거부하는가 (잔여 원인: `docs/eval/README.md`) |
 <!-- /row -->
 <!-- row:eval.injection -->| 프롬프트 주입 누출 (<!-- num:eval.injection.n_sessions -->20<!-- /num --> 세션) | <!-- num:eval.injection.leaks -->0<!-- /num --> | 주입 발화가 초안 문장·근거로 새어 나온 수. **구성상 낮다** — 규칙 8 정규식을 §9.5 주입 6문장의 표면형까지 넓혔고 평가가 재생하는 문장이 정확히 그 6문장이다. 위험 탐지와 달리 **held-out 주입 세트가 없다**; 회귀 점검용([`docs/grounding.md`](docs/grounding.md) §7) |
 <!-- /row -->
@@ -145,11 +145,11 @@ Q2 는 **같은 SQL 이 실행 역할에 따라 다른 플랜을 받는다**는 
 
 ![chartwire 데모: 로그인 → 녹음 → 라이브 전사와 위험 경보 → SOAP 초안 → 동의 철회 → 파기 영수증 → 복호화 시도 실패](docs/images/demo.gif)
 
-*한 세션의 전 과정입니다(약 40초, 12 fps): 로그인 → 녹음 시작(스크립트 재생 4배속) → 라이브 전사와 위험 경보 → 근거가 하이라이트된 SOAP 초안 → 동의 철회 → 파기 영수증 → **복호화 시도 실패**. 연출이 아니라 Playwright 가 실제로 띄운 서버(`make demo`)를 몰아서 녹화한 화면이고, 등속입니다. 화면 위 **SYNTHETIC** 배너는 모든 장면에 그대로 있습니다.*
+*한 세션의 전 과정입니다(약 45초, 12 fps): 홈 화면 → 로그인 → 세션 생성(재진 약물조정 대본) → 녹음 시작(스크립트 재생 4배속) → 라이브 전사와 위험 경보 → 근거가 하이라이트된 SOAP 초안 → 동의 철회 → 파기 영수증 → **복호화 시도 실패**. 연출이 아니라 Playwright 가 실제로 띄운 서버(`make demo`)를 몰아서 녹화한 화면이고, 등속입니다. 화면 위 **SYNTHETIC** 배너는 모든 장면에 그대로 있습니다.*
 
-콘솔을 처음 열면 **소개 화면**이 먼저 나옵니다 — 무엇을 만든 것인지, 5분 투어 5단계, 역할별 데모 계정, 무료 인스턴스 주의사항. 헤더 아래의 단계 표시가 진행을 따라갑니다.
+콘솔을 처음 열면 **홈 화면**이 먼저 나옵니다 — 환영 문구, 기능 검색(검색어를 치고 Enter 를 누르면 그 기능으로 들어갑니다), 배너, 서비스 카드 8장, 주호소별 대본 카드, 5분 투어 5단계, 역할별 데모 계정, 무료 인스턴스 주의사항. 카드·배너·검색으로 들어가면 필요한 데모 계정으로 자동 로그인되고, 헤더의 "홈"으로 언제든 돌아옵니다. 헤더 아래의 단계 표시가 진행을 따라갑니다. 대본 20개는 8가지 주호소(초진 우울 · 재진 약물조정 · 불안/공황 · 불면 · 성인 ADHD 추적 · 적응/스트레스 · 알코올 · 강박)를 순환 배정한 것이라 어느 것을 골라도 **질문·답·계획·경보·초안이 다릅니다**(`synth/grammar.py`, [`docs/dev/e2e.md`](docs/dev/e2e.md) §6).
 
-![소개 화면 — 5분 투어와 데모 계정](docs/images/00_intro.png)
+![홈 화면 — 환영 문구, 기능 검색, 배너, 서비스 카드](docs/images/00_intro.png)
 
 | | |
 |---|---|

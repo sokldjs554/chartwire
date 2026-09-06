@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 from collections import Counter
 from itertools import pairwise
 from pathlib import Path
@@ -136,6 +137,68 @@ def test_pii_and_injection_rates(eval_set: list[Script]) -> None:
         for idx in s.meta.injection_utterances:
             u = s.utterances[idx]
             assert u.speaker == "patient" and u.gold.section_label == "none" and u.gold.risk is None
+
+
+def test_demo_profile_covers_every_chief_complaint_in_order() -> None:
+    demo = generate_set("demo", 20)
+    names = [c.name for c in grammar.v.CHIEF_COMPLAINTS]
+    assert [s.template for s in demo] == [names[i % 8] for i in range(20)]
+    # the eval profile draws the template from the script RNG instead — every template still appears
+    assert {s.template for s in generate_set("eval", 40)} == set(names)
+
+
+@pytest.mark.parametrize("chief", grammar.v.CHIEF_COMPLAINTS, ids=lambda c: c.name)
+def test_dialogue_follows_the_chief_complaint(chief: grammar.v.ChiefComplaint) -> None:
+    """The greeting probes the complaint, its detail lines are spoken, brief phases get no follow-up."""
+    for seed in range(5):
+        utts = grammar.build_session(random.Random(seed), chief, None)
+        texts = [u.text for u in utts]
+        assert texts[0] == grammar.v.QUESTIONS["greeting"][1 if chief.revisit else 0]
+        assert any(t in chief.probes for t in texts), chief.name
+        rendered_detail = {grammar.render(t, random.Random(0), chief.drugs)[0] for t in chief.detail}
+        detail_prefixes = tuple(t.text.split("{")[0] for t in chief.detail)
+        assert sum(t.startswith(detail_prefixes) for t in texts) >= 2, (chief.name, rendered_detail)
+        plan_prefixes = tuple(t.text.split("{")[0] for t in chief.plans)
+        assert any(t.startswith(plan_prefixes) for t in texts), chief.name
+        for key in chief.brief:
+            answers = {t.text for t in grammar.v.BRIEF_ANSWERS[key]}
+            idx = next(i for i, t in enumerate(texts) if t in answers)
+            assert utts[idx + 1].speaker == "clinician" and utts[idx + 1].text not in grammar.v.FOLLOW_UPS
+        if not chief.on_medication:
+            assert not any(t.endswith("그대로 유지하겠습니다") or "올려보겠습니다" in t for t in texts)
+            assert texts.count(grammar.v.QUESTIONS["medication"][0]) == 0
+        for u in utts:
+            for fact in u.facts:
+                if fact["type"] in ("medication", "plan_medication") and chief.drugs:
+                    assert fact["name"] in chief.drugs
+
+
+def test_two_chief_complaints_read_differently() -> None:
+    """Same seed, different complaint → the patient talks about *that* complaint (not just the opening)."""
+    names = {c.name: c for c in grammar.v.CHIEF_COMPLAINTS}
+
+    def patient_lines(name: str) -> list[str]:
+        utts = grammar.build_session(random.Random(3), names[name], None)
+        return [u.text for u in utts if u.speaker == "patient"]
+
+    insomnia, alcohol = patient_lines("불면"), patient_lines("알코올")
+    sleep, drink = re.compile(r"잠|자요|수면|깨서"), re.compile(r"술|소주|맥주")
+    assert sum(bool(sleep.search(t)) for t in insomnia) >= 5
+    assert sum(bool(drink.search(t)) for t in alcohol) >= 5
+    assert sum(bool(drink.search(t)) for t in insomnia) <= 2  # one standard 음주 answer at most
+    assert sum(bool(sleep.search(t)) for t in alcohol) <= 4  # a standard 수면 phase, no more
+
+
+def test_plan_action_and_starting_dose() -> None:
+    assert grammar.plan_action("리튬을 600mg으로 올려보겠습니다") == "increase"
+    assert grammar.plan_action("리튬을 300mg으로 줄여보겠습니다") == "decrease"
+    assert grammar.plan_action("리튬을 300mg부터 처방하겠습니다") == "start"
+    assert grammar.plan_action("리튬은 그대로 유지하겠습니다") == "keep"
+    start = next(t for c in grammar.v.CHIEF_COMPLAINTS for t in c.plans if "처방" in t.text)
+    for seed in range(20):
+        _text, facts = grammar.render(start, random.Random(seed), ("에스시탈로프람", "서트랄린"))
+        assert facts[0]["action"] == "start" and facts[0]["name"] in ("에스시탈로프람", "서트랄린")
+        assert facts[0]["dose"] == grammar.v.DRUGS[str(facts[0]["name"])][0] + "mg"
 
 
 def test_render_fills_drug_slots_with_particles() -> None:

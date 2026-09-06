@@ -1,7 +1,7 @@
 {
   "seed": 42,
-  "git_sha": "115257b73a0c463059158e02132bdae493c90282-dirty",
-  "generated_at": "2026-09-06T07:42:41+00:00",
+  "git_sha": "71968d073c74756a50b0389ef02c15ddb23c9600-dirty",
+  "generated_at": "2026-09-06T09:28:43+00:00",
   "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
   "ram_gb": 15.7,
   "python": "3.11.15",
@@ -9,57 +9,57 @@
   "verifier_version": "rules-8.v1",
   "n_sessions": 200,
   "passes": 3,
-  "n_statements": 5927,
-  "rejected": 74,
-  "false_rejection_rate": 0.0125,
+  "n_statements": 5948,
+  "rejected": 66,
+  "false_rejection_rate": 0.0111,
   "by_transform": [
     {
       "transform": "ending_plain",
-      "total": 1316,
+      "total": 1299,
       "rejected": 0,
       "rate": 0.0,
       "reasons": {}
     },
     {
       "transform": "ending_formal",
-      "total": 1333,
+      "total": 1340,
       "rejected": 0,
       "rate": 0.0,
       "reasons": {}
     },
     {
       "transform": "particle_swap",
-      "total": 257,
+      "total": 294,
       "rejected": 0,
       "rate": 0.0,
       "reasons": {}
     },
     {
       "transform": "synonym",
-      "total": 74,
-      "rejected": 74,
+      "total": 66,
+      "rejected": 66,
       "rate": 1.0,
       "reasons": {
-        "negation_mismatch": 74
+        "negation_mismatch": 66
       }
     },
     {
       "transform": "merge",
-      "total": 1273,
+      "total": 1252,
       "rejected": 0,
       "rate": 0.0,
       "reasons": {}
     },
     {
       "transform": "number_word",
-      "total": 505,
+      "total": 440,
       "rejected": 0,
       "rate": 0.0,
       "reasons": {}
     },
     {
       "transform": "honorific_drop",
-      "total": 1169,
+      "total": 1257,
       "rejected": 0,
       "rate": 0.0,
       "reasons": {}
@@ -68,7 +68,7 @@
   "residual_causes": [
     {
       "cause": "synonym:negation_mismatch",
-      "count": 74
+      "count": 66
     }
   ]
 }

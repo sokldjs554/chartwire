@@ -61,10 +61,30 @@ def test_slot_templates_declare_every_placeholder() -> None:
         + v.ALCOHOL
         + v.PLANS
         + v.DURATION
+        + tuple(t for c in v.CHIEF_COMPLAINTS for t in c.templates())
+        + tuple(t for pool in v.BRIEF_ANSWERS.values() for t in pool)
     )
     for t in pools:
         for name in re.findall(r"{(\w+)}", t.text):
             assert name in t.slots or name in {"drug", "dose", "drug_eul", "drug_eun"}, (t.text, name)
+
+
+def test_chief_complaints_shape_a_session() -> None:
+    """Every template has a probe, detail answers, a complaint-specific plan and plausible drugs."""
+    phase_keys = {"sleep", "appetite", "mood", "concentration", "medication", "alcohol"}
+    for c in v.CHIEF_COMPLAINTS:
+        assert c.probes and all(p.endswith("?") for p in c.probes), c.name
+        assert len(c.detail) >= 3 and c.plans, c.name
+        assert c.focus <= phase_keys and c.brief <= phase_keys and not (c.focus & c.brief), c.name
+        assert set(c.extra) <= phase_keys and set(c.override) <= phase_keys, c.name
+        assert all(d in v.DRUGS for d in c.drugs), c.name
+        for t in c.detail:
+            assert t.section == "S", (c.name, t.text)
+        for t in c.plans:
+            assert t.section == "P", (c.name, t.text)
+        for t in c.observations:
+            assert t.section == "O", (c.name, t.text)
+    assert set(v.BRIEF_ANSWERS) == phase_keys
 
 
 def test_synthetic_identities() -> None:

@@ -27,7 +27,7 @@ from tests.integration.api_support import build_app, client, headers, make_deps,
 pytestmark = pytest.mark.integration
 
 SKIP_PREFIXES = ("/console", "/docs", "/openapi")
-SKIP_PATHS = ("/",)  # 루트 → /console 302: 탐색용, API 가 아니다
+SKIP_PATHS = ("/", "/favicon.ico")  # 루트 → /console 302, 탭 아이콘: 탐색용, API 가 아니다
 
 
 def api_routes(app: FastAPI) -> list[APIRoute]:

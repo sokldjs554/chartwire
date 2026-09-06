@@ -42,10 +42,14 @@ CUE_FAMILIES: tuple[tuple[str, str], ...] = (
     ("medication", r"약|복용|부작용|mg|먹고"),
     ("alcohol", r"술|소주|맥주"),
     ("appetite", r"입맛|식욕|빠졌|체중"),
-    ("anxiety", r"불안|두근"),
-    ("concentration", r"집중"),
+    # 주호소별 발화(§10.1 ChiefComplaint)의 cue: 확인·씻 (강박 — ``문을 잠갔는지`` 의 ``잠`` 보다 먼저 본다), 공황·긴장·
+    # 걱정·답답·공포 (불안/공황 · 적응), 실수·딴생각·깜빡·잊어버·마감 (성인 ADHD), 소화·두통·어깨 (적응/스트레스의 신체 증상)
+    ("compulsion", r"확인|씻|강박|떠올라"),
+    ("anxiety", r"불안|두근|공황|숨이|긴장|걱정|답답|공포"),
+    ("concentration", r"집중|실수|딴생각|깜빡|잊어버|마감"),
     ("mood", r"기분|우울|피곤|기운"),
     ("sleep", r"잠|수면|자요|깨서"),
+    ("somatic", r"소화|두통|머리가|어깨|속이"),
     # §10.1 fact utterances without a §9.2 cue (WP-F request 3 + 품질 패스 2): 새벽에 깨서 / 하루 N시간 /
     # N kg 빠졌 / 소주 N병 / {drug} {dose}mg 먹고 / N주 정도 됐어요 · N주 전부터요 (duration)
     ("duration", r"됐어요|됐고|된 것 같|정도 됐|주 전부터"),
@@ -136,16 +140,28 @@ def build_draft(segments: Iterable[SegmentView], *, max_per_section: int = 12) -
     return NoteDraftOut(statements=statements)
 
 
+_QUANTIFIED = re.compile(r"\d")
+
+
 def _select(buckets: dict[str, list[SegmentView]], limit: int) -> list[SegmentView]:
-    """≤``limit`` segments: one per cue family (scarcest first) per round, then the next round."""
+    """≤``limit`` segments: one per cue family (scarcest first) per round, then the next round.
+
+    Within a family a *quantified* statement (``10mg``, ``5시간``, ``3kg``, ``일주일에 5일``) outranks a vague
+    one at the same depth — the measurable fact is what the note needs when the ≤12 cap bites; the
+    output order is still by ``seq``.
+    """
     order = [name for name, _ in CUE_FAMILIES if name in buckets]
     order += [name for name in buckets if name not in order]
+    ranked = {
+        name: sorted(items, key=lambda s: (not _QUANTIFIED.search(s.text), s.seq))
+        for name, items in buckets.items()
+    }
     picked: list[SegmentView] = []
     depth = 0
     while len(picked) < limit:
         progressed = False
         for name in order:
-            items = buckets[name]
+            items = ranked[name]
             if depth < len(items):
                 picked.append(items[depth])
                 progressed = True

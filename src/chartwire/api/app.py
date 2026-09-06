@@ -233,6 +233,14 @@ def console_path(settings: Settings | None = None) -> Path | None:
 # ------------------------------------------------------------------ factory
 
 
+_FAVICON_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
+    '<rect width="32" height="32" rx="7" fill="#2456c9"/>'
+    '<path d="M6 17h4l3-7 3 13 3-9 2 3h5" fill="none" stroke="#fff" stroke-width="2.5" '
+    'stroke-linecap="round" stroke-linejoin="round"/></svg>'
+)
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     ws_routes = _optional("chartwire.ws.routes")
@@ -292,6 +300,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if index is None:
             raise AppError("CW-4040", 404, "console/index.html 이 없습니다")
         return FileResponse(index, media_type="text/html; charset=utf-8")
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon() -> Response:
+        """탭 아이콘 — 브라우저가 항상 요청하므로 404 로 콘솔 오류를 남기지 않는다 (인라인 SVG, 외부 자원 없음)."""
+        return Response(
+            _FAVICON_SVG, media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=86400"}
+        )
 
     @app.get("/console/scripts.json", include_in_schema=False)
     async def console_scripts() -> Response:

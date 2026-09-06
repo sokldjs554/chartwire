@@ -93,7 +93,7 @@ Decision{status, reason}
 
 | 보고서 | 무엇 | 이 문서의 입장 |
 |---|---|---|
-| `grounding.json` | 추출형 coverage(=1.0, 부록), gold facts 대비 fact recall, 기권율 | recall 은 **프로바이더의 재현율 한계**를 드러낸다 — 원인은 단서 목록이 아니라 **§9.2 의 섹션당 12문장 상한**이다 (`extractive.py` 의 medication 단서에는 품질 패스 이후 `mg`·`먹고` 가 들어 있고, `grounding.json` 의 medication recall 은 0 이 아니다). `section_counts` 의 S 는 200 세션 전부에서 12 로 상한에 걸린다. 가족별로 한 문장씩 먼저 뽑아 어느 유형도 0 은 아니지만 duration 이 골드의 절반이라 총합을 좌우한다 — 유형별 표가 정직한 읽기다 ([`eval/README.md`](eval/README.md) 해석 규칙 2, [`limitations.md`](limitations.md) §1) |
+| `grounding.json` | 추출형 coverage(=1.0, 부록), gold facts 대비 fact recall, 기권율 | recall 은 **프로바이더의 재현율 한계**를 드러낸다 — 원인은 단서 목록이 아니라 **§9.2 의 섹션당 12문장 상한**이다 (`extractive.py` 의 medication 단서에는 품질 패스 이후 `mg`·`먹고` 가 들어 있고, `grounding.json` 의 medication recall 은 0 이 아니다). `section_counts` 의 S 는 200 세션 전부에서 12 로 상한에 걸린다. 가족별로 한 문장씩 먼저 뽑고 같은 가족 안에서는 숫자가 있는 문장을 먼저 뽑아 어느 유형도 0 은 아니지만 duration 이 골드의 절반이라 총합을 좌우한다 — 유형별 표가 정직한 읽기다 ([`eval/README.md`](eval/README.md) 해석 규칙 2, [`limitations.md`](limitations.md) §1) |
 | `paraphrase.json` | 변형별 거짓 기각률 | 동의어 변형 중 부정을 명사로 흡수하는 3쌍은 규칙 5 에 걸린다. 규칙을 느슨하게 하지 않는다 |
 | `inject.json` | 7 변이 × 200 탐지율, 사유 분포 | `speaker_swap` 은 규칙 3·5 가 먼저 잡는 경우가 많다 — 탐지는 되지만 사유가 `speaker_mismatch` 가 아닐 수 있다 |
 | `injection.json` | `injection_leaks` | 스키마 + 규칙 7 + 규칙 8 |

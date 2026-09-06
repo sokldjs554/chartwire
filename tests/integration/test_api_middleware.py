@@ -147,6 +147,10 @@ async def test_body_limit_cors_and_console(api, tenant_a, settings):
     )
     page = await api.get("/console")
     assert page.status_code == 200 and page.headers["content-type"].startswith("text/html")
+    icon = await api.get("/favicon.ico")
+    assert icon.status_code == 200 and icon.headers["content-type"].startswith("image/svg+xml"), (
+        "the tab icon must not leave a 404 in the browser console"
+    )
     catalog = await api.get("/console/scripts.json")
     assert catalog.status_code == 200 and isinstance(catalog.json().get("scripts"), list), (
         "대본 카탈로그는 항상 목록"

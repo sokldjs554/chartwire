@@ -8,6 +8,10 @@ Design decisions recorded here (spec §10.2 / §10.3):
 
 * A script is a pure function of ``(base_seed, script_ref)``: the per-script
   RNG is seeded with ``sha256(f"{seed}:{script_ref}")``.
+* The chief complaint shapes the whole dialogue (:mod:`grammar`): the eval
+  profile draws it at random per script (distribution over the 8 templates);
+  the demo profile assigns it round-robin (``s01`` = 초진 우울 … ``s08`` = 강박,
+  ``s09`` = 초진 우울 …) so the 20 console scripts cover every template.
 * Every session carries the clinician's risk question (kind
   ``clinician_question``).  In 50 % of sessions the patient's 위험 평가 answer
   is a *positive* case plus 0–2 further positives elsewhere (≈220 alert-worthy
@@ -176,10 +180,21 @@ def _timed(utts: list[grammar.Utt], rng: random.Random) -> list[Utterance]:
     return out
 
 
-def generate_script(script_ref: str, seed: int, *, inject: bool = False, chunk_ms: int = CHUNK_MS) -> Script:
-    """Generate one script deterministically from ``(seed, script_ref)``."""
+def generate_script(
+    script_ref: str,
+    seed: int,
+    *,
+    inject: bool = False,
+    chunk_ms: int = CHUNK_MS,
+    chief: v.ChiefComplaint | None = None,
+) -> Script:
+    """Generate one script deterministically from ``(seed, script_ref)``.
+
+    ``chief`` pins the consultation template (demo profile); ``None`` draws it from the script RNG.
+    """
     rng = script_rng(seed, script_ref)
-    chief = rng.choice(v.CHIEF_COMPLAINTS)
+    if chief is None:
+        chief = rng.choice(v.CHIEF_COMPLAINTS)
     positive = rng.random() < POSITIVE_SESSION_P
     suppressed: v.RiskKind | None = (
         rng.choice(SUPPRESSED_KINDS) if rng.random() < SUPPRESSED_SESSION_P else None
@@ -223,6 +238,11 @@ def generate_set(profile: Profile, n: int, seed: int | None = None) -> list[Scri
     """Generate ``n`` scripts for a profile (demo → ``s01..``, eval → ``e0001..``)."""
     base_seed = PROFILE_SEED[profile] if seed is None else seed
     return [
-        generate_script(ref, base_seed, inject=profile == "eval" and i % INJECTION_EVERY == 0)
+        generate_script(
+            ref,
+            base_seed,
+            inject=profile == "eval" and i % INJECTION_EVERY == 0,
+            chief=v.CHIEF_COMPLAINTS[(i - 1) % len(v.CHIEF_COMPLAINTS)] if profile == "demo" else None,
+        )
         for i, ref in enumerate(script_refs(profile, n), start=1)
     ]

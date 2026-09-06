@@ -33,13 +33,14 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/console   # 200
 ## 3. 녹음기 시뮬레이션 (실제 WS 프로토콜)
 
 ```bash
-chartwire simulate --script s01 --speed 4                 # 로그인(clinician) → script_ref=s01 인 created 세션 선택 → 티켓 → hello → 757 청크 → end → bye{ended}
-# 세션을 직접 고르려면: chartwire simulate --script s01 --speed 4 --session <id>
-# 재개 경로 시연:      chartwire simulate --script s01 --speed 4 --drop-at 10s
+chartwire simulate --script s02 --speed 4                 # 로그인(clinician) → script_ref=s02 인 created 세션 선택 → 티켓 → hello → 872 청크 → end → bye{ended}
+# 세션을 직접 고르려면: chartwire simulate --script s02 --speed 4 --session <id>
+# 재개 경로 시연:      chartwire simulate --script s02 --speed 4 --drop-at 10s
+# (s02 = 재진 약물조정, 예상 경보 3건. s01 은 초진 우울로 위험 발화가 없어 §4 의 경보 단계가 비어 있다 — index.json 의 n_expected_alerts 로 고른다)
 ```
 
-이 박스에서의 출력(요약, 숫자는 README 용이 아님): `outcome=ended, sent=757, ack_seq=757, loss=0, nacks=0, credit_min=50, finals=50,
-alerts=1, note_status=verified`. 뷰어 소켓이 함께 열려 `transcript.final`/`risk.alert`/`note.status` 를 센다.
+이 박스에서의 출력(요약, 숫자는 README 용이 아님): `outcome=ended, sent=872, ack_seq=872, loss=0, nacks=0, credit_min=50, finals=57,
+alerts=3, note_status=verified`. 뷰어 소켓이 함께 열려 `transcript.final`/`risk.alert`/`note.status` 를 센다.
 
 ## 4. REST 로 확인 (`scripts/e2e_check.sh [session_id]` 가 아래를 그대로 실행한다)
 
@@ -50,8 +51,8 @@ ADM=$(curl -s -X POST $A/v1/auth/token -H 'content-type: application/json' -d '{
 H="Authorization: Bearer $TOK"; HA="Authorization: Bearer $ADM"
 SID=$(curl -s "$A/v1/sessions?state=drafted&limit=1" -H "$H" | jq -r '.items[0].id')
 
-curl -s $A/v1/sessions/$SID -H "$H" | jq '{state, ack_seq, final_seq}'                    # drafted, 757, 757
-curl -s "$A/v1/sessions/$SID/segments?limit=500" -H "$H" | jq 'length'                    # 50 (seq 0..49, 복호화된 text)
+curl -s $A/v1/sessions/$SID -H "$H" | jq '{state, ack_seq, final_seq}'                    # drafted, 872, 872
+curl -s "$A/v1/sessions/$SID/segments?limit=500" -H "$H" | jq 'length'                    # 57 (seq 0..56, 복호화된 text)
 # 경보 id 와 statement id 는 DB identity 값이라 시드를 다시 하지 않는 한 1 부터 시작하지 않는다 — 항상 응답에서 뽑는다
 # (scripts/e2e_check.sh 가 하는 것과 같다: `.statements[-1]` / `.statements[-2]`).
 AID=$(curl -s "$A/v1/alerts?open=1" -H "$H" | jq -r --arg s "$SID" '[.[] | select(.session_id==$s)][0].id')
@@ -84,15 +85,19 @@ python scripts/console_screenshots.py --chromium /opt/pw-browsers/chromium \
     --patient 가상환자-0006 --out docs/images                       # PNG 6장
 python scripts/console_screenshots.py --chromium /opt/pw-browsers/chromium \
     --patient 가상환자-0007 --video-dir var/demo-video               # 같은 흐름 + WebM 녹화
-# 소개 화면 → 로그인(clinician) → 세션 생성(--patient, s01) → 뷰어 연결 → 녹음 시작(×4) → 위험 배너 → ACK → 종료
-#   → SOAP 초안(note.status 가 오면 콘솔이 자동으로 불러온다) → 동의 철회 → **admin 으로 재로그인** → 영수증 추적 → 복호화 시도 → Ops
+# 홈 화면 → 로그인(clinician) → 세션 생성(--patient, --script auto = 카탈로그에서 예상 경보가 있는 첫 대본; 녹음 길이는 그 대본의 total_ms)
+#   → 뷰어 연결 → 녹음 시작(×4) → 위험 배너 → ACK → 종료 → SOAP 초안(note.status 가 오면 콘솔이 자동으로 불러온다)
+#   → 동의 철회 → **admin 으로 재로그인** → 영수증 추적 → 복호화 시도 → Ops
 # 스크린샷: docs/images/00_intro.png … 05_ops.png
 ```
 
 콘솔이 보여 주는 것(§13.3 위에 얹은 안내 층):
 
-- **소개 화면**(로그인 전, 헤더의 "소개"로 다시 열 수 있다) — 무엇을 만든 것인지, 5분 투어 5단계, 데모 계정 4개와 각 역할이 할 수 있는 일,
-  무료 인스턴스 주의사항. "데모 계정으로 시작"은 clinician 자격을 채우고 로그인한다.
+- **홈 화면**(로그인 전, 헤더의 "홈"으로 언제든 돌아온다) — 환영 문구와 무엇을 만든 것인지, **기능 검색**(검색어로 기능·대본 카드를 거르고
+  Enter 로 첫 결과에 들어간다), 자동으로 넘어가는 **배너** 4장(영수증 · 녹음 · 경보 · 대본), **서비스 카드** 8장(녹음 · 라이브 · 초안 · 철회 ·
+  복호화 · 운영 지표 · 대본 고르기 · API 문서), **주호소별 대본 카드**(`/console/scripts.json` 으로 템플릿마다 대본과 예상 경보 수를 붙인다),
+  5분 투어 5단계, 데모 계정 4개, 무료 인스턴스 주의사항. 카드·배너·검색으로 들어가면 필요한 계정(④·⑤·운영 지표는 admin)으로 자동 로그인하고
+  작업 화면(Recorder · Live · SOAP · 사이드 패널)이 열린다. "데모 계정으로 시작"은 clinician 자격을 채우고 로그인한다.
 - **단계 표시**(헤더 아래 1~5) — 녹음 종료, 경보 ACK, 초안 서명, 영수증 검증, 복호화 실패가 각각 단계를 채운다. 누르면 해당 탭으로 간다.
 - **세션 선택기** — `GET /v1/sessions?limit=200` 으로 **모든 상태**를 나열하고(created 가 위, 끝난 세션도 남아 초안·영수증을 다시 볼 수 있다),
   `/console/scripts.json`(`seed --demo` 가 쓴 `index.json` 의 메타데이터)에서 대본 템플릿·예상 경보 수를 붙인다. Start 는 `created` 세션에서만 켜진다.
@@ -133,15 +138,24 @@ chartwire simulate --script "$REF" --speed 8 --session "$SID" --api http://127.0
 curl -s -H "authorization: Bearer $TOKEN" ".../v1/sessions/$SID/notes/latest" | jq '{status, coverage, statement_count}'
 ```
 
-대본은 7개 템플릿(초진 우울 · 재진 약물조정 · 불안/공황 · 불면 · 강박 · 알코올 · 성인 ADHD 추적)에서
-seed 1 로 생성되어 발화 수 44–58, 기대 경보 0–3건으로 갈린다. 경보가 0건인 대본은 고장이 아니라
-**위험 발화가 없는 진료**이며, `index.json` 의 `n_expected_alerts` 가 그 값을 미리 알려 준다.
+대본은 8개 주호소 템플릿(초진 우울 · 재진 약물조정 · 불안/공황 · 불면 · 성인 ADHD 추적 · 적응/스트레스 ·
+알코올 · 강박)을 **순환 배정**해(`s01` = 초진 우울 … `s08` = 강박, `s09` = 초진 우울 …) seed 1 로 생성한다
+(`synth/scripts.py`). 주호소는 인사말만이 아니라 대화 전체를 바꾼다(`synth/grammar.py`): 인사·주호소 단계에서
+임상의가 주호소별 질문을 던지고 환자가 그 주호소의 답을 2–3개 하며, 초점 단계(불면이면 수면, 알코올이면 음주,
+재진이면 약물)는 3–4문장으로 깊게, 관계없는 단계는 한 줄 대답으로 짧게 지나가고, 초진은 "지금 드시는 약이
+있으세요?"·재진은 "지난번 이후로 어떠셨어요?"로 시작하며, 계획에는 주호소별 항목(수면일지 · 간 기능 검사 ·
+노출·반응방지 치료 의뢰 · 항우울제 첫 처방 …)이 반드시 하나 들어간다. 그래서 발화 수 47–60, 기대 경보 0–3건으로
+갈리고, 초안의 S 도 주호소를 따라 달라진다. 경보가 0건인 대본은 고장이 아니라 **위험 발화가 없는 진료**이며,
+`index.json` 의 `n_expected_alerts` 가 그 값을 미리 알려 준다.
 
-한 번 전수로 돌려 본 결과(빈 DB, `--speed 8`, 이 저장소의 개발 박스): 20개 대본 모두 `drafted` 까지
-도달했고 전사 세그먼트 44–58, 초안 `verified` 20/20, coverage 1.0, 미검증 문장 0, 청크 손실 0 · 중복 0.
-**경보 수는 20개 모두 `n_expected_alerts` 와 일치**했다(0건 11개 · 1건 3개 · 2건 2개 · 3건 4개).
-같은 실행에서 검색 색인 1,033행과 노트 문장 311개 · 근거 인용 전부에 전화번호·주소가 남아 있지 않았다
-(§10.2 리댁션, `core/pii.py`). 이 수치는 회귀 점검용이지 성능 측정이 아니다 — 부하 수치는 README 표 ①.
+한 번 전수로 돌려 본 결과(빈 DB, `--speed 8`, 이 저장소의 개발 박스, 주호소별 대화 생성기 이후): 20개 대본 모두
+`drafted` 까지 도달했고 전사 세그먼트 47–60(대본의 발화 수와 같음), 초안 `verified` 20/20, coverage 1.0, 미검증 문장 0,
+청크 손실 0 · 중복 0, 뷰어 소켓이 센 경보 수와 REST 의 경보 수가 20개 모두 같았다.
+**경보 수는 20개 모두 `n_expected_alerts` 와 일치**했다(0건 12개 · 1건 5개 · 2건 2개 · 3건 1개; 범주는 자살 사고 · 타해 ·
+급성 물질 사용). 같은 실행에서 검색 색인 1,061행(리댁션 토큰이 들어간 행 66개)과, API 로 복호화해 다시 읽은 노트 문장 304개 · 근거 인용
+304개(19 세션 — 나머지 한 세션은 그 사이 스크린샷 흐름이 파기했다)에 전화번호·주소가 남아 있지 않았다(§10.2 리댁션, `core/pii.py`). 이 수치는 회귀 점검용이지 성능 측정이 아니다 — 부하 수치는
+README 표 ①. 실행기는 `created` 세션마다 `chartwire simulate --script <ref> --session <id> --speed 8` 을 돌리고
+`notes/latest` · `/v1/alerts?open=1` · `segments` 를 모아 대본별 한 줄로 남긴다.
 
 ## 7. 종료
 
