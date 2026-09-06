@@ -42,9 +42,23 @@ class AppError(Exception):
         return f"AppError({self.code}, {self.status}, {self.detail!r}, retryable={self.retryable})"
 
 
+def object_particle(word: str) -> str:
+    """한국어 목적격 조사: 받침이 있으면 ``을``, 없으면 ``를``.
+
+    오류 detail 은 콘솔이 그대로 띄워 사람이 읽는 문장이라 ``노트을(를)`` 처럼 두지 않는다.
+    한글이 아닌 끝글자(영문·숫자·UUID)는 읽는 법이 갈리므로 판정하지 않고 ``을(를)`` 로 남긴다.
+    """
+    if not word:
+        return "을(를)"
+    last = word[-1]
+    if "가" <= last <= "힣":
+        return "을" if (ord(last) - 0xAC00) % 28 else "를"
+    return "을(를)"
+
+
 class NotFound(AppError):
     def __init__(self, resource: str, code: str = "CW-4040") -> None:
-        super().__init__(code, 404, f"{resource}을(를) 찾을 수 없습니다")
+        super().__init__(code, 404, f"{resource}{object_particle(resource)} 찾을 수 없습니다")
 
 
 class Forbidden(AppError):
