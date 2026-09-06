@@ -81,13 +81,24 @@ curl -s $A/v1/patients/$PID -H "$H" | jq '{pseudonym, name, consent_state}'   # 
 ```bash
 export PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
 python scripts/console_screenshots.py --chromium /opt/pw-browsers/chromium \
-    --patient 가상환자-0006 --out docs/images                       # PNG 5장
+    --patient 가상환자-0006 --out docs/images                       # PNG 6장
 python scripts/console_screenshots.py --chromium /opt/pw-browsers/chromium \
     --patient 가상환자-0007 --video-dir var/demo-video               # 같은 흐름 + WebM 녹화
-# 로그인(clinician) → 세션 생성(--patient, s01) → 뷰어 연결 → 녹음 시작(×4) → 위험 배너 → ACK → 종료 → SOAP 초안
-#   → 동의 철회 → **admin 으로 재로그인** → 영수증 추적 → 복호화 시도 → Ops
-# 스크린샷: docs/images/01_recorder.png … 05_ops.png
+# 소개 화면 → 로그인(clinician) → 세션 생성(--patient, s01) → 뷰어 연결 → 녹음 시작(×4) → 위험 배너 → ACK → 종료
+#   → SOAP 초안(note.status 가 오면 콘솔이 자동으로 불러온다) → 동의 철회 → **admin 으로 재로그인** → 영수증 추적 → 복호화 시도 → Ops
+# 스크린샷: docs/images/00_intro.png … 05_ops.png
 ```
+
+콘솔이 보여 주는 것(§13.3 위에 얹은 안내 층):
+
+- **소개 화면**(로그인 전, 헤더의 "소개"로 다시 열 수 있다) — 무엇을 만든 것인지, 5분 투어 5단계, 데모 계정 4개와 각 역할이 할 수 있는 일,
+  무료 인스턴스 주의사항. "데모 계정으로 시작"은 clinician 자격을 채우고 로그인한다.
+- **단계 표시**(헤더 아래 1~5) — 녹음 종료, 경보 ACK, 초안 서명, 영수증 검증, 복호화 실패가 각각 단계를 채운다. 누르면 해당 탭으로 간다.
+- **세션 선택기** — `GET /v1/sessions?limit=200` 으로 **모든 상태**를 나열하고(created 가 위, 끝난 세션도 남아 초안·영수증을 다시 볼 수 있다),
+  `/console/scripts.json`(`seed --demo` 가 쓴 `index.json` 의 메타데이터)에서 대본 템플릿·예상 경보 수를 붙인다. Start 는 `created` 세션에서만 켜진다.
+- **파기 영수증**은 `PurgeReceiptOut` 을 사람이 읽는 형식으로 그린다: 대상·사유·시각, 지운 것 합계(`counts`), 대상별 단계(`steps` —
+  환자 단위 파기는 세션마다 capture → redis → objectstore → rows → crypto_shred 를 반복한다), 검증 항목(`verify_result.checks`), `receipt_hash` 와
+  재계산 일치 여부, DEK 지문. 원본 JSON 은 접혀 있다. **복호화 시도**는 `unwrap` / `decrypt_sample` 판정표로 보여 주며 실패가 정답이다.
 
 - **환자를 매번 새로 고른다.** 흐름의 마지막이 동의 철회 + 환자 단위 파기라 한 번 쓴 환자는 `consent_state=purged` 가 되어 재사용할 수 없다
   (`가상환자-0001…0020` 중 아직 `granted` 인 것을 고른다. 다 쓰면 `chartwire db downgrade base && chartwire db upgrade && chartwire seed --demo`).
@@ -95,6 +106,9 @@ python scripts/console_screenshots.py --chromium /opt/pw-browsers/chromium \
   (§4 에서 `$HA` 를 쓰는 것과 같은 이유) 콘솔의 추적 폴링이 **403 을 한 번 받고** 멈춘다. 드라이버는 그 지점에서 `--admin`(기본 `admin@demo.clinic`)으로
   다시 로그인한다.
 - 그래서 출력 JSON 의 `browser_errors` 에는 **예상된 두 줄**이 남는다: 초안이 아직 없을 때의 `notes/latest` 404 와 위의 403. 그 밖의 오류는 0 이어야 한다.
+  (404 는 이제 콘솔이 "아직 초안이 없습니다 — 녹음을 끝내면 워커가 만듭니다" 로 안내하고, `note.status` 가 오면 자동으로 불러온다.)
+- **한 번 파기된 환자는 이름으로 찾을 수 없다.** `patient_shred` 가 이름 블라인드 인덱스를 지우므로 `--patient` 로 같은 가명을 다시 주면
+  `findPatient` 가 빈 결과를 돌려주고 드라이버가 `#patientInfo` 에서 멈춘다 — 위의 "환자를 매번 새로 고른다" 가 그 이유다.
 - GIF 만들기(12 fps, 폭 1100, ≤ 8 MB). Playwright 번들 ffmpeg 는 `scale` 필터뿐이라 **팔레트 필터도 gif 먹서도 없다** — 전체 빌드를 쓴다:
 
 ```bash

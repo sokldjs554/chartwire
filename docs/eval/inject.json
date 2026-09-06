@@ -1,7 +1,7 @@
 {
   "seed": 42,
-  "git_sha": "316209103be3672288ffa4964dfc0b0e202f674d",
-  "generated_at": "2026-09-04T13:18:14+00:00",
+  "git_sha": "115257b73a0c463059158e02132bdae493c90282-dirty",
+  "generated_at": "2026-09-06T07:42:40+00:00",
   "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
   "ram_gb": 15.7,
   "python": "3.11.15",
@@ -85,14 +85,14 @@
       "detection_rate": 1.0,
       "expected_reason": "speaker_mismatch",
       "reasons": {
-        "numeric_mismatch": 107,
-        "speaker_mismatch": 48,
-        "negation_mismatch": 41,
-        "entity_mismatch": 4
+        "numeric_mismatch": 110,
+        "speaker_mismatch": 44,
+        "negation_mismatch": 40,
+        "entity_mismatch": 6
       }
     }
   ],
   "false_flag_rate": 0.0,
-  "clean_statements": 21600,
+  "clean_statements": 20451,
   "clean_flagged": 0
 }

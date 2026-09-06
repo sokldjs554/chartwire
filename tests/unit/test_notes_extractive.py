@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 
 from chartwire.notes.extractive import (
@@ -9,11 +11,13 @@ from chartwire.notes.extractive import (
     SYMPTOM_CUES,
     ExtractiveProvider,
     build_draft,
+    chartable_text,
     classify,
     cue_family,
+    has_identifier,
 )
 from chartwire.notes.policy import decide
-from chartwire.notes.schema import NoteStatus, parse_draft
+from chartwire.notes.schema import NoteStatus, SegmentView, parse_draft
 from chartwire.notes.verifier import verify
 from tests.unit.test_notes_support import CONSULTATION, context, seg, session
 
@@ -166,3 +170,71 @@ def test_scarce_families_get_a_slot_before_a_repeated_early_phase():
 def test_coverage_stays_one_by_construction_after_the_family_split():
     d = build_draft(CONSULTATION)
     assert verify(d, CONSULTATION).coverage == 1.0
+
+
+def _sv(seq: int, speaker: str, text: str) -> SegmentView:
+    return SegmentView(
+        segment_id=seq,
+        seq=seq,
+        speaker=speaker,
+        text=text,
+        t_start_ms=seq * 1000,
+        t_end_ms=seq * 1000 + 900,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        confidence=0.9,
+    )
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("제 번호는 010-1234-5678예요.", True),
+        ("집은 가온시 라온구 새벽로 13번길 17예요.", True),
+        ("백예봄님도 그렇게 말씀하셨죠.", True),
+        ("박온솔 선생님이 소개해 주셨어요.", True),
+        ("선생님, 잠을 못 자요", False),
+        ("부모님께서 걱정하세요", False),
+        ("정신과 선생님이 그러셨어요", False),
+        ("에스시탈로프람 10mg 먹고 있어요", False),
+    ],
+)
+def test_has_identifier(text: str, expected: bool):
+    assert has_identifier(text) is expected
+
+
+def test_identifier_clause_is_dropped_from_statement_and_quote_and_still_verifies():
+    """The synthetic corpus appends an address to a symptom utterance; the note keeps the symptom, cites
+    only that clause, and the verifier still finds the clause inside the stored segment (rule 2)."""
+    segs = [
+        _sv(1, "patient", "입맛이 없어요 집은 가온시 라온구 새벽로 13번길 17예요"),
+        _sv(2, "clinician", "백예봄님도 그렇게 말씀하셨죠. 아토목세틴을 40mg으로 올려보겠습니다"),
+        _sv(3, "patient", "요즘 잠을 못 자요 박온솔 선생님이 소개해 주셨어요."),
+    ]
+    verified = verify(build_draft(segs), segs)
+    by_section = {(v.section, v.text): v for v in verified.statements}
+    assert set(by_section) == {
+        ("S", "입맛이 없다고 함"),
+        ("P", "아토목세틴을 40mg으로 올려보겠습니다"),
+        ("S", "요즘 잠을 못 잔다고 함"),
+    }
+    for v in verified.statements:
+        assert v.verdict == "supported" and v.evidence[0].method == "exact"
+        assert "번길" not in v.text and "010-" not in v.text and "님" not in v.evidence[0].quote
+    assert verified.coverage == 1.0
+
+
+def test_utterance_that_is_only_an_identifier_is_not_charted():
+    assert chartable_text(_sv(1, "patient", "제 번호는 010-1234-5678예요.")) is None
+    assert (
+        chartable_text(_sv(2, "patient", "잠을 못 자요 박온솔 선생님이 소개해 주셨어요.")) == "잠을 못 자요"
+    )
+    assert build_draft([_sv(1, "patient", "제 번호는 010-1234-5678예요.")]).statements == []
+
+
+def test_farewell_without_a_time_is_not_a_plan_item():
+    segs = [
+        _sv(1, "clinician", "그럼 다음에 뵙겠습니다."),
+        _sv(2, "clinician", "2주 뒤에 뵙겠습니다"),
+        _sv(3, "clinician", "다음 주에 뵙겠습니다"),
+    ]
+    assert [s.text for s in build_draft(segs).statements] == ["2주 뒤에 뵙겠습니다", "다음 주에 뵙겠습니다"]

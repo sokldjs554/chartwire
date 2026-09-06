@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import os
 from collections.abc import AsyncIterator, Mapping
@@ -291,6 +292,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if index is None:
             raise AppError("CW-4040", 404, "console/index.html 이 없습니다")
         return FileResponse(index, media_type="text/html; charset=utf-8")
+
+    @app.get("/console/scripts.json", include_in_schema=False)
+    async def console_scripts() -> Response:
+        # 데모 콘솔의 세션 선택기가 script_ref 옆에 대본 템플릿(초진 우울·강박·알코올 …)과 예상 경보 수를
+        # 보여 주기 위한 카탈로그. `seed --demo` 가 쓴 index.json 에서 메타데이터만 내보내고 발화 텍스트는
+        # 내보내지 않는다. /console 과 같은 탐색용 경로라 인증이 없다 — 합성 대본의 목차일 뿐이다.
+        path = Path(settings.scripts_dir) / "index.json"
+        if not path.is_file():
+            return JSONResponse({"scripts": []})
+        try:
+            index = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return JSONResponse({"scripts": []})
+        keep = ("script_ref", "template", "n_utterances", "total_ms", "n_expected_alerts", "risk_kinds")
+        scripts = [{k: s.get(k) for k in keep} for s in index.get("scripts", []) if isinstance(s, dict)]
+        return JSONResponse({"scripts": scripts})
 
     @app.get("/", include_in_schema=False)
     async def root() -> Response:

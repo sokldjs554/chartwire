@@ -32,7 +32,7 @@ from playwright.sync_api import Page, sync_playwright
 
 T = TypeVar("T")
 
-SHOTS = ("01_recorder", "02_live_alert", "03_soap_draft", "04_purge_receipt", "05_ops")
+SHOTS = ("00_intro", "01_recorder", "02_live_alert", "03_soap_draft", "04_purge_receipt", "05_ops")
 
 
 def wait_until(probe: Callable[[], T | None], timeout_s: float) -> T:
@@ -80,10 +80,11 @@ def run(
         )
         page = context.new_page()
 
-        def shot(name: str) -> None:
+        def shot(name: str, *, keep_scroll: bool = False) -> None:
             if not shots:
                 return
-            page.evaluate("window.scrollTo(0, 0)")  # a click may have scrolled a panel into view
+            if not keep_scroll:
+                page.evaluate("window.scrollTo(0, 0)")  # a click may have scrolled a panel into view
             page.wait_for_timeout(150)
             page.screenshot(path=str(out / f"{name}.png"))
 
@@ -94,6 +95,8 @@ def run(
         )
         page.goto(f"{base}/console", wait_until="load")
         page.wait_for_selector("#banner")
+        page.wait_for_timeout(500)
+        shot(SHOTS[0])  # 로그인 전 소개 화면 (5분 투어 · 계정 · 알아 둘 것)
 
         # login (clinician@demo.clinic / demo1234! are the console defaults)
         page.click("#loginBtn")
@@ -123,14 +126,14 @@ def run(
         page.click("#startBtn")
         wait_text(page, "#recLog", "welcome", 10)
         page.wait_for_timeout(6_000)
-        shot(SHOTS[0])
+        shot(SHOTS[1])
 
         # live chart: transcript lines and the risk banner (s01 carries one alert late in the script)
         page.click("button[data-tab='live']")
         page.wait_for_selector("#liveTranscript .seg", timeout=30_000)
         page.wait_for_selector("#risk.show", timeout=int((duration_s / speed + 30) * 1000))
         page.wait_for_timeout(500)
-        shot(SHOTS[1])
+        shot(SHOTS[2])
         page.click("#riskAck")
 
         # wait for the recorder to end and the stt-worker to finish; the draft arrives as a
@@ -148,7 +151,7 @@ def run(
                 raise TimeoutError("note draft never appeared in the SOAP tab")
         page.click("#statements .stmt >> nth=0")
         page.wait_for_timeout(400)
-        shot(SHOTS[2])
+        shot(SHOTS[3])
 
         # side panel: revoke as the clinician (rbac: clinician|staff|admin) …
         page.click("#loadConsents")
@@ -165,13 +168,26 @@ def run(
         page.click("#verifyDecrypt")
         wait_text(page, "#verifyOut", "failed", 15)
         page.wait_for_timeout(400)
-        shot(SHOTS[3])
+        # 토스트는 5 s 뒤 사라지는 순간적인 안내라 정적 캡처에서는 걷어내고, 영수증과 판정이 화면에 들어오게 스크롤한다
+        page.evaluate("() => { document.getElementById('toasts').innerHTML = ''; }")
+        # 영수증은 문서다: 960 px 아래의 1열 레이아웃에서 전체 폭으로 찍어야 표가 읽힌다 (사이드 패널 360 px 는 좁다)
+        page.set_viewport_size(
+            {"width": 900, "height": 1400}
+        )  # 합계 · 검증 · 해시 · 판정까지 한 장에 (단계는 접혀 있다)
+        page.locator("#verifyOut").scroll_into_view_if_needed()
+        page.evaluate(
+            "() => window.scrollTo(0, window.scrollY + document.getElementById('receipt').getBoundingClientRect().top - 44)"
+        )  # 44 px = 고정 배너 높이 — 영수증 제목이 배너 밑에 숨지 않게
+        page.wait_for_timeout(300)
+        shot(SHOTS[4], keep_scroll=True)  # 영수증 위치를 그대로 찍는다
+        page.set_viewport_size({"width": 1440, "height": 1000})
+        page.evaluate("() => window.scrollTo(0, 0)")
 
         page.click("button[data-tab='ops']")
         page.check("#opsPoll")
         wait_text(page, "#opsInfo", "samples", 10)
         page.wait_for_timeout(500)
-        shot(SHOTS[4])
+        shot(SHOTS[5])
         page.wait_for_timeout(1_500)
         video = page.video
         video_path = video.path() if video else None

@@ -87,6 +87,44 @@ table.kv td { padding: 4px 6px; border-bottom: 1px solid var(--line); } table.kv
 .muted { color: var(--muted); } .mono { font-family: var(--mono); }
 .hidden { display: none !important; }
 #who { font-size: 12px; }
+header .links { margin-left: auto; display: flex; gap: 12px; font-size: 12px; align-items: center; }
+header .links a, header .links button.link { color: var(--accent); background: none; border: 0; font: inherit; font-size: 12px; cursor: pointer; padding: 0; text-decoration: none; }
+/* 단계 표시 — 5분 투어의 진행 상태 */
+#steps { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 16px 0; }
+#steps button { border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 4px 10px 4px 6px; font: inherit; font-size: 12px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+#steps button i { font-style: normal; width: 18px; height: 18px; border-radius: 50%; border: 1px solid currentColor; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+#steps button.active { color: var(--accent); border-color: var(--accent); }
+#steps button.done { color: var(--ok); border-color: var(--ok); } #steps button.done i { background: var(--ok); color: #fff; border-color: var(--ok); }
+/* 소개 화면 */
+#intro { grid-column: 1 / -1; }
+.intro h2 { margin: 0 0 6px; font-size: 20px; }
+.intro .lead { color: var(--muted); margin: 0 0 12px; max-width: 960px; }
+.intro .cols { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 960px) { .intro .cols { grid-template-columns: 1fr; } }
+.intro ol.tour { margin: 0; padding: 0; list-style: none; counter-reset: step; }
+.intro ol.tour li { counter-increment: step; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+.intro ol.tour li::before { content: counter(step); width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-weight: 700; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+.intro ol.tour li > div > b { display: block; }
+.intro ol.tour small { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.intro .card { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.intro .card h3 { margin: 0 0 8px; }
+.intro table.acct td:first-child { font-family: var(--mono); text-align: left; } .intro table.acct td:last-child { text-align: left; font-family: inherit; }
+.intro .note { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+.intro a { color: var(--accent); }
+/* 파기 영수증 · 복호화 판정 */
+.receipt { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin: 6px 0; background: var(--bg); }
+.receipt .rhead { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.receipt h4 { margin: 10px 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.receipt .sub { color: var(--muted); font-size: 11px; }
+.receipt table.meta td:first-child { white-space: nowrap; vertical-align: top; }
+.receipt td.group { text-align: left !important; font-family: inherit !important; padding-top: 8px; }
+.receipt .hash { font-family: var(--mono); font-size: 11px; word-break: break-all; margin: 2px 0 4px; }
+.checks { margin: 0; padding: 0; } .checks li { list-style: none; display: flex; gap: 8px; align-items: baseline; padding: 2px 0; font-size: 13px; }
+.checks li::before { font-weight: 700; } .checks li.ok::before { content: "✓"; color: var(--ok); } .checks li.bad::before { content: "✗"; color: var(--bad); }
+.verdict { border-radius: 10px; padding: 10px; margin: 6px 0; border: 1px solid var(--line); background: var(--bg); }
+.verdict.ok { border-color: var(--ok); } .verdict.bad { border-color: var(--bad); }
+.verdict b.title { display: block; margin-bottom: 6px; }
+details.raw summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -105,8 +143,53 @@ table.kv td { padding: 4px 6px; border-bottom: 1px solid var(--line); } table.kv
     <button class="btn" id="loginBtn">로그인</button>
     <span id="who" class="muted">로그인 전</span>
   </div>
+  <div class="links"><button class="link" id="introToggle">소개</button><a href="https://github.com/sokldjs554/chartwire" target="_blank" rel="noopener">GitHub</a></div>
 </header>
+<nav id="steps" aria-label="데모 단계">
+  <button data-step="rec" data-tab="rec"><i>1</i>녹음</button>
+  <button data-step="live" data-tab="live"><i>2</i>라이브 · 경보</button>
+  <button data-step="soap" data-tab="soap"><i>3</i>SOAP 초안 · 서명</button>
+  <button data-step="purge" data-tab="consent"><i>4</i>철회 · 파기 영수증</button>
+  <button data-step="verify" data-tab="consent"><i>5</i>복호화 시도</button>
+</nav>
 <main>
+<section class="panel intro" id="intro">
+  <h2>chartwire — 정신과 진료실 실시간 음성차팅의 밑바닥</h2>
+  <p class="lead">진료실에서 녹음된 음성이 <b>한 청크도 잃지 않고</b> 저장되고, 위험 발화가 <b>수 초 안에</b> 경보가 되며, 초안의 모든 문장이 <b>근거 발화</b>를 가리키고, 환자가 동의를 거두면 <b>파기 영수증</b>이 남는 백엔드입니다. STT·LLM 제품이 아니라 그 밑에 깔리는 신뢰성·컴플라이언스 층이고, 이 콘솔은 그 층을 브라우저에서 그대로 두드려 보는 데모입니다. 모든 데이터는 합성이며 API 키 없이 동작합니다.</p>
+  <div class="cols">
+    <div>
+      <h3 style="margin:0 0 4px">5분 투어 — 위의 단계 표시를 따라가면 됩니다</h3>
+      <ol class="tour">
+        <li><div><b>녹음 (Recorder)</b><small>Start 를 누르면 브라우저 녹음기가 12 B 헤더가 붙은 200 ms 청크를 WebSocket 으로 보냅니다. <code>ack_seq</code> 는 청크가 <b>PostgreSQL 에 커밋된 뒤에만</b> 올라갑니다. 중간에 <b>네트워크 끊기 5초</b>를 눌러 보세요 — 재접속 뒤 <code>RESUME OK</code> 와 빠진 청크의 재전송이 로그에 찍힙니다.</small></div></li>
+        <li><div><b>라이브 전사 · 위험 경보 (Live chart)</b><small>회색 partial 이 final 로 확정되고, 위험 발화에서 배너와 SLA 카운트다운이 뜹니다. ACK 를 누르면 사라집니다. 대본마다 경보 수가 다릅니다(세션 선택기에 예상 건수가 보입니다).</small></div></li>
+        <li><div><b>SOAP 초안 (SOAP draft)</b><small>녹음이 끝나면 워커가 초안을 만들고 <code>note.status</code> 가 도착하면 자동으로 불러옵니다. 문장을 누르면 <b>근거 발화</b>가 하이라이트됩니다. A(평가)는 AI 가 작성하지 않는 영역이라 직접 적어야 서명이 됩니다.</small></div></li>
+        <li><div><b>동의 철회 → 파기 영수증 (Consent &amp; purge)</b><small>철회하면 아웃박스를 거쳐 파기 파이프라인이 돌고, 단계별 삭제 건수와 해시가 붙은 <b>영수증</b>이 남습니다. 영수증 조회는 <code>admin</code>·<code>auditor</code> 권한이라 계정을 바꿔 로그인합니다.</small></div></li>
+        <li><div><b>복호화 시도</b><small>영수증의 표본 암호문을 다시 풀어 봅니다. 세션 DEK 가 파기되어 <code>failed:dek_destroyed</code> 가 나와야 정상입니다 — "지웠다"의 증거입니다.</small></div></li>
+      </ol>
+    </div>
+    <div>
+      <div class="card">
+        <h3>바로 시작</h3>
+        <div class="row"><button class="btn" id="quickStart">데모 계정으로 시작 (clinician)</button></div>
+        <table class="kv acct">
+          <tr><td>clinician</td><td>녹음 · 초안 · 서명 · 동의 철회</td></tr>
+          <tr><td>staff</td><td>세션 · 환자 · 동의 관리</td></tr>
+          <tr><td>admin</td><td>파기 작업 · 영수증 · 복호화 시도 · DLQ</td></tr>
+          <tr><td>auditor</td><td>영수증 · 감사 로그 (읽기)</td></tr>
+        </table>
+        <div class="note">테넌트 <code>demo</code> · 비밀번호 <code>demo1234!</code> · 이메일은 <code>역할@demo.clinic</code>. 역할마다 보이는 것이 다른 이유는 라우트 × 역할 매트릭스(<code>auth/rbac.py</code>)입니다.</div>
+      </div>
+      <div class="card" style="margin-top:10px">
+        <h3>알아 둘 것</h3>
+        <div class="note">
+          · 공개 데모는 무료 인스턴스라 첫 접속에 1~2분 걸리고, 재배포되면 데이터가 사라집니다.<br>
+          · 한 컨테이너에서 PostgreSQL·Redis·워커가 CPU 를 나눠 쓰므로 여기서 본 지연은 README 의 실측 표와 비교할 수 없습니다.<br>
+          · 소스 · 실측 수치 · 한계 목록: <a href="https://github.com/sokldjs554/chartwire" target="_blank" rel="noopener">github.com/sokldjs554/chartwire</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 <section class="panel">
   <div class="tabs" role="tablist">
     <button role="tab" data-tab="rec" aria-selected="true">Recorder</button>
@@ -119,6 +202,7 @@ table.kv td { padding: 4px 6px; border-bottom: 1px solid var(--line); } table.kv
     <div class="row">
       <label>세션 <select id="sessionSel" class="grow"><option value="">(세션 없음 — 새로고침 또는 생성)</option></select></label>
       <button class="btn secondary" id="refreshSessions">새로고침</button>
+      <span id="sessionInfo" class="muted mono"></span>
     </div>
     <details>
       <summary class="muted">세션 만들기 (가상환자 + 동의 + script_ref)</summary>
@@ -227,9 +311,9 @@ table.kv td { padding: 4px 6px; border-bottom: 1px solid var(--line); } table.kv
     <div class="muted" style="font-size:12px">철회 → outbox <code>consent.revoked</code> → 파기 파이프라인 → 영수증. 작업 id 를 알면 아래에서 직접 추적한다.</div>
     <div class="row"><input type="text" id="purgeJobId" class="grow" placeholder="purge job id"><button class="btn secondary" id="trackPurge" disabled>추적</button></div>
     <div class="log" id="purgeLog" style="height:140px"></div>
-    <pre class="json" id="receipt">(파기 영수증 없음)</pre>
+    <div id="receipt" class="muted">(파기 영수증 없음)</div>
     <div class="row"><button class="btn" id="verifyDecrypt" disabled>복호화 시도 (verify-decrypt)</button></div>
-    <pre class="json" id="verifyOut">(아직 시도하지 않음)</pre>
+    <div id="verifyOut" class="muted">(아직 시도하지 않음)</div>
   </div>
   <div class="tab" id="tab-ops">
     <div class="row"><label class="chk"><input type="checkbox" id="opsPoll"> /metrics 2 s 폴링</label><span id="opsInfo" class="muted"></span></div>
@@ -265,6 +349,13 @@ const FRAME_MAGIC = 0x4357, FRAME_VER = 1, FLAG_LAST = 1, FLAG_SIM = 4, HEADER_L
 const CHUNK_MS = 200, CHUNK_BYTES = 6400, RING_SIZE = 150, HELLO_TIMEOUT_MS = 5000, END_WAIT_MS = 10000;
 const SCOPES = ['recording', 'transcription', 'ai_drafting', 'search_index'];
 const DEMO_EMAILS = { clinician: 'clinician@demo.clinic', staff: 'staff@demo.clinic', admin: 'admin@demo.clinic', auditor: 'auditor@demo.clinic' };
+const CATEGORY_KO = { suicidal_ideation: '자살 사고', self_harm: '자해', harm_to_others: '타해 위험', substance_acute: '급성 물질 사용' };
+// 세션 선택기 정렬: 녹음할 수 있는 created 가 맨 위, 그다음 진행 순서. 끝난 세션도 남겨 두어야
+// 초안·영수증을 다시 볼 수 있다 (created 만 보이면 녹음이 끝난 세션이 목록에서 사라져 길을 잃는다).
+const STATE_ORDER = { created: 0, recording: 1, paused: 1, ended: 2, transcribed: 3, drafted: 4, signed: 5, purged: 6 };
+const STEP_KO = { patient_shred: '환자 식별 정보 파기 (이름 색인 · 환자 DEK)', capture: '표본 캡처 (DEK 지문 · 암호문 표본)', redis: 'Redis 키 삭제', objectstore: '오디오 암호문 오브젝트 삭제', rows: 'PostgreSQL 행 삭제', crypto_shred: '세션 DEK 파기 (crypto-shred)' };
+const COUNT_KO = { patient_shred: '환자 식별 정보 파기', patient_identifiers: '환자 식별자 (이름 색인)', patient_dek_destroyed: '파기된 환자 DEK', audio_chunks: '오디오 청크', transcript_segments: '전사 세그먼트', segment_search: '검색 색인', notes: '노트', note_statements: '노트 문장', note_assessments: '평가(A)', risk_events: '위험 이벤트', stt_offsets: 'STT 오프셋', objects: '오브젝트', redis_keys: 'Redis 키', stt_active: 'stt:active', stt_lag: 'stt lag', dek_fingerprint: 'DEK 지문', sample_ciphertext: '암호문 표본', session_dek_destroyed: '파기된 세션 DEK' };
+const CHECK_KO = { patient_shredded: '환자 식별 정보 파기됨', rows: 'PostgreSQL 잔존 행 없음', redis: 'Redis 잔존 키 없음', objectstore: '잔존 오브젝트 없음', dek_null: 'dek_wrapped IS NULL', unwrap: 'DEK unwrap 실패 (파기됨)', decrypt_sample: '암호문 표본 복호화 실패' };
 
 const $ = (id) => document.getElementById(id);
 const fmtMs = (v) => (v == null ? '–' : v.toFixed(v < 10 ? 1 : 0));
@@ -295,7 +386,8 @@ function logTo(id, text, cls) {
 function closeLabel(code) { return `${code} ${CLOSE_CODES[code] || 'unknown'}`; }
 
 const state = {
-  token: null, role: null, userId: null, sessionId: null, patientId: null,
+  token: null, role: null, userId: null, sessionId: null, patientId: null, sessionState: null,
+  catalog: new Map(), steps: {},                                    // script_ref → 대본 메타 · 투어 단계 진행
   consents: [], note: null, sentAt: new Map(),                      // sentAt: chunk seq → perf ms (final e2e 계산)
   finals: new Map(),                                                // segment seq → text (근거 하이라이트)
 };
@@ -338,6 +430,55 @@ async function tryApi(method, path, body, opts) {
   try { return await api(method, path, body, opts); }
   catch (e) { toast(e.message, 'bad'); return null; }
 }
+/* 실패해도 조용히 null: 있으면 좋은 정보(환자 가명 등)라 권한이 없는 역할에서 토스트를 띄우지 않는다. */
+async function tryApiQuiet(method, path) {
+  try { return await api(method, path); } catch { return null; }
+}
+function showTab(name) {
+  document.querySelectorAll('.tabs button[data-tab]').forEach((b) => { if (b.dataset.tab === name) b.click(); });
+}
+
+/* ───────────────────────── 투어 단계 · 소개 · 대본 카탈로그 ───────────────────────── */
+const tour = {
+  mark(step, done) {
+    if (done) state.steps[step] = 'done';
+    else if (state.steps[step] !== 'done') state.steps[step] = 'active';
+    this.render();
+  },
+  render() {
+    document.querySelectorAll('#steps button[data-step]').forEach((b) => {
+      const st = state.steps[b.dataset.step];
+      b.classList.toggle('done', st === 'done'); b.classList.toggle('active', st === 'active');
+    });
+  },
+};
+document.querySelectorAll('#steps button[data-step]').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+const intro = {
+  open: true,
+  show(on) { this.open = on; $('intro').classList.toggle('hidden', !on); },
+};
+$('introToggle').addEventListener('click', () => intro.show(!intro.open));
+$('quickStart').addEventListener('click', () => {
+  $('demoAccount').value = 'clinician'; $('email').value = DEMO_EMAILS.clinician; $('password').value = 'demo1234!';
+  $('loginBtn').click();
+});
+/* /console/scripts.json — seed 가 쓴 index.json 의 메타데이터(템플릿 · 발화 수 · 예상 경보 수). 없어도 동작한다. */
+const catalog = {
+  async load() {
+    try {
+      const r = await fetch(apiBase() + '/console/scripts.json', { headers: { Accept: 'application/json' } });
+      if (r.ok) for (const sc of ((await r.json()) || {}).scripts || []) state.catalog.set(sc.script_ref, sc);
+    } catch { /* 카탈로그 없음 — script_ref 만 보여 준다 */ }
+    this.fillScriptSel();
+  },
+  meta(ref) { return state.catalog.get(ref) || null; },
+  label(ref) { const m = this.meta(ref); return m ? `${ref} · ${m.template} · ${m.n_utterances}발화 · 예상 경보 ${m.n_expected_alerts}건` : ref; },
+  fillScriptSel() {
+    const sel = $('scriptSel'); const prev = sel.value; sel.innerHTML = '';
+    for (let i = 1; i <= 20; i++) { const ref = `s${String(i).padStart(2, '0')}`; sel.appendChild(new Option(this.label(ref), ref)); }
+    if (prev) sel.value = prev;
+  },
+};
 
 /* ───────────────────────── 탭 · 로그인 ───────────────────────── */
 document.querySelectorAll('.tabs').forEach((bar) => {
@@ -361,6 +502,7 @@ function refreshButtons() {
   setEnabled(['saveConsent', 'loadConsents', 'revokeBtn'], pat);
   setEnabled(['startBtn', 'watchBtn', 'loadNote', 'requestDraft', 'purgeBtn'], sess);
   setEnabled(['trackPurge'], authed);
+  $('startBtn').disabled = !(sess && state.sessionState === 'created');   // 끝난 세션은 다시 녹음할 수 없다 (4012)
   $('purgeBtn').disabled = !(sess && state.role === 'admin');
   $('loadDlq').disabled = !(authed && state.role === 'admin');
 }
@@ -374,33 +516,48 @@ $('loginBtn').addEventListener('click', async () => {
   state.userId = me && (me.sub || me.user_id || (me.principal && me.principal.sub)) || null;
   $('who').textContent = `${body.email} · ${state.role} · JWT ${out.expires_in || '?'} s`;
   toast(`로그인 성공 (${state.role})`, 'ok');
+  intro.show(false);
   refreshButtons();
-  sessions.refresh();
+  await catalog.load();
+  sessions.refresh(state.sessionId);
 });
 
 /* ───────────────────────── 세션 · 환자 · 동의 ───────────────────────── */
 const sessions = {
-  async refresh() {
-    const out = await tryApi('GET', '/v1/sessions?state=created&limit=50');
+  rows: [],
+  async refresh(keep) {
+    const out = await tryApi('GET', '/v1/sessions?limit=200');
     const list = Array.isArray(out) ? out : (out && out.items) || [];
-    const sel = $('sessionSel');
+    list.sort((a, b) => ((STATE_ORDER[a.state] ?? 9) - (STATE_ORDER[b.state] ?? 9)) || String(b.created_at).localeCompare(String(a.created_at)));
+    this.rows = list;
+    const sel = $('sessionSel'); const prev = keep || sel.value;
     sel.innerHTML = '';
-    if (!list.length) sel.appendChild(new Option('(created 상태 세션 없음)', ''));
-    for (const s of list) sel.appendChild(new Option(`${s.script_ref || '(script 없음)'} · ${String(s.id).slice(0, 8)} · ${s.state}`, s.id));
-    sel.dataset.rows = JSON.stringify(list.map((s) => [s.id, s.patient_id]));
+    if (!list.length) sel.appendChild(new Option('(세션 없음 — 아래 "세션 만들기")', ''));
+    for (const s of list) {
+      const m = catalog.meta(s.script_ref);
+      sel.appendChild(new Option(`${s.script_ref || '(script 없음)'}${m ? ' · ' + m.template : ''} · ${s.state} · ${String(s.id).slice(0, 8)}`, s.id));
+    }
+    if (prev && list.some((s) => s.id === prev)) sel.value = prev;
     sel.dispatchEvent(new Event('change'));
   },
+  current() { return this.rows.find((s) => s.id === state.sessionId) || null; },
 };
-$('sessionSel').addEventListener('change', () => {
-  const sel = $('sessionSel');
-  state.sessionId = sel.value || null;
-  const rows = sel.dataset.rows ? JSON.parse(sel.dataset.rows) : [];
-  const row = rows.find((r) => r[0] === state.sessionId);
-  if (row) state.patientId = row[1];
+$('sessionSel').addEventListener('change', async () => {
+  state.sessionId = $('sessionSel').value || null;
+  const s = sessions.current();
+  state.sessionState = s ? s.state : null;
+  if (s) state.patientId = s.patient_id;
   refreshButtons();
+  const info = $('sessionInfo');
+  if (!s) { info.textContent = ''; return; }
+  const m = catalog.meta(s.script_ref);
+  info.textContent = m ? `${m.template} · 예상 경보 ${m.n_expected_alerts}건 · ${Math.round(m.total_ms / 1000)}s 대본` : (s.script_ref || '');
+  if (!['clinician', 'staff'].includes(state.role)) return;   // GET /v1/patients/{id} 는 이 두 역할만 (rbac) — 403 을 만들지 않는다
+  const p = await tryApiQuiet('GET', `/v1/patients/${s.patient_id}`);
+  if (p && state.sessionId === s.id) info.textContent = `${p.pseudonym || ''} · ${info.textContent}`;
 });
-$('refreshSessions').addEventListener('click', () => sessions.refresh());
-for (let i = 1; i <= 20; i++) $('scriptSel').appendChild(new Option(`s${String(i).padStart(2, '0')}`, `s${String(i).padStart(2, '0')}`));
+$('refreshSessions').addEventListener('click', () => sessions.refresh(state.sessionId));
+catalog.fillScriptSel();
 function checkedScopes() { return [...document.querySelectorAll('#consentRow input[data-scope]')].filter((c) => c.checked).map((c) => c.dataset.scope); }
 function setPatient(p) {
   state.patientId = p.id;
@@ -643,7 +800,7 @@ function recGauge(r) {
   $('gOut').style.color = r.outstanding > r.credit + 20 ? 'var(--bad)' : '';
 }
 function recButtons(running) {
-  $('startBtn').disabled = running || !state.sessionId;
+  $('startBtn').disabled = running || !state.sessionId || state.sessionState !== 'created';
   $('dropBtn').disabled = !running; $('pauseBtn').disabled = !running; $('endBtn').disabled = !running;
 }
 $('startBtn').addEventListener('click', async () => {
@@ -652,9 +809,14 @@ $('startBtn').addEventListener('click', async () => {
   recorder = new RecorderClient({
     totalChunks, seed: Math.floor(Math.random() * 1e9), speed: () => Number($('speed').value),
     onGauge: recGauge, onLog: (t, c) => logTo('recLog', t, c),
-    onState: (s) => { $('liveState').textContent = `state: ${s}`; },
-    onDone: () => { recButtons(false); $('pauseBtn').textContent = '일시정지'; },
+    onState: (s) => { $('liveState').textContent = `state: ${s}`; state.sessionState = s; },
+    onDone: (reason) => {
+      recButtons(false); $('pauseBtn').textContent = '일시정지';
+      if (reason === 'ended') tour.mark('rec', true);
+      sessions.refresh(state.sessionId);                 // 세션 상태가 바뀌었다 — 목록 라벨과 Start 버튼을 맞춘다
+    },
   });
+  tour.mark('rec', false);
   recButtons(true);
   logTo('recLog', `세션 ${state.sessionId} · ${totalChunks} chunks × ${CHUNK_BYTES} B · 링 버퍼 ${RING_SIZE}`);
   await recorder.start();
@@ -706,7 +868,7 @@ const viewer = {
       case 'transcript.final': this.renderFinal(m); break;
       case 'risk.alert': this.showAlert(m); break;
       case 'risk.ack':
-        if (this.alert && this.alert.risk_event_id === m.risk_event_id) { this.log(`← risk.ack by ${m.by}`, 'ok'); this.hideAlert(); }
+        if (this.alert && this.alert.risk_event_id === m.risk_event_id) { this.log(`← risk.ack by ${m.by}`, 'ok'); this.hideAlert(); tour.mark('live', true); }
         break;
       case 'risk.escalated':
         if (this.alert && this.alert.risk_event_id === m.risk_event_id) $('riskEsc').classList.remove('hidden');
@@ -714,9 +876,10 @@ const viewer = {
         break;
       case 'session.state': $('liveState').textContent = `state: ${m.state}`; this.log(`← session.state ${m.state}`); break;
       case 'note.status':
-        toast(`SOAP 초안 ${m.status} · coverage ${Number(m.coverage).toFixed(2)} · unsupported ${m.unsupported_count}`, m.status === 'abstained' ? 'bad' : 'ok');
+        toast(`SOAP 초안 ${m.status} · coverage ${Number(m.coverage).toFixed(2)} · unsupported ${m.unsupported_count} — SOAP 탭에 불러왔습니다`, m.status === 'abstained' ? 'bad' : 'ok');
         this.log(`← note.status ${m.status} coverage=${m.coverage} unsupported=${m.unsupported_count}`);
         state.noteHint = m.note_id;
+        soap.load();                                     // 워커가 초안을 만든 순간 — 사용자가 버튼을 찾게 하지 않는다
         break;
       case 'viewer.presence': $('presence').textContent = `viewers: ${m.count}`; break;
       case 'viewer.lagged': $('lagged').classList.remove('hidden'); $('lagged').textContent = `lagged: ${m.dropped_partials} partials dropped`; break;
@@ -754,7 +917,8 @@ const viewer = {
     this.alert = m;
     const box = $('risk');
     box.className = `risk show sev${m.severity}`;
-    $('riskTitle').textContent = `위험 발화 경보 · ${m.category} · severity ${m.severity}`;
+    $('riskTitle').textContent = `위험 발화 경보 · ${CATEGORY_KO[m.category] || m.category} (${m.category}) · severity ${m.severity}`;
+    tour.mark('live', false);
     $('riskMeta').textContent = `segment #${m.segment_seq} span ${JSON.stringify(m.span)}`;
     $('riskEsc').classList.add('hidden');
     this.log(`← risk.alert ${m.category} sev=${m.severity} seg=${m.segment_seq}${m.committed_at ? ` commit→view ${fmtMs(Date.now() - Date.parse(m.committed_at))} ms` : ''}`, 'bad');
@@ -814,6 +978,7 @@ const soap = {
   },
   render(note) {
     this.note = note; state.note = note;
+    tour.mark('soap', note.status === 'signed');
     $('noteStatus').textContent = `status: ${note.status}`;
     $('noteStatus').className = `badge ${note.status === 'signed' ? 'ok' : note.status === 'abstained' ? 'bad' : 'warn'}`;
     $('noteUnsupported').textContent = `unsupported: ${note.unsupported_count}`;
@@ -894,12 +1059,88 @@ $('signNote').addEventListener('click', async () => {
 });
 
 /* ───────────────────────── Consent & purge ───────────────────────── */
+const _CLOCK = new Intl.DateTimeFormat('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'UTC' });
+function fmtClock(iso) { return iso ? `${_CLOCK.format(new Date(iso))}Z` : '–'; }
+/* GET /v1/purge-jobs/{id} (PurgeReceiptOut) 를 사람이 읽는 영수증으로 그린다. 원본 JSON 은 접어 둔다. */
+function renderReceipt(job) {
+  const st = job.state || job.status || '?';
+  const kind = st === 'verified' ? 'ok' : st === 'failed' ? 'bad' : 'warn';
+  // 합계는 job.counts, 단계는 대상별로 묶는다: 환자 단위 파기는 그 환자의 세션마다 capture→…→crypto_shred
+  // 를 반복하므로(steps 11개), 첫 세션이 빈 세션이면 단계 목록 첫 줄만 보고 "0건 지웠다"로 오해하기 쉽다.
+  const totals = Object.entries(job.counts || {}).filter(([, v]) => Number(v) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]))
+    .map(([k, v]) => `<tr><td>${esc(COUNT_KO[k] || k)}</td><td>${esc(String(v))}</td></tr>`).join('');
+  const groups = new Map();
+  for (const st of job.steps || []) { const key = st.subject_id || '-'; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(st); }
+  const stepRows = [...groups].map(([subj, list]) => {
+    const head = subj === '-' ? '' : `<tr><td colspan="2" class="sub group">${esc(subj === String(job.subject_id) ? `${job.subject_type} ${subj.slice(0, 8)}… (대상)` : `세션 ${subj.slice(0, 8)}…`)}</td></tr>`;
+    return head + list.map((s) => {
+      const name = s.step || s.name || '?';
+      const detail = Object.entries(s.counts || {}).filter(([, v]) => Number(v) > 0).map(([k, v]) => `${COUNT_KO[k] || k} ${v}`).join(' · ');
+      return `<tr><td>${esc(STEP_KO[name] || name)}${detail ? `<div class="sub">${esc(detail)}</div>` : ''}</td><td>${esc(String(s.count ?? ''))}</td></tr>`;
+    }).join('');
+  }).join('');
+  const vr = job.verify_result || {}; const detail = vr.detail || {};
+  const checkItems = Object.entries(vr.checks || {}).map(([k, ok]) => {
+    const [key, who] = k.split(':'); const d = detail[k] || {};
+    let extra = who ? `${who === String(job.subject_id) ? job.subject_type : '세션'} ${who.slice(0, 8)}… · ` : '';
+    if (d.result) extra += d.result;
+    else if (d.counts) extra += `남은 행 ${Object.values(d.counts).reduce((a, b) => a + Number(b || 0), 0)}`;
+    else if (d.keys != null) extra += `남은 키 ${d.keys}`;
+    else if (d.objects != null) extra += `남은 오브젝트 ${d.objects}`;
+    else extra = extra.replace(/ · $/, '');
+    return `<li class="${ok ? 'ok' : 'bad'}">${esc(CHECK_KO[key] || key)} <span class="sub mono">${esc(extra)}</span></li>`;
+  }).join('');
+  const hashBadge = job.receipt_hash_valid ? '<span class="badge ok">재계산 해시 일치</span>' : job.receipt_hash_valid === false ? '<span class="badge bad">해시 불일치</span>' : '<span class="badge muted">해시 없음</span>';
+  const el = document.createElement('div');
+  el.className = 'receipt';
+  el.innerHTML = `
+    <div class="rhead"><b>파기 영수증</b><span class="badge ${kind}">${esc(st)}</span><span class="sub mono">${esc(String(job.id || ''))}</span></div>
+    <table class="kv meta">
+      <tr><td>대상</td><td>${esc(job.subject_type || '')} ${esc(String(job.subject_id || '').slice(0, 8))}…</td></tr>
+      <tr><td>사유</td><td>${esc(job.reason || '–')}</td></tr>
+      <tr><td>시각 (UTC)</td><td>요청 ${fmtClock(job.requested_at)} → 완료 ${fmtClock(job.completed_at)} → 검증 ${fmtClock(job.verified_at)}</td></tr>
+    </table>
+    <h4>지운 것 (합계)</h4>
+    <table class="kv">${totals || '<tr><td class="muted">(아직 집계 없음)</td><td></td></tr>'}</table>
+    <details class="raw"${groups.size <= 1 ? ' open' : ''}><summary>단계별 처리 — ${(job.steps || []).length}단계 · 대상 ${groups.size}개 (펼치기)</summary>
+    <table class="kv">${stepRows || '<tr><td class="muted">(아직 실행된 단계 없음)</td><td></td></tr>'}</table></details>
+    <h4>검증 — 남은 것이 없고, 열리지 않는다</h4>
+    ${checkItems ? `<ul class="checks">${checkItems}</ul>` : '<div class="sub">(검증 전)</div>'}
+    <h4>무결성</h4>
+    <div class="sub">receipt_hash = sha256(canonical_json({steps, counts, dek_fingerprints})) — 영수증만 있어도 누구나 다시 계산할 수 있다</div>
+    <div class="hash">${esc(job.receipt_hash || '–')}</div>
+    <div class="row">${hashBadge}<span class="sub">DEK 지문 ${esc((job.dek_fingerprints || []).map((f) => String(f).slice(0, 16) + '…').join(', ') || '–')}</span></div>
+    <details class="raw"><summary>원본 JSON</summary><pre class="json"></pre></details>`;
+  const pre = el.querySelector('pre'); if (pre) pre.textContent = JSON.stringify(job, null, 2);
+  const box = $('receipt'); box.innerHTML = ''; box.className = ''; box.appendChild(el);
+}
+/* POST verify-decrypt (VerifyDecryptOut) → 판정. 실패가 정답이다. */
+function renderVerify(out) {
+  const failed = String(out.unwrap || '').startsWith('failed');
+  const el = document.createElement('div');
+  el.className = `verdict ${failed ? 'ok' : 'bad'}`;
+  el.innerHTML = `
+    <b class="title">${failed ? '복호화 실패 — 의도된 결과입니다' : '복호화 성공 — 파기가 실패했습니다'}</b>
+    <table class="kv">
+      <tr><td>세션 DEK unwrap (KEK 로 키 풀기)</td><td>${esc(String(out.unwrap))}</td></tr>
+      <tr><td>암호문 표본 복호화 (AES-GCM)</td><td>${esc(String(out.decrypt_sample))}</td></tr>
+      <tr><td>복호화를 실제로 시도했는가</td><td>${out.decrypt_attempted ? 'yes' : 'no'}</td></tr>
+      <tr><td>파기 작업 상태</td><td>${esc(String(out.job_state || ''))}</td></tr>
+    </table>
+    <div class="sub" style="margin-top:6px">${failed
+      ? '세션 DEK 가 파기되어 KEK 로도 풀 수 없고, 남아 있던 암호문 표본은 인증 태그 검증에 실패했습니다. 이 결과가 "지웠다"는 말의 증거입니다.'
+      : '키가 아직 풀립니다 — 파기 파이프라인을 확인해야 합니다.'}</div>`;
+  const box = $('verifyOut'); box.innerHTML = ''; box.className = ''; box.appendChild(el);
+  tour.mark('verify', failed);
+}
 const purge = {
   jobId: null, timer: null, seenSteps: 0,
   log(t, c) { logTo('purgeLog', t, c); },
   track(id) {
     this.jobId = id; this.seenSteps = 0; $('purgeJobId').value = id;
     $('purgeLog').innerHTML = ''; $('receipt').textContent = '(진행 중)'; $('verifyOut').textContent = '(아직 시도하지 않음)';
+    tour.mark('purge', false);
     clearInterval(this.timer);
     this.timer = setInterval(() => this.poll(), 1000);
     this.poll();
@@ -913,10 +1154,11 @@ const purge = {
       const s = steps[this.seenSteps];
       this.log(`step ${s.step || s.name || this.seenSteps + 1}: ${s.count != null ? `count=${s.count} ` : ''}${s.at || s.ts || ''}`.trim());
     }
+    renderReceipt(job);                                // 단계가 쌓이는 동안에도 영수증이 자라는 것이 보인다
     if (['verified', 'failed', 'completed', 'done'].includes(job.state || job.status)) {
       clearInterval(this.timer);
-      $('receipt').textContent = JSON.stringify(job, null, 2);
       this.log(`파기 영수증 state=${job.state || job.status} receipt_hash=${job.receipt_hash || '?'}`, job.state === 'failed' ? 'bad' : 'ok');
+      tour.mark('purge', job.state === 'verified');
       $('verifyDecrypt').disabled = false;
     }
   },
@@ -947,7 +1189,7 @@ $('trackPurge').addEventListener('click', () => { const id = $('purgeJobId').val
 $('verifyDecrypt').addEventListener('click', async () => {
   const out = await tryApi('POST', `/v1/purge-jobs/${purge.jobId}/verify-decrypt`);
   if (!out) return;
-  $('verifyOut').textContent = JSON.stringify(out, null, 2);
+  renderVerify(out);
   toast(`unwrap=${out.unwrap} · decrypt_sample=${out.decrypt_sample}`, String(out.unwrap).startsWith('failed') ? 'ok' : 'bad');
 });
 
@@ -1015,6 +1257,8 @@ $('loadDlq').addEventListener('click', () => ops.loadDlq());
 /* ───────────────────────── 초기화 ───────────────────────── */
 $('banner').textContent = SYNTHETIC_BANNER;
 refreshButtons();
+tour.render();
+catalog.load();
 window.addEventListener('beforeunload', () => { if (recorder && !recorder.done) recorder.finish('page_unload'); viewer.disconnect(); });
 </script>
 </body>

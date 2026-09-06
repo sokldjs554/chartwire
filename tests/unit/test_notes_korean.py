@@ -73,3 +73,27 @@ def test_transform_never_touches_the_body_before_the_ending():
     body = "에스시탈로프람 10mg 먹고 나서 잠은 좀 나아졌"
     for form in ("report", "plain", "formal"):
         assert transform_ending(body + "어요", form).startswith(body)  # type: ignore[union-attr]
+
+
+@pytest.mark.parametrize(
+    ("utterance", "report", "plain", "formal"),
+    [
+        ("4주 전부터요", "4주 전부터라고 함", "4주 전부터다", "4주 전부터입니다"),
+        ("작년까지요", "작년까지라고 함", "작년까지다", "작년까지입니다"),
+        ("회사에서요", "회사에서라고 함", "회사에서다", "회사에서입니다"),
+        ("남편이랑요", "남편이랑이라고 함", "남편이랑이다", "남편이랑입니다"),
+    ],
+)
+def test_particle_noun_phrases_are_reported_not_conjugated(utterance, report, plain, formal):
+    """``부터요`` used to be conjugated as a verb (``부턴다고 함``); a noun phrase is quoted instead."""
+    assert transform_ending(utterance, "report") == report
+    assert transform_ending(utterance, "plain") == plain
+    assert transform_ending(utterance, "formal") == formal
+
+
+@pytest.mark.parametrize(
+    ("utterance", "report"), [("가요", "간다고 함"), ("잠을 못 자요", "잠을 못 잔다고 함")]
+)
+def test_single_syllable_particle_lookalikes_still_conjugate(utterance, report):
+    """``가요`` ends like the particle 가 but is the verb 가다 — the rule only covers multi-syllable particles."""
+    assert report_form(utterance) == report

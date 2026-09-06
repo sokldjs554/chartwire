@@ -82,6 +82,12 @@ _ADJECTIVE_BATCHIM_STEMS = frozenset(
 # endings whose stem is not recoverable by the rules below (ㄹ-drop before 네, sentence-final
 # particles, the promissive 게요); they fall back to the direct-quotation form.
 _UNHANDLED_ENDINGS = ("네요", "거든요", "잖아요", "데요", "고요", "까요", "게요", "죠")
+# 조사로 끝나는 명사구 + 요 (``4주 전부터요``, ``작년까지요``): 마지막 음절이 열린 음절이라 아래의 어간 규칙이
+# 동사로 오해해 ``부턴다고 함`` 을 만든다. 용언이 아니므로 활용하지 않고 인용형 ``…라고 함`` 으로 보고한다.
+# 단음절 조사(가·나·이·로·도·만)는 동사 어간의 끝음절과 겹치므로(``가요`` 는 ``간다고 함``) 판정하지 않는다.
+_PARTICLE_ENDINGS = (
+    "부터", "까지", "에서", "처럼", "마다", "한테", "에게", "보다", "대로", "으로", "이나", "이랑", "랑",
+)  # fmt: skip
 _NEGATIVE_COPULA = {"report": "아니라고 함", "plain": "아니다", "formal": "아닙니다"}
 _TRAILING_RE = re.compile(r"[\s.,!?~…'\"“”‘’]+$")
 
@@ -139,6 +145,17 @@ def _predicate(stem: str, adjective: bool, form: Form) -> str:
     return stem + "는" + ending
 
 
+def _noun_phrase(body: str, form: Form) -> str:
+    """조사로 끝나는 명사구: ``X부터요`` → ``X부터라고 함`` / ``X부터다`` / ``X부터입니다``."""
+    parts = _syllable(body[-1])
+    closed = parts is not None and parts[2] != 0
+    if form == "formal":
+        return body + "입니다"
+    if form == "plain":
+        return body + ("이다" if closed else "다")
+    return body + ("이라고 함" if closed else "라고 함")
+
+
 def _copula(body: str, form: Form) -> str:
     """``X예요`` / ``X이에요`` → ``X라고 함`` / ``X다`` / ``X입니다``."""
     noun = body[:-1] if body.endswith("이") else body
@@ -159,6 +176,8 @@ def transform_ending(utterance: str, form: Form) -> str | None:
         return body[:-3] + _NEGATIVE_COPULA[form]
     if body.endswith(("예", "이에")):
         return _copula(body[:-1] if body.endswith("예") else body[:-2] + "이", form)
+    if body.endswith(_PARTICLE_ENDINGS):
+        return _noun_phrase(body, form)
     stem = _stem(body)
     if stem is None:
         return None

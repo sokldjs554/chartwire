@@ -125,7 +125,7 @@ Q2 는 **같은 SQL 이 실행 역할에 따라 다른 플랜을 받는다**는 
 <!-- /row -->
 <!-- row:eval.inject -->| 환각 주입 검출률 — fabricated / seq / diagnosis / number / drug / negation / speaker | <!-- num:eval.inject.fabricated.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.seq.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.diagnosis.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.number.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.drug.detection_rate -->1.00<!-- /num --> / <!-- num:eval.inject.negation.detection_rate -->0.99<!-- /num --> / <!-- num:eval.inject.speaker.detection_rate -->1.00<!-- /num --> | 클래스당 <!-- num:eval.inject.n_per_class -->200<!-- /num --> 변이, 오탐(false flag) <!-- num:eval.inject.false_flag_rate -->0.000<!-- /num --> — **구성상 높다**: 변이를 검증기와 **같은** 사전·정규식(`DRUGS`/`DIAGNOSES`, `NEGATION_RE`, `NUMERIC_UNIT_RE`)에서 뽑으므로 규칙 배선의 회귀 점검이지 사전 밖 표현에 대한 일반화 근거가 아니다 |
 <!-- /row -->
-<!-- row:eval.paraphrase -->| 패러프레이즈 오거부율 | <!-- num:eval.paraphrase.false_rejection_rate -->0.014<!-- /num --> | 검증기가 정직한 바꿔쓰기를 얼마나 거부하는가 (잔여 원인: `docs/eval/README.md`) |
+<!-- row:eval.paraphrase -->| 패러프레이즈 오거부율 | <!-- num:eval.paraphrase.false_rejection_rate -->0.013<!-- /num --> | 검증기가 정직한 바꿔쓰기를 얼마나 거부하는가 (잔여 원인: `docs/eval/README.md`) |
 <!-- /row -->
 <!-- row:eval.injection -->| 프롬프트 주입 누출 (<!-- num:eval.injection.n_sessions -->20<!-- /num --> 세션) | <!-- num:eval.injection.leaks -->0<!-- /num --> | 주입 발화가 초안 문장·근거로 새어 나온 수. **구성상 낮다** — 규칙 8 정규식을 §9.5 주입 6문장의 표면형까지 넓혔고 평가가 재생하는 문장이 정확히 그 6문장이다. 위험 탐지와 달리 **held-out 주입 세트가 없다**; 회귀 점검용([`docs/grounding.md`](docs/grounding.md) §7) |
 <!-- /row -->
@@ -147,12 +147,16 @@ Q2 는 **같은 SQL 이 실행 역할에 따라 다른 플랜을 받는다**는 
 
 *한 세션의 전 과정입니다(약 40초, 12 fps): 로그인 → 녹음 시작(스크립트 재생 4배속) → 라이브 전사와 위험 경보 → 근거가 하이라이트된 SOAP 초안 → 동의 철회 → 파기 영수증 → **복호화 시도 실패**. 연출이 아니라 Playwright 가 실제로 띄운 서버(`make demo`)를 몰아서 녹화한 화면이고, 등속입니다. 화면 위 **SYNTHETIC** 배너는 모든 장면에 그대로 있습니다.*
 
+콘솔을 처음 열면 **소개 화면**이 먼저 나옵니다 — 무엇을 만든 것인지, 5분 투어 5단계, 역할별 데모 계정, 무료 인스턴스 주의사항. 헤더 아래의 단계 표시가 진행을 따라갑니다.
+
+![소개 화면 — 5분 투어와 데모 계정](docs/images/00_intro.png)
+
 | | |
 |---|---|
 | ![녹음 탭 — 브라우저 녹음기와 ack/credit 로그](docs/images/01_recorder.png) | ![라이브 전사와 위험 경보 배너](docs/images/02_live_alert.png) |
 | **① 녹음** — 브라우저 녹음기가 12 B 헤더 + PCM 청크를 보내고 `ack{ack_seq, credit}` 을 받습니다. ack 는 `audio_chunks` 가 **PostgreSQL 에 커밋된 뒤에만** 옵니다. | **② 라이브 전사 · 위험 경보** — partial(회색)이 final 로 확정되고, 위험 발화에서 배너 + SLA 카운트다운 + ACK. |
 | ![SOAP 초안과 근거 하이라이트](docs/images/03_soap_draft.png) | ![파기 영수증과 복호화 시도 결과](docs/images/04_purge_receipt.png) |
-| **③ SOAP 초안** — 문장을 누르면 그 문장의 **근거 발화**가 전사에서 하이라이트됩니다. 평가(A)는 AI 가 쓰지 않습니다. | **④ 파기 영수증** — 동의 철회 → 환자 단위 파기 → 해시가 붙은 영수증, 그리고 `verify-decrypt` 의 `unwrap=failed:dek_destroyed`. |
+| **③ SOAP 초안** — 녹음이 끝나 `note.status` 가 오면 자동으로 불러옵니다. 문장을 누르면 그 문장의 **근거 발화**가 전사에서 하이라이트됩니다. 평가(A)는 AI 가 쓰지 않습니다. | **④ 파기 영수증** — 동의 철회 → 환자 단위 파기 → 지운 것의 합계와 세션별 단계, 검증 항목, `receipt_hash` 와 재계산 일치 여부가 영수증 형식으로 그려지고, `verify-decrypt` 는 `unwrap=failed:dek_destroyed` 판정표로 끝납니다. |
 | ![Ops 패널 — 메트릭과 DLQ](docs/images/05_ops.png) | |
 | **⑤ Ops** — `/metrics` 폴링(ws 연결, 아웃박스 적체, DLQ, stt 지연). **세션이 끝난 뒤에 찍은 화면이라 라이브 카운터는 모두 0 이고, DLQ 목록 버튼은 누르지 않았습니다.** 빨갛게 보이는 `unacked alerts over SLA` 는 데모 세션이 아니라 **공유 개발 DB(`chartwire`)에 남아 있는 부하 테스트·벌크 로더 잔여 데이터**입니다 — 이 게이지는 프로세스 전체·테넌트 합산이고 테넌트당 `OPEN_SCAN_LIMIT=1000` 에서 잘립니다([`docs/limitations.md`](docs/limitations.md) §6). | |
 

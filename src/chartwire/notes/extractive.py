@@ -6,6 +6,12 @@ utterances with an observation cue become ``O``; clinician utterances with a pla
 verifier matches exactly and rules 3–7 compare a text with its own source. Coverage is therefore
 1.0 by construction — the only thing this provider can be wrong about is *relevance*, which the
 clinician reviews.
+
+The one exception to "whole utterance" is an identifier: when a patient says ``입맛이 없어요 집은
+가온시 라온구 새벽로 13번길 17예요`` the note charts the symptom clause and cites only that clause,
+and an utterance whose every chartable clause carries a phone number, road address or a named
+person is not charted at all. A note is a document people read verbatim; the search index has its
+own redaction, the note must not depend on it.
 """
 
 from __future__ import annotations
@@ -62,6 +68,54 @@ PLAN_CUES = re.compile(r"올려|줄여|유지|처방|드리겠|뵙겠|의뢰|검
 # A clinician *question* (``지난 2주 동안 어떻게 지내셨어요?``) is neither an observation nor a plan even
 # when it contains a cue word; ``…세요`` is not excluded because imperatives are plans (``써 오세요``).
 QUESTION_RE = re.compile(r"(\?|나요|십니까|까요)\s*$")
+# ``뵙겠`` alone is a farewell (``그럼 다음에 뵙겠습니다``), a plan item only with a time: ``2주 뒤에 뵙겠습니다``.
+FOLLOWUP_TIME_RE = re.compile(r"\d+\s*(?:주|일|달|개월|시간)|다음\s*주|한\s*달|내일|모레")
+
+# Identifiers. The synthetic corpus appends one to 5 % of utterances (synth/scripts.py ``_inject_pii``:
+# ``제 번호는 010-…예요`` / ``집은 …시 …구 …로 N번길 N예요`` / ``… 선생님이 소개해 주셨어요``), and real
+# patients volunteer the same things. These are deterministic safety nets, not a name recogniser:
+# a false positive only costs one clause of one statement, a false negative puts an address in a note.
+PHONE_RE = re.compile(r"0\d{1,2}-\d{3,4}-\d{4}")
+ADDRESS_RE = re.compile(
+    r"[가-힣]+(?:시|도)\s+[가-힣]+(?:구|군)\s+[가-힣]+(?:로|길)\s*\d+(?:번길)?(?:\s*\d+)?"
+)
+# ``백예봄님도`` / ``박온솔 선생님`` — a 2–4 syllable token before 님 (any particle may follow: ``님도``,
+# ``님께서``), or a full 3-syllable name before 선생님. Honorific nouns that end in 님 are not names.
+NAME_RE = re.compile(r"(?<![가-힣])([가-힣]{2,4})(?=님)|(?<![가-힣])([가-힣]{3})(?=\s?선생님)")
+_NOT_NAMES = frozenset(
+    {"선생", "사모", "부모", "어머", "아버", "고객", "환자", "아드", "며느", "스승", "장모", "장인", "형수", "도련",
+     "임금", "하느", "정신과", "소아과", "내과", "외과", "주치의", "담당의"}
+)  # fmt: skip
+_CLAUSE_SPLIT = re.compile(r"(?<=[요죠다까])\s+|(?<=[.!?])\s*")
+
+
+def has_identifier(text: str) -> bool:
+    """True when ``text`` carries a phone number, a road address or a named person."""
+    if PHONE_RE.search(text) or ADDRESS_RE.search(text):
+        return True
+    return any((m.group(1) or m.group(2)) not in _NOT_NAMES for m in NAME_RE.finditer(text))
+
+
+def chartable_text(seg: SegmentView) -> str | None:
+    """The part of an utterance the note may quote.
+
+    Without an identifier that is the whole utterance. With one, it is the first clause that carries
+    this speaker's cue and no identifier; ``None`` when every cue clause also carries an identifier
+    (``제 번호는 …`` alone, or ``… 선생님이 소개해 주셨어요`` with the symptom in the same clause).
+    """
+    text = seg.text.strip()
+    if not has_identifier(text):
+        return text
+    cue = (
+        SYMPTOM_CUES
+        if seg.speaker == "patient"
+        else re.compile(f"{OBSERVATION_CUES.pattern}|{PLAN_CUES.pattern}")
+    )
+    for clause in (c.strip() for c in _CLAUSE_SPLIT.split(text)):
+        if len(clause) >= _MIN_QUOTE_CHARS and cue.search(clause) and not has_identifier(clause):
+            return clause
+    return None
+
 
 MAX_QUOTE_CHARS = 200
 """``Evidence.quote`` limit (§9.1). Longer utterances are cited by their first 190 characters in the
@@ -75,7 +129,13 @@ def build_draft(segments: Iterable[SegmentView], *, max_per_section: int = 12) -
     """Pure core of the provider — also used by the mutation and paraphrase mocks."""
     buckets: dict[Section, dict[str, list[SegmentView]]] = {"S": {}, "O": {}, "P": {}}
     seen: dict[Section, set[str]] = {"S": set(), "O": set(), "P": set()}
-    for seg in sorted(segments, key=lambda s: s.seq):
+    for raw in sorted(segments, key=lambda s: s.seq):
+        text = chartable_text(raw)
+        if text is None:
+            continue
+        # The quote and every rule below see the chartable clause; the verifier still matches it as a
+        # substring of the stored segment (rule 2), so evidence offsets point into the real utterance.
+        seg = raw if text == raw.text.strip() else raw.model_copy(update={"text": text})
         section = classify(seg)
         if section is None:
             continue
@@ -125,7 +185,10 @@ def classify(seg: SegmentView) -> Section | None:
     if seg.speaker == "clinician" and not QUESTION_RE.search(text):
         if OBSERVATION_CUES.search(text):
             return "O"
-        if PLAN_CUES.search(text):
+        cues = set(PLAN_CUES.findall(text))
+        if cues == {"뵙겠"} and not FOLLOWUP_TIME_RE.search(text):
+            return None  # farewell, not a follow-up plan
+        if cues:
             return "P"
     return None
 

@@ -30,7 +30,8 @@ REQUIRED_STRINGS = [
     "prefers-color-scheme",
     # REST endpoints (§6.9)
     "/v1/auth/token",
-    "/v1/sessions?state=created",
+    "/v1/sessions?limit=",  # 모든 상태를 나열한다 — 끝난 세션의 초안·영수증도 다시 볼 수 있어야 한다
+    "/console/scripts.json",  # 대본 카탈로그 (템플릿 · 예상 경보 수)
     "/ws-ticket",
     "/notes/latest",
     "/assessment",
@@ -67,6 +68,12 @@ REQUIRED_STRINGS = [
     "last_sent_seq",
     "legal_hold",
     "retention_until",
+    # 소개 화면 · 투어 단계 · 사람이 읽는 영수증과 복호화 판정 (raw JSON 덤프가 아니다)
+    "데모 계정으로 시작",
+    "5분 투어",
+    "파기 영수증",
+    "복호화 실패 — 의도된 결과입니다",
+    "재계산 해시 일치",
 ]
 REQUIRED_CLOSE_CODES = [4000, 4001, 4003, 4004, 4005, 4008, 4009, 4010, 4011, 4012, 4013, 4409, 4503, 1012]
 
