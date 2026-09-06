@@ -1,78 +1,35 @@
-# Render 블루프린트 (spec §12.2) — 무료 티어 데모 배포.
-# 모든 데이터는 합성(SYNTHETIC)입니다 — 실제 환자 정보 없음.
+# Render 블루프린트 (spec §12.2) — 공개 데모 배포. 모든 데이터는 합성(SYNTHETIC)입니다.
 #
-# 한 웹 서비스가 `chartwire serve all --embedded` 로 api + worker + stt-worker 태스크를 한 프로세스에서 돌린다
-# (PostgreSQL 풀 5, STT 시뮬레이터 전용). Render 관리형 Postgres 는 역할을 하나만 주므로 아래에서
-# CHARTWIRE_DATABASE_URL 과 CHARTWIRE_DATABASE_OWNER_URL 을 같은 connectionString 에 묶는다 —
-# 마이그레이션과 런타임이 같은 역할(= 테이블 소유자)로 접속한다. 단일 역할 적응은 환경변수가 아니라
-# 카탈로그 조회로 동작한다: `migrations/helpers.app_role_exists()` 가 `chartwire_app` 이 없는 것을 보고
-# GRANT 를 건너뛰고, 0006 이 `segment_search` 에도 FORCE ROW LEVEL SECURITY 를 건다. FORCE 덕분에
-# 소유자로 접속해도 테넌트 격리는 유지되지만, `search_segments()` 의 owner 면제가 사라져 검색이 느린
-# RLS 경로(§4.6 Q2b)로 떨어진다 — docs/limitations.md 에 적어 두었다.
-# 무료 티어 한계(콜드 스타트, 무료 DB 만료)는 docs/limitations.md 에 적혀 있고 README 는 동작할 때만 URL 을 보여준다.
+# 관리형 리소스를 하나도 쓰지 않는다. Render 무료 플랜은 계정당 관리형 Postgres 1개와 Key Value 1개만
+# 주는데 그 두 슬롯이 다른 프로젝트에 이미 쓰이고 있어, 데모는 무료 웹 서비스 한 개 안에서
+# PostgreSQL 16 · Redis 7 · api + worker + stt-worker 를 모두 띄운다
+# (`deploy/render-demo/Dockerfile`, 기동 순서는 `deploy/render-demo/start.sh`).
 #
-# 블루프린트 스펙의 최상위 키는 services / databases / envVarGroups 뿐이다. Key Value(Redis 호환) 인스턴스는
-# 별도 최상위 키가 아니라 services 안의 `type: keyvalue` 항목으로 선언한다 (아래 chartwire-kv).
+# 이 구성의 뜻밖의 이점: 컨테이너 안에서는 superuser 를 쓸 수 있어 `chartwire_owner` 와
+# NOBYPASSRLS 인 `chartwire_app` 두 역할을 제대로 만든다. 관리형 Postgres 는 역할을 하나만 주므로
+# 소유자로 접속하는 저하 경로(§4.6 Q2b)로 떨어졌을 것이다 — 데모가 오히려 운영 형태에 더 가깝다.
+#
+# 대가는 docs/limitations.md §7 에 적어 두었다: 한 컨테이너 안의 데이터베이스라 재배포마다 데이터가
+# 사라지고(기동 시 마이그레이션 + 데모 시드가 다시 돈다), 무료 인스턴스는 15분 무접속이면 잠들며
+# 다시 깨어나 initdb 까지 마치는 데 1~2분이 걸린다. 운영에 가까운 형태는 `docker-compose.yml`(컨테이너 5개)과
+# `infra/cdk/`(RDS · ElastiCache · ECS Fargate ×3, synth 만) 에 있다.
 services:
   - type: web
     name: chartwire
     runtime: docker
     plan: free
     region: singapore
-    dockerfilePath: ./Dockerfile
-    # 기동 순서: 마이그레이션 → 데모 시드 → 서버. Dockerfile 의 ENTRYPOINT(tini) 는 그대로 남고 CMD 만 바뀐다;
-    # `exec` 로 서버가 PID 를 이어받아 SIGTERM 이 곧장 도달한다 (§6.4 drain). 두 준비 명령은 멱등이라
-    # 매 기동마다 실행돼도 안전하다 (`db upgrade` 는 head 면 no-op, `seed --demo --if-empty` 는 데모 테넌트가
-    # 있으면 건너뛴다). spec §12.2 의 `preDeployCommand` 분리는 무료 인스턴스 타입에서 지원되지 않아 쓰지 않는다;
-    # 유료 인스턴스라면 `dockerCommand: chartwire serve all --embedded` 와
-    # `preDeployCommand: chartwire db upgrade && chartwire seed --demo --if-empty` 로 나눠도 같은 결과다.
-    dockerCommand: sh -c "chartwire db upgrade && chartwire seed --demo --if-empty && exec chartwire serve all --embedded"
+    dockerfilePath: ./deploy/render-demo/Dockerfile
+    dockerContext: .
     healthCheckPath: /healthz
     autoDeploy: true
     envVars:
-      - key: CHARTWIRE_ROLE
-        value: all
-      - key: CHARTWIRE_EMBEDDED
-        value: "1"
-      - key: CHARTWIRE_DATABASE_URL
-        fromDatabase:
-          name: chartwire-db
-          property: connectionString
-      - key: CHARTWIRE_DATABASE_OWNER_URL
-        fromDatabase:
-          name: chartwire-db
-          property: connectionString
-      - key: CHARTWIRE_REDIS_URL
-        fromService:
-          type: keyvalue
-          name: chartwire-kv
-          property: connectionString
+      # 둘 다 없거나 형식이 맞지 않으면 start.sh 가 직접 만든다. KEK 는 데이터베이스와 수명을 같이해야
+      # 하므로(키가 바뀌면 기존 세션 DEK 를 풀 수 없다) 생성한 값을 데이터 디렉터리 옆에 보관한다.
+      # LocalKek 전용이다 — KMS 는 AWS 배포(`infra/cdk/`)에서만 쓴다.
       - key: CHARTWIRE_KEK_MASTER
-        generateValue: true          # Render 가 base64 256-bit 값을 생성 → kek_master 검증(정확히 32 B) 통과; LocalKek 전용, KMS 는 AWS 배포
+        generateValue: true
       - key: CHARTWIRE_JWT_SECRET
         generateValue: true
-      - key: CHARTWIRE_OBJECTSTORE
-        value: localfs:/var/lib/chartwire/objects   # 무료 티어: 디스크 비영속 — 재배포 시 오디오 암호문 소실(파기 데모에는 충분)
-      - key: CHARTWIRE_NOTE_PROVIDER
-        value: extractive            # LLM 키 없이 동작; anthropic 티어는 실행하지 않음
-      - key: CHARTWIRE_ALLOW_SIM_FRAMES
-        value: "true"
-      - key: CHARTWIRE_NODE_ID
-        value: render-1
       - key: PORT
         value: "8000"
-
-  # Render Key Value (Redis 호환) — 재구축 가능한 캐시이므로 무료 플랜의 비영속 스토리지로 충분하다 (ADR-0002).
-  - type: keyvalue
-    name: chartwire-kv
-    plan: free
-    region: singapore
-    maxmemoryPolicy: noeviction      # 스트림/세션 해시가 조용히 사라지지 않게 한다; 넘치면 XADD 가 실패해 fail-closed
-    ipAllowList: []                  # 내부 네트워크에서만 접속
-
-databases:
-  - name: chartwire-db
-    plan: free
-    region: singapore
-    postgresMajorVersion: "16"
-    ipAllowList: []                  # 내부 네트워크에서만 접속

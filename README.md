@@ -4,7 +4,9 @@
 > 임상 사용 불가 — 연구/포트폴리오 구현입니다. STT 품질과 진료 노트 품질은 **평가하지 않았습니다**(합성 데이터, 시뮬레이터).
 
 [![ci](https://github.com/sokldjs554/chartwire/actions/workflows/ci.yml/badge.svg)](https://github.com/sokldjs554/chartwire/actions/workflows/ci.yml)
-<!-- 라이브 데모 링크는 Render 배포가 실제로 동작하는 동안에만 여기에 둔다 (spec §12.2). -->
+<!-- 공개 데모 링크는 배포가 실제로 동작하는 동안에만 여기에 둔다 (spec §12.2). 형식:
+     **공개 데모**: <URL> — 첫 접속은 잠든 인스턴스를 깨우느라 1~2분 걸립니다 (tenant `demo` / clinician@demo.clinic / demo1234!).
+     배포 구성과 그 대가는 render.yaml · deploy/render-demo/ · docs/limitations.md §7. -->
 
 정신과 진료실 실시간 음성차팅의 밑바닥 — 무손실 WebSocket 스트리밍 프로토콜, 테넌시 격리, 파기 영수증, 실측된 운영 수치.
 *The measured reliability & compliance layer under SOAPY-class psychiatric voice-charting products.*
@@ -217,6 +219,8 @@ LLM 없는 결정론적 **고재현율 안전망**입니다: 한국어 사전(�
 docker compose up --build          # → http://127.0.0.1:8000/console (clinician@demo.clinic / demo1234!)
 ```
 
+**공개 URL 로 (사전 요구사항: 없음)** — [`render.yaml`](render.yaml) 은 Render 무료 웹 서비스 **한 개**만 만듭니다. 관리형 Postgres/Key Value 를 쓰지 않고 [`deploy/render-demo/`](deploy/render-demo/) 이미지가 PostgreSQL 16 · Redis 7 · api/worker/stt-worker 를 한 컨테이너에 담아, 기동할 때마다 initdb → 역할 생성 → 마이그레이션 → 데모 시드를 멱등하게 다시 돌립니다. **CI 의 `render-demo` 잡이 매번 이 이미지를 실제로 띄워** 루트 302 · 콘솔 · 로그인 · 익명 401 · `chartwire_app` 의 NOBYPASSRLS 를 확인합니다. 데모 전용 형태이고 상태는 보존되지 않으며 성능을 재는 대상이 아닙니다 — 이유와 대가는 [`docs/limitations.md`](docs/limitations.md) §7.
+
 **소스에서 (사전 요구사항: Python 3.11+, PostgreSQL 16 with `pg_trgm`·`pgcrypto`, Redis 7 — `make dev-up` 은 이 둘을 설치하지 않고 기동만 합니다)**
 
 ```bash
@@ -247,7 +251,7 @@ chartwire simulate --script s01 --speed 4 --drop-at 30s   # 프로토콜 준수 
 
 ## 12. 한계와 미실행 항목 · 채용공고 매핑 · 기존 저장소
 
-정직한 목록은 [`docs/limitations.md`](docs/limitations.md): STT 품질·노트 품질 미평가, 시뮬레이터·합성 데이터 상한, 단일 리전, 법적 보존 자동화는 플래그까지, **Anthropic tier 미실행**(키 없음 — 어댑터·픽스처 재생만), **시나리오 E(nginx 뒤 2 프로세스 drain) 미실행**(그래서 표 ① 의 E 행은 숫자 파이프라인이 삭제했습니다), **N=200 은 이 박스의 무릎**이고 수평 확장 토폴로지는 측정하지 않았음, held-out 위험 탐지는 목표 미달의 안전망 지표, 부하 수치는 클라이언트 혼입, Render 무료 티어 특성.
+정직한 목록은 [`docs/limitations.md`](docs/limitations.md): STT 품질·노트 품질 미평가, 시뮬레이터·합성 데이터 상한, 단일 리전, 법적 보존 자동화는 플래그까지, **Anthropic tier 미실행**(키 없음 — 어댑터·픽스처 재생만), **시나리오 E(nginx 뒤 2 프로세스 drain) 미실행**(그래서 표 ① 의 E 행은 숫자 파이프라인이 삭제했습니다), **N=200 은 이 박스의 무릎**이고 수평 확장 토폴로지는 측정하지 않았음, held-out 위험 탐지는 목표 미달의 안전망 지표, 부하 수치는 클라이언트 혼입, **공개 데모는 한 컨테이너 자급자족 형태라 상태가 보존되지 않고 성능 측정 대상이 아님**.
 
 | 채용공고 항목 | 파일 |
 |---|---|

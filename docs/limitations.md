@@ -94,14 +94,12 @@
 - PostgreSQL 한 인스턴스, Redis 한 인스턴스, 리전 하나. CDK 스택은 Multi-AZ RDS 와 ElastiCache 복제본을 정의하지만 **synth 만 했고
   배포하지 않았다**(계정 없음). 장애 조치·리전 간 복제·백업 복원 시간은 측정하지 않았다([`aws.md`](aws.md)).
 - 드레인은 프로세스 단위(SIGTERM)로만 검증했다. 롤링 배포 중 두 api 노드 사이의 세션 이동은 프로토콜(1012 → resume)이 지원하지만 nginx 뒤 실측은 시나리오 E 다.
-- **관리형 PG 단일 역할(Render)에서는 검색이 느린 경로로 떨어진다.** 두 역할 배포에서 `segment_search` 는 `ENABLE` 만 걸고
+- **관리형 PG 가 역할을 하나만 줄 때는 검색이 느린 경로로 떨어진다.** 두 역할 배포에서 `segment_search` 는 `ENABLE` 만 걸고
   `FORCE` 는 걸지 않는다 — `SECURITY DEFINER search_segments()` 가 소유자로 실행되어 트라이그램 인덱스를 쓰기 위해서다
   (ADR-0005). 이 면제는 **런타임이 소유자가 아닐 때만** 좁다. 단일 역할에서는 런타임이 곧 소유자이므로, 마이그레이션 0006 이
   `chartwire_app` 역할이 없는 것을 보고 이 테이블에도 `FORCE` 를 건다: 평문 전사에 대한 테넌트 격리는 유지되지만 검색은
-  §4.6 Q2b 경로(Bitmap+Filter, 느림)로 떨어진다. **README 표 ② 의 Q2c/Q2d 수치는 두 역할 배포의 값이고 Render 에서는
-  성립하지 않는다.** 이 조건에서의 검색 지연은 측정하지 않았다.
-- Render 무료 티어(`render.yaml`): 콜드 스타트가 길고 DB 는 기간 만료로 사라지며 디스크가 비영속이라 `localfs` 오브젝트 스토어는
-  재배포 시 비워진다(파기 데모에는 문제없음). 라이브 URL 은 동작하는 동안에만 README 에 둔다.
+  §4.6 Q2b 경로(Bitmap+Filter, 느림)로 떨어진다. **README 표 ② 의 Q2c/Q2d 수치는 두 역할 배포의 값이다.** 단일 역할
+  조건에서의 검색 지연은 측정하지 않았다. 아래 §7 의 공개 데모는 컨테이너 안 PostgreSQL 을 쓰므로 이 저하 경로에 해당하지 않는다.
 
 ## 5. 법적 보존 자동화는 플래그까지다
 
@@ -131,3 +129,22 @@
   200 ms 틱 근처로 양자화된다(WP-H 스모크에서 관찰, `docs/dev/handoff/wp-h-phase2.md` §4 요청). 수정되면 README 의 ack 수치는 재측정으로만 바뀐다.
 - LOC 예산(§0)을 대부분의 작업 패키지가 넘겼다(핸드오프에 그대로 보고). 줄이지 않고 남긴 것은 통합자의 결정이다.
 - `mypy --strict` 는 스펙이 정한 5 모듈에만 적용된다; 나머지 트리는 `mypy` 기본 설정에서 37건의 비-strict 오류가 있다(HEAD 에도 있던 것).
+
+## 7. 공개 데모는 한 컨테이너 안에서 자급자족한다
+
+- `render.yaml` 과 [`../deploy/render-demo/`](../deploy/render-demo/) 는 PostgreSQL 16 · Redis 7 · api + worker + stt-worker 를
+  **무료 웹 서비스 한 개 안에** 담는다. 관리형 Postgres/Key Value 를 쓰지 않는 이유는 설계 판단이 아니라 제약이다: Render 무료
+  플랜은 계정당 관리형 Postgres 1개 · Key Value 1개만 주는데 그 두 슬롯이 다른 프로젝트에 이미 쓰이고 있었다.
+- **데이터는 재배포마다 사라진다.** 무료 인스턴스의 디스크는 비영속이라 데이터 디렉터리·오브젝트 스토어·KEK 가 함께 비워지고,
+  기동 스크립트가 initdb → 역할 생성 → 마이그레이션 → 데모 시드를 처음부터 다시 돌린다(모두 멱등). 데모로는 충분하지만
+  **어떤 상태도 보존되지 않는다** — 남긴 서명 노트나 파기 영수증은 다음 기동에 없다.
+- **잠들고 깨어난다.** 15분 무접속이면 인스턴스가 내려가고, 다시 깨어나 initdb 까지 마치는 데 1~2분이 걸린다(0.1 vCPU · 512 MB).
+  처음 링크를 누르는 사람은 로딩 화면을 볼 수 있다. 면접처럼 즉시 보여 줘야 하는 자리에서는 `docker compose up --build` 가 낫다.
+- **한 컨테이너에 DB 를 함께 넣는 것은 데모 형태이지 운영 형태가 아니다.** 프로세스가 서로의 CPU·메모리를 나눠 쓰므로 이 URL 에서
+  잰 어떤 지연도 README 표 ① · ② 의 수치와 비교할 수 없다 — **공개 데모에서는 성능을 측정하지 않았다.** 운영에 가까운 형태는
+  [`../docker-compose.yml`](../docker-compose.yml)(컨테이너 5개 분리)과 [`aws.md`](aws.md)(RDS · ElastiCache · ECS Fargate ×3,
+  synth 만) 에 있다.
+- **fsync 와 `synchronous_commit` 은 켜 둔 채로 돌린다.** 무료 인스턴스에서 이 둘을 끄면 눈에 띄게 빨라지지만, 이 프로젝트가
+  보여 주려는 것이 "ack 는 `audio_chunks` 가 PostgreSQL 에 커밋된 뒤에만 나간다" 라서 그 보장을 끄면 보여 주는 대상이 달라진다.
+- 컨테이너 안 PostgreSQL 은 superuser 를 쓸 수 있어 `chartwire_owner` 와 NOBYPASSRLS 인 `chartwire_app` 두 역할을 제대로 만든다.
+  CI 의 `render-demo` 잡이 매번 이미지를 띄워 `chartwire_app` 이 `rolbypassrls`·`rolsuper` 둘 다 아님을 확인한다.

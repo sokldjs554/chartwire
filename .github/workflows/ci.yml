@@ -285,6 +285,51 @@ jobs:
         if: always()
         run: docker compose down -v
 
+  render-demo:
+    # 공개 데모 이미지(deploy/render-demo/): PostgreSQL 16 · Redis 7 · api+worker+stt-worker 가 한
+    # 컨테이너 안에서 스스로 올라오는지 실제로 띄워 확인한다. 빌드만으로는 무료 인스턴스의 비영속
+    # 디스크에서 매 기동마다 다시 도는 경로(initdb → 역할 → 마이그레이션 → 데모 시드)를 볼 수 없다.
+    needs: lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker build (데모 이미지)
+        run: docker build -f deploy/render-demo/Dockerfile -t chartwire-demo:local .
+      - name: 빈 디스크에서 기동 (initdb → 역할 → 마이그레이션 → 데모 시드 → serve)
+        run: |
+          docker run -d --name cwdemo -p 8000:8000 chartwire-demo:local
+          for _ in $(seq 1 90); do
+            curl -fsS http://127.0.0.1:8000/healthz > /dev/null 2>&1 && break
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8000/healthz
+      - name: 루트가 콘솔로 보내고 콘솔이 뜬다
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/)" = 302
+          curl -fsS http://127.0.0.1:8000/console | grep -q SYNTHETIC
+          curl -fsS http://127.0.0.1:8000/readyz
+      - name: 데모 계정으로 로그인하고 세션이 조회된다 (익명은 401)
+        run: |
+          tok=$(curl -fsS -X POST http://127.0.0.1:8000/v1/auth/token \
+                  -H 'content-type: application/json' \
+                  -d '{"tenant_slug":"demo","email":"clinician@demo.clinic","password":"demo1234!"}' \
+                | python3 -c 'import sys, json; print(json.load(sys.stdin)["access_token"])')
+          curl -fsS -H "authorization: Bearer $tok" 'http://127.0.0.1:8000/v1/sessions?state=created' > /dev/null
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/v1/sessions)" = 401
+      # 관리형 Postgres 였다면 역할이 하나뿐이라 소유자로 접속하는 저하 경로(§4.6 Q2b)로 떨어진다.
+      # 컨테이너 안 PostgreSQL 은 superuser 를 쓸 수 있어 두 역할을 제대로 만든다 — 그것을 확인한다.
+      - name: 런타임 역할이 NOBYPASSRLS 이고 superuser 가 아니다
+        run: |
+          docker exec cwdemo psql -h /var/lib/chartwire/run -p 5432 -U chartwire -d chartwire \
+            -tAc "select rolbypassrls or rolsuper from pg_roles where rolname = 'chartwire_app'" > role.txt
+          grep -qx f role.txt
+      - name: 컨테이너 로그 (실패 시)
+        if: failure()
+        run: docker logs --tail 200 cwdemo
+      - name: 정리
+        if: always()
+        run: docker rm -f cwdemo || true
+
   frozen-artifacts:
     # §11.3: the held-out set hash, README markers in sync with the committed JSON reports, schema dump.
     # `readme_numbers.py --check` exits 1 while any <!-- row --> in README.md is unmeasured — that is the
