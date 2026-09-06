@@ -9,6 +9,8 @@ from typer.testing import CliRunner
 
 from chartwire.loadtest import simulate_cli
 
+from ._cli_output import plain
+
 runner = CliRunner()
 
 
@@ -21,8 +23,9 @@ def test_root_cli_mounts_simulate_separately_from_loadtest() -> None:
 def test_help_lists_the_spec_options() -> None:
     result = runner.invoke(simulate_cli.app, ["--help"])
     assert result.exit_code == 0
+    helptext = plain(result.output)
     for option in ("--script", "--speed", "--session", "--drop-at"):
-        assert option in result.output
+        assert option in helptext
 
 
 @pytest.mark.parametrize(

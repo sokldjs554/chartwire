@@ -60,7 +60,9 @@ def dev_keygen() -> None:
     typer.echo(f"CHARTWIRE_JWT_SECRET={base64.urlsafe_b64encode(os.urandom(32)).decode().rstrip('=')}")
 
 
-@app.callback(invoke_without_command=False)
+# ``invoke_without_command=True`` 여야 ``chartwire --version`` 이 콜백에 닿는다. False 면 click 이
+# 콜백을 부르기 전에 "Missing command." 로 끝낸다. 인자 없이 부르면 ``no_args_is_help`` 가 도움말을 낸다.
+@app.callback(invoke_without_command=True)
 def main(
     version: bool = typer.Option(False, "--version", help="버전 출력", is_eager=True),
 ) -> None:

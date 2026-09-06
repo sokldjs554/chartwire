@@ -10,14 +10,14 @@
 #   · infra/cdk/         — RDS PG16 · ElastiCache · ECS Fargate ×3 (synth 만, 미배포)
 # 한 컨테이너에 데이터베이스를 함께 넣는 대가는 docs/limitations.md §7 에 적어 두었다.
 
-FROM python:3.11-slim AS build
+FROM python:3.11-slim-bookworm AS build
 WORKDIR /src
 COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install --no-cache-dir --upgrade pip wheel \
  && pip wheel --no-cache-dir --wheel-dir /wheels "."
 
-FROM python:3.11-slim AS runtime
+FROM python:3.11-slim-bookworm AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
     PATH="/usr/lib/postgresql/16/bin:${PATH}" \
     PGDATA=/var/lib/chartwire/pgdata \
@@ -32,12 +32,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
 
 # PostgreSQL 16 은 bookworm 기본 저장소에 없어 PGDG 를 추가한다. contrib(pg_trgm·pgcrypto)는
 # postgresql-16 패키지에 함께 들어 있다. curl/gnupg 는 저장소 등록에만 쓰고 지운다.
+#
+# 저장소 이름은 베이스 이미지의 배포판에서 읽는다(`VERSION_CODENAME`). 하드코딩하면 베이스가 다음
+# Debian 으로 넘어갔을 때 libicu 버전이 어긋나 `postgresql-16` 이 설치되지 않는다 — 실제로 그렇게 깨졌다.
+# 그래서 위에서 베이스 태그를 bookworm 으로 고정하고, 여기서는 그 태그를 따라가게 한다.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl gnupg tini redis-server \
  && install -d /usr/share/postgresql-common/pgdg \
  && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
       -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
- && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+ && . /etc/os-release \
+ && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
       > /etc/apt/sources.list.d/pgdg.list \
  && apt-get update \
  && apt-get install -y --no-install-recommends postgresql-16 \

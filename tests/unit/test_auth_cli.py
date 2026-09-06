@@ -12,6 +12,8 @@ from chartwire.auth import cli
 from chartwire.auth.deps import JWT_SECRET_ENV
 from chartwire.auth.jwt import verify
 
+from ._cli_output import plain
+
 runner = CliRunner()
 SECRET = "cli-secret"
 
@@ -45,7 +47,7 @@ def test_issue_rejects_unknown_role_and_missing_tenant() -> None:
     assert runner.invoke(cli.app, ["issue", "--tenant-id", str(uuid4()), "--role", "root"]).exit_code != 0
     result = runner.invoke(cli.app, ["issue", "--role", "admin"])
     assert result.exit_code != 0
-    assert "--tenant" in result.output
+    assert "--tenant" in plain(result.output)
 
 
 def test_issue_without_secret_fails(monkeypatch: pytest.MonkeyPatch) -> None:
