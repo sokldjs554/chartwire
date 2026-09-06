@@ -114,13 +114,13 @@ python scripts/console_screenshots.py --chromium /opt/pw-browsers/chromium \
   (404 는 이제 콘솔이 "아직 초안이 없습니다 — 녹음을 끝내면 워커가 만듭니다" 로 안내하고, `note.status` 가 오면 자동으로 불러온다.)
 - **한 번 파기된 환자는 이름으로 찾을 수 없다.** `patient_shred` 가 이름 블라인드 인덱스를 지우므로 `--patient` 로 같은 가명을 다시 주면
   `findPatient` 가 빈 결과를 돌려주고 드라이버가 `#patientInfo` 에서 멈춘다 — 위의 "환자를 매번 새로 고른다" 가 그 이유다.
-- GIF 만들기(12 fps, 폭 1100, ≤ 8 MB). Playwright 번들 ffmpeg 는 `scale` 필터뿐이라 **팔레트 필터도 gif 먹서도 없다** — 전체 빌드를 쓴다:
+- GIF 만들기(10 fps, 폭 1100, 팔레트 40색, ≤ 8 MB — 46 초 녹화가 7.1 MB). Playwright 번들 ffmpeg 는 `scale` 필터뿐이라 **팔레트 필터도 gif 먹서도 없다** — 전체 빌드를 쓴다:
 
 ```bash
 FF=$(python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())")   # uv pip install imageio-ffmpeg
 V=var/demo-video/*.webm
-"$FF" -y -i $V -vf "fps=12,scale=1100:-2:flags=lanczos,palettegen=max_colors=48:stats_mode=diff" var/palette.png
-"$FF" -y -i $V -i var/palette.png -lavfi "fps=12,scale=1100:-2:flags=lanczos[x];[x][1:v]paletteuse=dither=none:diff_mode=rectangle" \
+"$FF" -y -i $V -vf "fps=10,scale=1100:-2:flags=lanczos,palettegen=max_colors=40:stats_mode=diff" var/palette.png
+"$FF" -y -i $V -i var/palette.png -lavfi "fps=10,scale=1100:-2:flags=lanczos[x];[x][1:v]paletteuse=dither=none:diff_mode=rectangle" \
      -loop 0 docs/images/demo.gif
 ```
 
