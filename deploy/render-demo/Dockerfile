@@ -8,7 +8,7 @@
 # 이것은 데모 배포 형태이지 운영 배포 형태가 아니다. 운영에 가까운 형태는 저장소의 다른 두 곳에 있다:
 #   · docker-compose.yml — postgres · redis · api · worker · stt-worker 를 분리한 컨테이너 5개
 #   · infra/cdk/         — RDS PG16 · ElastiCache · ECS Fargate ×3 (synth 만, 미배포)
-# 한 컨테이너에 데이터베이스를 함께 넣는 대가는 docs/limitations.md §7 에 적어 두었다.
+# 한 컨테이너에 데이터베이스를 함께 넣는 대가는 docs/limitations.md §8 에 적어 두었다.
 
 FROM python:3.11-slim-bookworm AS build
 WORKDIR /src

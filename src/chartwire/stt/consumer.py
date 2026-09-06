@@ -39,6 +39,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from chartwire.audit import service as audit
 from chartwire.consent import gates
 from chartwire.consent.service import active_scopes_for_patient
+from chartwire.core import pii
 from chartwire.crypto.envelope import Envelope, aad
 from chartwire.crypto.errors import DecryptError, DekDestroyedError
 from chartwire.db.repo import search as search_repo
@@ -606,7 +607,7 @@ class SessionConsumer:
                     session_id=f.session_id,
                     patient_id=f.patient_id,
                     speaker=final.speaker,
-                    text_plain=final.text,
+                    text_plain=pii.redact(final.text),  # spec §10.2 — 색인은 가리고 text_enc 는 원문을 지킨다
                     terms=lexicon_tag(final.text),
                 )
             for hit in scan(final.text, final.speaker):

@@ -119,7 +119,31 @@ V=var/demo-video/*.webm
      -loop 0 docs/images/demo.gif
 ```
 
-## 6. 종료
+## 6. 데모 대본 20개는 모두 같은 자격이다
+
+`seed --demo` 는 `s01`–`s20` 대본을 디스크에 쓰고 **대본마다 `created` 세션을 하나씩** 만든다
+(`synth/seed.py`, 환자 20명에 배정). 콘솔의 세션 선택기와 `script_ref` 드롭다운은 20개를 모두
+보여 주고, 각 항목 옆의 템플릿·예상 경보 수는 `/console/scripts.json`(시드가 쓴 `index.json`)에서
+온다. 어느 것을 골라도 서버의 STT 시뮬레이터가 그 대본을 재생하므로 전사·경보·초안이 달라진다.
+
+전수 확인 방법 — 각 `created` 세션을 그 세션의 `script_ref` 로 재생하고 결과를 모은다:
+
+```bash
+chartwire simulate --script "$REF" --speed 8 --session "$SID" --api http://127.0.0.1:8000
+curl -s -H "authorization: Bearer $TOKEN" ".../v1/sessions/$SID/notes/latest" | jq '{status, coverage, statement_count}'
+```
+
+대본은 7개 템플릿(초진 우울 · 재진 약물조정 · 불안/공황 · 불면 · 강박 · 알코올 · 성인 ADHD 추적)에서
+seed 1 로 생성되어 발화 수 44–58, 기대 경보 0–3건으로 갈린다. 경보가 0건인 대본은 고장이 아니라
+**위험 발화가 없는 진료**이며, `index.json` 의 `n_expected_alerts` 가 그 값을 미리 알려 준다.
+
+한 번 전수로 돌려 본 결과(빈 DB, `--speed 8`, 이 저장소의 개발 박스): 20개 대본 모두 `drafted` 까지
+도달했고 전사 세그먼트 44–58, 초안 `verified` 20/20, coverage 1.0, 미검증 문장 0, 청크 손실 0 · 중복 0.
+**경보 수는 20개 모두 `n_expected_alerts` 와 일치**했다(0건 11개 · 1건 3개 · 2건 2개 · 3건 4개).
+같은 실행에서 검색 색인 1,033행과 노트 문장 311개 · 근거 인용 전부에 전화번호·주소가 남아 있지 않았다
+(§10.2 리댁션, `core/pii.py`). 이 수치는 회귀 점검용이지 성능 측정이 아니다 — 부하 수치는 README 표 ①.
+
+## 7. 종료
 
 ```bash
 kill -TERM <pid>   # 백그라운드 셸이 아니라 서버 프로세스 pid 로

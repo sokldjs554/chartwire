@@ -19,6 +19,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 
+from chartwire.core.pii import has_identifier
 from chartwire.notes.korean import report_form
 from chartwire.notes.providers.base import Stopwatch, raw_from_draft
 from chartwire.notes.schema import (
@@ -71,29 +72,10 @@ QUESTION_RE = re.compile(r"(\?|나요|십니까|까요)\s*$")
 # ``뵙겠`` alone is a farewell (``그럼 다음에 뵙겠습니다``), a plan item only with a time: ``2주 뒤에 뵙겠습니다``.
 FOLLOWUP_TIME_RE = re.compile(r"\d+\s*(?:주|일|달|개월|시간)|다음\s*주|한\s*달|내일|모레")
 
-# Identifiers. The synthetic corpus appends one to 5 % of utterances (synth/scripts.py ``_inject_pii``:
-# ``제 번호는 010-…예요`` / ``집은 …시 …구 …로 N번길 N예요`` / ``… 선생님이 소개해 주셨어요``), and real
-# patients volunteer the same things. These are deterministic safety nets, not a name recogniser:
-# a false positive only costs one clause of one statement, a false negative puts an address in a note.
-PHONE_RE = re.compile(r"0\d{1,2}-\d{3,4}-\d{4}")
-ADDRESS_RE = re.compile(
-    r"[가-힣]+(?:시|도)\s+[가-힣]+(?:구|군)\s+[가-힣]+(?:로|길)\s*\d+(?:번길)?(?:\s*\d+)?"
-)
-# ``백예봄님도`` / ``박온솔 선생님`` — a 2–4 syllable token before 님 (any particle may follow: ``님도``,
-# ``님께서``), or a full 3-syllable name before 선생님. Honorific nouns that end in 님 are not names.
-NAME_RE = re.compile(r"(?<![가-힣])([가-힣]{2,4})(?=님)|(?<![가-힣])([가-힣]{3})(?=\s?선생님)")
-_NOT_NAMES = frozenset(
-    {"선생", "사모", "부모", "어머", "아버", "고객", "환자", "아드", "며느", "스승", "장모", "장인", "형수", "도련",
-     "임금", "하느", "정신과", "소아과", "내과", "외과", "주치의", "담당의"}
-)  # fmt: skip
+# 식별자 판정은 `core/pii.py` 한 곳에 있다 — 검색 색인 리댁션(spec §10.2)과 같은 규칙을 쓴다.
+# 노트에서는 치환이 아니라 제외다: 근거 인용은 저장된 발화의 부분 문자열이어야 하고(검증기 규칙 2),
+# 사람이 그대로 읽는 문서에 ``[주소]`` 를 남기는 것보다 그 절을 싣지 않는 편이 낫다.
 _CLAUSE_SPLIT = re.compile(r"(?<=[요죠다까])\s+|(?<=[.!?])\s*")
-
-
-def has_identifier(text: str) -> bool:
-    """True when ``text`` carries a phone number, a road address or a named person."""
-    if PHONE_RE.search(text) or ADDRESS_RE.search(text):
-        return True
-    return any((m.group(1) or m.group(2)) not in _NOT_NAMES for m in NAME_RE.finditer(text))
 
 
 def chartable_text(seg: SegmentView) -> str | None:

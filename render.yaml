@@ -9,7 +9,7 @@
 # NOBYPASSRLS 인 `chartwire_app` 두 역할을 제대로 만든다. 관리형 Postgres 는 역할을 하나만 주므로
 # 소유자로 접속하는 저하 경로(§4.6 Q2b)로 떨어졌을 것이다 — 데모가 오히려 운영 형태에 더 가깝다.
 #
-# 대가는 docs/limitations.md §7 에 적어 두었다: 한 컨테이너 안의 데이터베이스라 재배포마다 데이터가
+# 대가는 docs/limitations.md §8 에 적어 두었다: 한 컨테이너 안의 데이터베이스라 재배포마다 데이터가
 # 사라지고(기동 시 마이그레이션 + 데모 시드가 다시 돈다), 무료 인스턴스는 15분 무접속이면 잠들며
 # 다시 깨어나 initdb 까지 마치는 데 1~2분이 걸린다. 운영에 가까운 형태는 `docker-compose.yml`(컨테이너 5개)과
 # `infra/cdk/`(RDS · ElastiCache · ECS Fargate ×3, synth 만) 에 있다.

@@ -25,6 +25,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from chartwire.core import pii
 from chartwire.core.clock import SystemClock
 from chartwire.core.config import Settings
 from chartwire.crypto import Envelope, KeyCache, LocalKek, dek_fingerprint
@@ -318,6 +319,37 @@ async def messages(ps: Any, settle_s: float = 0.3) -> list[dict[str, Any]]:
 
 
 # --------------------------------------------------------------------------- tests
+
+
+async def test_search_index_is_redacted_while_the_ciphertext_keeps_the_original(
+    factories, app_engine, redis, settings, tmp_path
+):
+    """spec §10.2 — `segment_search.text` 는 평문 색인이라 식별자를 가리고, `text_enc` 는 원문을 지킨다.
+
+    t02 의 첫 발화에는 전화번호가 들어 있다. 색인에 `[전화]` 가 들어가고 암호문을 풀면 원문이
+    그대로 나와야 한다: 임상의는 전사에서 환자가 말한 것을 보고, 테넌트 전체를 훑는 색인만 가려진다.
+    """
+    seeded = await seed(factories, app_engine, settings, script_ref="t02")
+    deps = make_deps(app_engine, redis, settings, tmp_path / "objects")
+    producer = Producer(deps, seeded)
+    assert await producer.hello() == 1
+    script = load_script(SCRIPTS_DIR / "t02.json")
+    chunks = script.total_ms // CHUNK_MS
+    await producer.produce(range(1, chunks + 1))
+    await producer.end()
+    await run_until(deps, transcribed(app_engine, seeded), what="session transcribed")
+
+    rows = await segments_of(app_engine, seeded)
+    async with tenant_tx(app_engine, TenantCtx.service(seeded.tenant_id)) as s:
+        search_rows = (await s.scalars(select(SegmentSearch).order_by(SegmentSearch.segment_id))).all()
+
+    raw = script.utterances[0].text
+    assert "010-2345-6789" in raw, "픽스처가 전화번호를 잃었다면 이 시험은 아무것도 확인하지 않는다"
+    assert decrypt(seeded, rows[0]) == raw, "암호문은 원문 그대로"
+    assert search_rows[0].text == pii.redact(raw) and search_rows[0].text != raw
+    assert "010-2345-6789" not in search_rows[0].text and "[전화]" in search_rows[0].text
+    for row, utt in zip(search_rows, script.utterances, strict=True):
+        assert row.text == pii.redact(utt.text)
 
 
 async def test_finals_persisted_with_seq_created_at_alert_and_end_marker(
