@@ -6,6 +6,7 @@ typed view used by the repositories, not the source of the DDL.
 """
 
 from chartwire.db.base import Base
+from chartwire.db.models.consultations import ConsultationRequest
 from chartwire.db.models.notes import Note, NoteAssessment, NoteStatement
 from chartwire.db.models.ops import AuditEvent, DeadLetter, OutboxEvent, ProcessedEvent, PurgeJob
 from chartwire.db.models.patients import Consent, Patient
@@ -33,7 +34,8 @@ TENANT_TABLES: tuple[str, ...] = (
     "audit_events",
     "purge_jobs",
 )
-"""Every table carrying ``tenant_id`` (all RLS-protected); ``tenants`` itself is not listed."""
+"""Every table carrying ``tenant_id`` (all RLS-protected); ``tenants`` and ``consultation_requests``
+(platform-level, no ``tenant_id``) are not listed."""
 
 __all__ = [
     "TENANT_TABLES",
@@ -41,6 +43,7 @@ __all__ = [
     "AuditEvent",
     "Base",
     "Consent",
+    "ConsultationRequest",
     "DeadLetter",
     "Note",
     "NoteAssessment",

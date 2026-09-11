@@ -220,6 +220,24 @@ ALTER TABLE ONLY public.consents FORCE ROW LEVEL SECURITY;
 
 
 --
+-- Name: consultation_requests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.consultation_requests (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    clinic_name text NOT NULL,
+    contact_name text NOT NULL,
+    phone text NOT NULL,
+    email text NOT NULL,
+    role text,
+    message text,
+    source text DEFAULT 'console-home'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT consultation_requests_role_check CHECK ((role = ANY (ARRAY['director'::text, 'manager'::text, 'staff'::text, 'other'::text])))
+);
+
+
+--
 -- Name: dead_letters; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -718,6 +736,14 @@ ALTER TABLE ONLY public.consents
 
 ALTER TABLE ONLY public.consents
     ADD CONSTRAINT consents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: consultation_requests consultation_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.consultation_requests
+    ADD CONSTRAINT consultation_requests_pkey PRIMARY KEY (id);
 
 
 --
@@ -1487,6 +1513,13 @@ GRANT SELECT,USAGE ON SEQUENCE public.audit_events_id_seq TO chartwire_app;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.consents TO chartwire_app;
+
+
+--
+-- Name: TABLE consultation_requests; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT ON TABLE public.consultation_requests TO chartwire_app;
 
 
 --

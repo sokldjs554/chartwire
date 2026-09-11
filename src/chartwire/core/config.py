@@ -85,6 +85,15 @@ class Settings(BaseSettings):
     """Comma-separated console origins; empty → no CORS middleware."""
     console_dir: Path | None = None
     """Directory holding ``console/index.html`` (default: repo ``console/`` or ``/app/console``)."""
+    trusted_proxy_ips: str = ""
+    """Proxies whose ``X-Forwarded-For`` uvicorn may believe (comma-separated IPs/CIDRs, or ``*``).
+
+    Empty (default) → uvicorn keeps the socket address as ``scope["client"]`` and the header is
+    ignored everywhere. Set this **only** when the container is reachable solely through that proxy:
+    the rate-limit buckets key on ``scope["client"]``, so trusting a proxy that anyone can talk to
+    directly would let a caller pick their own bucket. The Render demo sets ``*`` because the
+    platform is the only route in.
+    """
 
     # --- test isolation (tests/conftest.py) --------------------------------
     test_db: str = "chartwire_test"

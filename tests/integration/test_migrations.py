@@ -32,17 +32,17 @@ def test_round_trip_and_schema_dump_equality(migrated_db):
     dbcli.upgrade(migrated_db.owner, "head")
     after = dbcli.schema_dump(migrated_db.owner)
     assert after == before
-    assert dbcli.current_revision(migrated_db.owner) == "0007"
+    assert dbcli.current_revision(migrated_db.owner) == "0008"
     committed = SCHEMA_FILE.read_text()
     assert after == committed, "docs/db/schema.sql is stale: run `make schema-dump`"
 
 
 def test_each_revision_downgrades_one_step(migrated_db):
-    for target in ("0006", "0005", "0004", "0003", "0002", "0001"):
+    for target in ("0007", "0006", "0005", "0004", "0003", "0002", "0001"):
         dbcli.downgrade(migrated_db.owner, target)
         assert dbcli.current_revision(migrated_db.owner) == target
     dbcli.upgrade(migrated_db.owner, "head")
-    assert dbcli.current_revision(migrated_db.owner) == "0007"
+    assert dbcli.current_revision(migrated_db.owner) == "0008"
 
 
 def test_normalize_strips_volatile_and_calendar_dependent_lines():

@@ -43,6 +43,7 @@ from chartwire.api.routers import (
     audit,
     auth,
     consents,
+    consultations,
     opsviews,
     patients,
     purge,
@@ -83,6 +84,7 @@ OWN_ROUTERS = (
     users.router,
     patients.router,
     consents.router,
+    consultations.router,
     sessions.router,
     segments.router,
     search.router,
@@ -175,7 +177,7 @@ def _http_exception_problem(exc: HTTPException) -> AppError:
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _app_error(request: Request, exc: AppError) -> Response:
-        return problem_response(exc, request_id(request))
+        return problem_response(exc, request_id(request), exc.headers)
 
     @app.exception_handler(ConsentScopeMissing)
     async def _consent(request: Request, exc: ConsentScopeMissing) -> Response:

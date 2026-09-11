@@ -246,7 +246,17 @@ async def run_all(settings: Settings, *, host: str = "0.0.0.0", port: int = 8000
     chain_signals(drainer, chain=False)
     app = create_app(settings)
     app.state.drainer = drainer  # ops.routes.on_startup reuses it
-    server = OpsServer(uvicorn.Config(app, host=host, port=port, log_level="info"))
+    proxies = settings.trusted_proxy_ips.strip()
+    server = OpsServer(
+        uvicorn.Config(
+            app,
+            host=host,
+            port=port,
+            log_level="info",
+            proxy_headers=bool(proxies),
+            forwarded_allow_ips=proxies or None,
+        )
+    )
     api_task = asyncio.create_task(server.serve(), name="api")
     await _wait_started(server, api_task)
     deps = getattr(app.state, "deps", None)

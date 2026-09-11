@@ -87,8 +87,14 @@ def build_app(deps: AppDeps) -> FastAPI:
     return app
 
 
-def client(app: FastAPI) -> httpx.AsyncClient:
-    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://api")
+def client(app: FastAPI, *, address: str | None = None) -> httpx.AsyncClient:
+    """``address`` 를 주면 그 값이 ASGI ``scope["client"]`` 이 된다 — 레이트리밋이 키로 쓰는 소켓 주소."""
+    transport = (
+        httpx.ASGITransport(app=app, client=(address, 12345))
+        if address is not None
+        else httpx.ASGITransport(app=app)
+    )
+    return httpx.AsyncClient(transport=transport, base_url="http://api")
 
 
 def token(settings: Settings, *, tenant_id: UUID, role: str, user_id: UUID | str | None = None) -> str:

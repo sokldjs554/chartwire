@@ -33,6 +33,7 @@ _CLINICAL: Final = frozenset({"clinician", "staff"})
 
 MATRIX: Final[dict[str, set[str]]] = {
     "POST /v1/auth/token": set(PUBLIC),
+    "POST /v1/consultations": set(PUBLIC),  # 데모 홈페이지 상담신청 접수함; 조회 라우트는 없다
     "GET /v1/me": set(ANY),
     "POST /v1/users": {"admin"},
     "GET /v1/users": {"admin"},

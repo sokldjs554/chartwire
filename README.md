@@ -266,7 +266,7 @@ chartwire simulate --script s01 --speed 4 --drop-at 30s   # 프로토콜 준수 
 |---|---|
 | REST + WebSocket 실시간 | `src/chartwire/ws/`, `src/chartwire/api/`, `docs/protocol.md` |
 | FastAPI / Python | `src/chartwire/api/app.py`, 순수 ASGI 미들웨어(`api/middleware.py`) |
-| PostgreSQL 설계 · ORM · migration | `src/chartwire/db/`, `migrations/versions/0001..0007`, `docs/db/schema.md` |
+| PostgreSQL 설계 · ORM · migration | `src/chartwire/db/`, `migrations/versions/0001..0008`, `docs/db/schema.md` |
 | Redis | `src/chartwire/redis/`, `redis/scripts/*.lua`, `docs/protocol.md` |
 | SQL 실행계획 분석 · 개선 | `src/chartwire/perf/`, `docs/perf/README.md`, ADR-0005 |
 | AWS 배포 | `infra/cdk/`, `docs/aws.md` (synth 만) |

@@ -92,7 +92,7 @@ chartwire/
     core/      config.py logging.py errors.py clock.py ids.py
     db/        engine.py tenant.py base.py models/{tenancy,patients,sessions,segments,risk,notes,ops}.py
                repo/{sessions,segments,search,risk,notes,outbox,audit,purge}.py
-    migrations/ env.py versions/0001..0007
+    migrations/ env.py versions/0001..0008
     redis/     client.py keys.py scripts/{hello.lua,xadd_chunk.lua} session_state.py tickets.py ratelimit.py
     auth/      jwt.py rbac.py deps.py passwords.py
     crypto/    envelope.py kek.py blind_index.py
@@ -396,6 +396,17 @@ DECLARE v_tenant uuid := NULLIF(current_setting('app.tenant_id', true), '')::uui
       ORDER BY s.segment_created_at DESC LIMIT p_limit;
   END IF; END $$;
 REVOKE ALL ON FUNCTION search_segments FROM PUBLIC; GRANT EXECUTE ON FUNCTION search_segments TO chartwire_app;
+
+-- 0008_consultations  (데모 홈페이지 접수함) ---------------------------------
+-- tenant_id 없음 = RLS 밖(tenants 와 같은 급). 조회 REST 없음, app 역할은 INSERT/SELECT 만.
+-- 보존 90일, 지우는 경로는 owner 의 `chartwire db purge-consultations` 하나뿐이다.
+CREATE TABLE consultation_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_name text NOT NULL, contact_name text NOT NULL, phone text NOT NULL, email text NOT NULL,
+  role text CHECK (role IN ('director','manager','staff','other')),
+  message text, source text NOT NULL DEFAULT 'console-home',
+  created_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT ON consultation_requests TO chartwire_app;
 ```
 
 ### 4.3 Migration rules
@@ -524,6 +535,7 @@ Per viewer: `partial_q = asyncio.Queue(256)` (on full: drop oldest, increment co
 | method & path | roles | request → response |
 |---|---|---|
 | POST `/auth/token` | — | `TokenRequest` → `TokenResponse` (audit `auth.login`) |
+| POST `/consultations` | — (public) | `ConsultationIn` → 202 `ConsultationOut{id, received_at, message}`; demo homepage lead form, stored in `consultation_requests` (no `tenant_id`, no IP/UA, body never logged); `agree_privacy` must be true (422); 10/h per client address → 429 `CW-4291`. No read route: the rows belong to no tenant, so a tenant admin must not see them |
 | GET `/me` | any | principal |
 | POST `/users` · GET `/users` | admin | create/list users (tenant-scoped) |
 | POST `/patients` | clinician, staff | `PatientCreate` → `PatientOut` (name encrypted with patient DEK, `name_hmac` blind index) |

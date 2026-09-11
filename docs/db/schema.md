@@ -38,6 +38,16 @@ erDiagram
     tenants ||--o{ audit_events : "tenant_id (append-only)"
     tenants ||--o{ purge_jobs : "tenant_id"
 
+    consultation_requests {
+        uuid id PK
+        text clinic_name
+        text contact_name
+        text phone
+        text email
+        text role
+        text source
+        timestamptz created_at
+    }
     tenants {
         uuid id PK
         text slug UK
@@ -139,9 +149,24 @@ erDiagram
 | 0005 | `outbox_events`, `processed_events`, `dead_letters` | 트랜잭션 outbox, 멱등 원장, DLQ | SIUD | |
 | 0005 | `audit_events` | **append-only** 감사 로그(트리거 + INSERT/SELECT 권한만) | **S, I** | `detail` 은 id/개수/해시만 |
 | 0005 | `purge_jobs` | 파기 작업 + 단계/개수/DEK 지문/영수증 해시 | SIUD | `sample_ciphertext` 는 복호 실패 시연용 |
+| 0008 | `consultation_requests` | 데모 홈페이지 "서비스 상담신청" 접수함 (플랫폼 레벨 리드) | **S, I** | `tenant_id` 없음, RLS 없음; IP·User-Agent 컬럼 없음 |
 
 시퀀스: `transcript_segments_id_seq`(USAGE, SELECT — 파티션 부모는 identity 불가), `audit_events_id_seq`(USAGE, SELECT — 아래 §5 참조).
 함수: `ensure_segment_partition(date)`, `search_segments(text, text, uuid, int)` 에 EXECUTE.
+
+### 3.1 `consultation_requests` (0008)
+
+데모 콘솔 홈페이지의 "서비스 상담신청하기" 폼(`POST /v1/consultations`, 인증 없음)이 쓰는 접수함이다. 신청자는 아직 어느 의원(테넌트)에도
+속하지 않으므로 `tenant_id` 가 없고 `tenants` 처럼 RLS 밖이며, 같은 이유로 **조회 REST 를 두지 않는다** — 어느 테넌트의 admin 이 읽어도
+자기 테넌트 밖 개인정보를 보게 되기 때문에 운영자가 DB 로만 본다(`chartwire_app` 은 INSERT/SELECT 뿐, UPDATE/DELETE 없음). 컬럼은
+`id uuid`, `clinic_name`, `contact_name`, `phone`, `email`, `role`(`director|manager|staff|other`, NULL 허용), `message`, `source`(기본
+`'console-home'`), `created_at` 이 전부다: IP·User-Agent 는 저장하지 않고(개인정보 최소화, §0.9) 본문은 어떤 로그에도 남지 않는다
+(`tests/integration/test_api_consultations.py`). 남용 방지는 DB 가 아니라 Redis 고정 윈도(`rl:-:{client}:consultation:{hour}`, 10/h)가 맡으며, 버킷 키는 소켓 주소다 — `X-Forwarded-For` 는
+읽지 않는다(헤더만 바꿔 가며 우회할 수 있다). 프록시 뒤 배포는 `CHARTWIRE_TRUSTED_PROXY_IPS` 로 uvicorn 이 소켓 주소를 복원하게 한다.
+
+**보존 90일.** 이 표는 동의 철회 파기 파이프라인(`purge_jobs`)이 다루지 않는다 — 테넌트 밖이라 대상이 아니고, `chartwire_app` 에는 DELETE
+권한 자체가 없다. 지우는 경로는 owner 역할로 실행하는 `chartwire db purge-consultations --older-than-days 90` 하나뿐이며, 운영에서는 하루 한 번
+돌린다. 신청자가 삭제를 요청하면 같은 명령을 쓰지 않고 owner 로 이메일을 찾아 해당 행을 지운다. 폼의 개인정보 문구가 같은 기간을 말한다.
 
 ## 4. RLS 정책
 
@@ -156,6 +181,7 @@ erDiagram
 | `notes`, `note_statements`, `note_assessments` | ✓ | ✓ | `role_gate` USING `app.role IN ('clinician','service','auditor')` | **RESTRICTIVE**, ALL | 스태프/관리자는 라우터가 실수해도 노트 내용 0행 |
 | `audit_events` | ✓ | ✓ | `tenant_isolation` + `audit_read_gate` USING `app.role IN ('auditor','admin','service')` | RESTRICTIVE, **SELECT** | 누구나(테넌트 안에서) 기록, 감사자/관리자/서비스만 조회 |
 | `tenants` | ✗ | ✗ | — | — | app 은 SELECT 만 |
+| `consultation_requests` | ✗ | ✗ | — | — | 테넌트 밖 리드; app 은 INSERT, SELECT 만 |
 
 검증 테스트: `tests/rls/test_rls_leak.py`(원시 SQL, GUC 없음, 외부 tenant INSERT, `SET ROLE owner` 거부), `test_partition_direct.py`(파티션 이름으로 직접 조회),
 `test_superuser_leaks.py`(같은 쿼리가 superuser 에게는 두 테넌트를 보여줌 — 픽스처가 진짜임을 증명), `test_audit_immutable.py`, `test_guc_leak.py`.
@@ -180,6 +206,7 @@ erDiagram
 | 0005_ops | `outbox_events`, `processed_events`, `dead_letters`, `audit_events` + append-only 트리거, `purge_jobs` | DROP |
 | 0006_rls | 모든 테넌트 테이블·파티션에 RLS, `role_gate`, `audit_read_gate` — 성능 연구 **before** | 정책 DROP, RLS 해제 |
 | 0007_perf | GIN(trgm/terms), 부분 인덱스(SLA/outbox), **무중단 파티션 인덱스**, `search_segments()`, `ensure_segment_partition` v2 — **after** | 인덱스/함수 DROP, v1 복원 |
+| 0008_consultations | `consultation_requests`(테넌트 밖, RLS 없음) + GRANT SELECT, INSERT | 테이블 DROP |
 
 규칙(§4.3): sync `psycopg` + `chartwire_owner`, `transaction_per_migration=True`, `CREATE INDEX CONCURRENTLY` 는 `autocommit_block()` 안에서만,
 모든 리비전이 `downgrade()` 구현, `alembic check` 미사용(autogenerate 는 파티션/RLS/트리거를 모른다). 역할은 마이그레이션이 아니라 `bootstrap-roles` 가 만든다

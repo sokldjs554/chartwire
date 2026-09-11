@@ -110,7 +110,15 @@ class _PrincipalResolver:
             return None
 
 
-def _client_host(scope: Scope) -> str:
+def client_host(scope: Scope) -> str:
+    """레이트리밋의 익명 호출자 식별자 — **소켓 주소만** 쓴다.
+
+    ``X-Forwarded-For`` 를 여기서 읽지 않는 이유: 헤더는 호출자가 마음대로 넣을 수 있어서, 그 값으로
+    버킷을 나누면 헤더만 바꿔 가며 무제한으로 던질 수 있다. 프록시 뒤에서 원 클라이언트를 복원하는 일은
+    uvicorn 의 ``ProxyHeadersMiddleware`` 몫이고(신뢰하는 프록시 목록이 있어야 동작한다),
+    그때는 이 함수가 읽는 ``scope["client"]`` 자체가 이미 복원된 주소다
+    (:data:`chartwire.core.config.Settings.trusted_proxy_ips`).
+    """
     client = scope.get("client")
     return str(client[0]) if client else "unknown"
 
@@ -282,7 +290,7 @@ class RateLimit:
         path = str(scope["path"])
         principal = self._principals.resolve(scope)
         tenant = str(principal.tenant_id) if principal else ANONYMOUS_TENANT
-        who = principal.sub if principal else _client_host(scope)
+        who = principal.sub if principal else client_host(scope)
         if path.endswith("/ws-ticket"):
             bucket, limit = ratelimit.BUCKET_WS_TICKET, ratelimit.WS_TICKET_PER_MIN
         else:

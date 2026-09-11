@@ -44,6 +44,7 @@ Phase 2 — 유휴 박스에서 **직렬** 측정(bulk → perf → eval → loa
 - **Consent** — `gates.require_scope(scopes, scope)`(순수) + `consent.service.require_scope_for_patient(session, patient_id, scope)`; WS 4011 / REST `CW-4031`.
 - **Audit** — `service.record(...)`; `detail` 에 `{text, quote, name, phone}` 금지(코드가 거부). 추가 액션: `user.created`, `patient.created`, `note.assessment`, `note.draft_requested`, `session.drafted/signed`, `outbox.replayed`, `purge.verify_decrypt`.
 - **REST 응답 상위 집합** — `SessionOut.script_ref`, `MeOut{sub, tenant_id, role, user_id, exp}`, `ConsentRevokedOut.purge_job_id`, `NoteOut{…, legal_hold, retention_until, signed_at}`.
+- **REST 추가 라우트** — `POST /v1/consultations`(공개, `rbac.PUBLIC`): 데모 홈페이지 상담신청 → 202 `ConsultationOut{id, received_at, message}`, `consultation_requests`(0008, `tenant_id` 없음·RLS 밖·IP/UA 미저장) 에 저장. 조회 라우트 없음(테넌트 밖 데이터를 특정 테넌트 admin 이 읽게 된다). 클라이언트 주소당 10/h → 429 `CW-4291` (`core.errors.RateLimited`, `Retry-After`); `redis.ratelimit.hit(..., window_s=)` 로 시간 윈도 확장.
 - **리포트 키** — `scripts/readme_numbers.py::KEYS` (234개). 부하 리포트 모양은 [`loadtest/results.md`](loadtest/results.md) 와 `loadtest/report.py` 도크스트링; 성능 요약은 `docs/perf/summary.json`(Phase 0 의 `study.json` 에서 이름 변경).
 - **CLI** — `simulate` 와 `loadtest` 는 별개 모듈(WP-A 요청); `serve all` 은 항상 embedded; `chartwire loadtest H` 는 `outbox bench` 위임.
 

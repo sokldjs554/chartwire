@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from http import HTTPStatus
 from typing import Any
 
@@ -14,8 +15,12 @@ class AppError(Exception):
     """Domain error carrying a stable code (``CW-4xxx`` client, ``CW-5xxx`` server).
 
     ``retryable`` tells a client (REST or WebSocket) that the same request may succeed
-    later, e.g. a Redis outage during ingest (``CW-5503``).
+    later, e.g. a Redis outage during ingest (``CW-5503``). ``headers`` are extra response
+    headers the api's error handler adds to the problem response (``Retry-After``); the
+    problem document itself never carries them.
     """
+
+    headers: Mapping[str, str] | None = None
 
     def __init__(self, code: str, status: int, detail: str, retryable: bool = False) -> None:
         if not _CODE_RE.match(code):
@@ -69,3 +74,12 @@ class Forbidden(AppError):
 class Conflict(AppError):
     def __init__(self, detail: str, code: str = "CW-4090") -> None:
         super().__init__(code, 409, detail)
+
+
+class RateLimited(AppError):
+    """429 with ``Retry-After`` (seconds until the fixed window rolls over); always retryable."""
+
+    def __init__(self, detail: str, retry_after_s: int, code: str = "CW-4290") -> None:
+        super().__init__(code, 429, detail, retryable=True)
+        self.retry_after_s = retry_after_s
+        self.headers = {"Retry-After": str(max(1, retry_after_s))}

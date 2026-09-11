@@ -17,6 +17,7 @@ from chartwire.auth.jwt import Principal
 # Every row of spec §6.9, transcribed independently of rbac.MATRIX so a typo in either side shows up.
 SPEC_ROUTES: dict[str, set[str]] = {
     "POST /v1/auth/token": set(),
+    "POST /v1/consultations": set(),
     "GET /v1/me": {"clinician", "staff", "admin", "auditor", "recorder"},
     "POST /v1/users": {"admin"},
     "GET /v1/users": {"admin"},

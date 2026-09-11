@@ -163,6 +163,27 @@ app.add_typer(partitions_app, name="partitions")
 OwnerUrl = Annotated[str | None, typer.Option("--owner-url", help="기본값: CHARTWIRE_DATABASE_OWNER_URL")]
 
 
+def purge_consultations(owner_url: str, *, older_than_days: int) -> int:
+    """``consultation_requests`` 의 보존 기간(기본 90일) 지난 행을 지우고 건수를 돌려준다.
+
+    접수함은 테넌트 밖이라 동의 철회 파기 파이프라인(``purge_jobs``)이 건드리지 않고, ``chartwire_app``
+    에는 DELETE 권한이 없다 — 지우는 경로는 owner 로 실행하는 이 명령 하나뿐이다. 운영에서는 하루 한 번
+    돌린다(문서: ``docs/db/schema.md`` §3.1).
+    """
+    engine = make_sync_engine(as_sync_url(owner_url))
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(
+                text(
+                    "DELETE FROM consultation_requests WHERE created_at < now() - make_interval(days => :d)"
+                ),
+                {"d": older_than_days},
+            )
+            return int(result.rowcount or 0)
+    finally:
+        engine.dispose()
+
+
 def _owner(url: str | None) -> str:
     return url or get_settings().database_owner_url
 
@@ -230,3 +251,13 @@ def cmd_partitions_ensure(
     """현재 달부터 --months-ahead 달까지 파티션(및 파티션 인덱스)을 보장합니다."""
     for name in ensure_partitions(_owner(owner_url), months_ahead=months_ahead, months_back=months_back):
         typer.echo(name)
+
+
+@app.command("purge-consultations")
+def cmd_purge_consultations(
+    older_than_days: Annotated[int, typer.Option(min=1, help="이 일수보다 오래된 접수를 지웁니다")] = 90,
+    owner_url: OwnerUrl = None,
+) -> None:
+    """상담 신청 접수함에서 보존 기간이 지난 행을 지웁니다 (owner 역할)."""
+    deleted = purge_consultations(_owner(owner_url), older_than_days=older_than_days)
+    typer.echo(f"deleted {deleted} consultation request(s) older than {older_than_days} days")

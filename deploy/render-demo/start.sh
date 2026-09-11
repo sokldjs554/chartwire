@@ -95,6 +95,12 @@ redis-server --save '' --appendonly no --bind 127.0.0.1 --port "$REDIS_PORT" \
   --maxmemory 64mb --maxmemory-policy noeviction --dir "$RUNDIR" &
 export CHARTWIRE_REDIS_URL="redis://127.0.0.1:$REDIS_PORT/0"
 
+# 이 컨테이너로 들어오는 길은 Render 의 프록시뿐이라(밖으로 열린 포트가 PORT 하나다) 그 프록시의
+# X-Forwarded-For 를 믿어도 된다 — uvicorn 이 소켓 주소를 원 클라이언트로 복원해 주고, 상담 신청
+# 레이트리밋(시간당 10건)이 그 주소로 갈린다. 직접 접근이 가능한 배포에서는 절대 켜면 안 된다:
+# 아무나 헤더로 자기 버킷을 고를 수 있게 된다.
+export CHARTWIRE_TRUSTED_PROXY_IPS="${CHARTWIRE_TRUSTED_PROXY_IPS:-*}"
+
 i=0
 until redis-cli -h 127.0.0.1 -p "$REDIS_PORT" ping > /dev/null 2>&1; do
   i=$((i + 1))

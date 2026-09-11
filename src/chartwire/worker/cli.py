@@ -41,7 +41,17 @@ def serve_api(host: str, port: int) -> None:
         from chartwire.api.app import create_app
     except ModuleNotFoundError as exc:
         raise _missing("chartwire.api.app", "WP-E") from exc
-    uvicorn.run(create_app(get_settings()), host=host, port=port, log_level="info")
+    settings = get_settings()
+    # 프록시를 믿을 때만 uvicorn 이 X-Forwarded-For 로 scope["client"] 를 복원한다 (기본: 소켓 주소 그대로).
+    proxies = settings.trusted_proxy_ips.strip()
+    uvicorn.run(
+        create_app(settings),
+        host=host,
+        port=port,
+        log_level="info",
+        proxy_headers=bool(proxies),
+        forwarded_allow_ips=proxies or None,
+    )
 
 
 def serve_stt_worker() -> int:

@@ -7,6 +7,7 @@ response model carries transcript text except the segment/search/timeline views 
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
@@ -119,6 +120,72 @@ class ConsentRevokedOut(_Out):
     purge_job_id: UUID
     outbox_event_id: int | None
     live_sessions_notified: int
+
+
+# ------------------------------------------------------------------ consultations (public lead form)
+
+_PHONE_RE = re.compile(r"^[0-9+\- ]+$")
+CONSULTATION_ROLES = Literal["director", "manager", "staff", "other"]
+
+
+class ConsultationIn(_In):
+    """데모 홈페이지 "서비스 상담신청하기" 본문. 이름·전화·이메일은 저장만 하고 어떤 로그에도 남기지 않는다
+    (``tests/integration/test_api_consultations.py``). 실제 연락은 가지 않는 데모 접수함이다.
+
+    ``source`` 만 접수 로그에 실리므로 슬러그(``^[a-z][a-z0-9-]*$``)로 닫아 둔다 — 자유 문자열이면 호출자가
+    이메일이나 전화번호를 로그 줄에 밀어 넣을 수 있고, PHI 리댁터는 한국식 전화·주민번호 패턴만 가린다.
+    숫자로 시작할 수 없게 한 것도 그 때문이다: ``[a-z0-9-]`` 만으로는 ``010-1234-5678`` 이 통과한다."""
+
+    clinic_name: str = Field(min_length=1, max_length=120)
+    contact_name: str = Field(min_length=1, max_length=60)
+    phone: str = Field(min_length=5, max_length=32)
+    email: str = Field(min_length=3, max_length=254)
+    role: CONSULTATION_ROLES | None = None
+    message: str | None = Field(default=None, max_length=2000)
+    source: str = Field(default="console-home", min_length=1, max_length=64, pattern=r"^[a-z][a-z0-9-]*$")
+    agree_privacy: bool
+
+    @field_validator("clinic_name", "contact_name")
+    @classmethod
+    def _stripped_not_blank(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("공백만으로는 채울 수 없습니다")
+        return value
+
+    @field_validator("phone")
+    @classmethod
+    def _normalize_phone(cls, value: str) -> str:
+        """공백 연속을 하나로 접고, 숫자·``+``·``-``·공백 이외의 문자는 거절한다 (정규화 뒤 5~32자, 숫자 5개 이상)."""
+        value = " ".join(value.split())
+        if not _PHONE_RE.fullmatch(value):
+            raise ValueError("전화번호는 숫자, +, -, 공백만 쓸 수 있습니다")
+        if not 5 <= len(value) <= 32 or sum(ch.isdigit() for ch in value) < 5:
+            raise ValueError("전화번호 형식이 올바르지 않습니다")
+        return value
+
+    @field_validator("email")
+    @classmethod
+    def _simple_email(cls, value: str) -> str:
+        """``local@domain`` 모양만 본다 — 실제 발송이 없는 데모라 RFC 5322 검증기는 두지 않는다."""
+        value = value.strip()
+        local, at, domain = value.partition("@")
+        if not at or not local or not domain or any(ch.isspace() for ch in value):
+            raise ValueError("이메일 형식이 올바르지 않습니다")
+        return value
+
+    @field_validator("agree_privacy")
+    @classmethod
+    def _must_agree(cls, value: bool) -> bool:
+        if value is not True:
+            raise ValueError("개인정보 수집·이용에 동의해야 접수할 수 있습니다")
+        return value
+
+
+class ConsultationOut(_Out):
+    id: UUID
+    received_at: datetime
+    message: str
 
 
 # ------------------------------------------------------------------ sessions
