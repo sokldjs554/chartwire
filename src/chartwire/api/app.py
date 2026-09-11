@@ -26,7 +26,7 @@ from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from importlib import import_module
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Final, cast
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -235,6 +235,18 @@ def console_path(settings: Settings | None = None) -> Path | None:
 # ------------------------------------------------------------------ factory
 
 
+CONSOLE_MEDIA: Final[dict[str, tuple[str, str]]] = {
+    "00_intro.png": ("00_intro.png", "image/png"),
+    "01_recorder.png": ("01_recorder.png", "image/png"),
+    "02_live_alert.png": ("02_live_alert.png", "image/png"),
+    "03_soap_draft.png": ("03_soap_draft.png", "image/png"),
+    "04_purge_receipt.png": ("04_purge_receipt.png", "image/png"),
+    "05_ops.png": ("05_ops.png", "image/png"),
+    "demo.gif": ("demo.gif", "image/gif"),
+}
+"""``/console/media/{name}`` 이 내보내도 되는 파일 — 이 표에 없는 이름은 404."""
+
+
 _FAVICON_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
     '<rect width="32" height="32" rx="7" fill="#2456c9"/>'
@@ -295,6 +307,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(ops_routes.router)
 
     index = console_path(settings)
+    _images = Path(__file__).resolve().parents[3] / "docs" / "images"
+    media_files: dict[str, tuple[Path, str]] = {
+        name: (_images / source, mime)
+        for name, (source, mime) in CONSOLE_MEDIA.items()
+        if (_images / source).is_file()
+    }
 
     @app.get("/console", include_in_schema=False)
     @app.get("/console/index.html", include_in_schema=False)
@@ -309,6 +327,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return Response(
             _FAVICON_SVG, media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=86400"}
         )
+
+    @app.get("/console/media/{name}", include_in_schema=False)
+    async def console_media(name: str) -> Response:
+        """홈 화면이 쓰는 데모 이미지 — 저장소의 ``docs/images/`` 를 같은 origin 으로 읽기 전용 서빙한다.
+
+        CSP 가 ``img-src 'self' data:`` 라 외부 호스트에서는 못 가져오고, 8 MB GIF 를 data: URI 로
+        인라인하면 콘솔 HTML 이 그만큼 커진다. 화이트리스트 밖 이름은 404 — 경로 조작(``..``)이나
+        디렉터리 열람은 애초에 불가능하다 (``/console`` 접두라 RBAC 매트릭스 밖, spec §6.9).
+        """
+        found = media_files.get(name)
+        if found is None:
+            raise AppError("CW-4040", 404, "그런 데모 이미지가 없습니다")
+        path, mime = found
+        return FileResponse(path, media_type=mime, headers={"Cache-Control": "public, max-age=86400"})
 
     @app.get("/console/scripts.json", include_in_schema=False)
     async def console_scripts() -> Response:

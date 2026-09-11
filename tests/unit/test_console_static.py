@@ -259,3 +259,25 @@ def test_console_recorder_mirrors_protocol_client(node: str, tmp_path: Path) -> 
     assert proc.returncode == 0, proc.stderr or proc.stdout
     result = json.loads(proc.stdout.strip().splitlines()[-1])
     assert result["ok"] is True and result["reconnects"] == 1
+
+
+# ── /console/media/{name} — 홈 화면이 쓰는 데모 이미지 (화이트리스트 읽기 전용) ────────────────
+
+
+def test_console_media_whitelist_matches_the_committed_images() -> None:
+    """표에 적은 파일이 저장소에 실제로 있어야 한다 — 없으면 홈 화면이 깨진 이미지를 띄운다."""
+    from chartwire.api.app import CONSOLE_MEDIA
+
+    for name, (source, mime) in CONSOLE_MEDIA.items():
+        assert (ROOT / "docs" / "images" / source).is_file(), name
+        assert mime in ("image/png", "image/gif"), (name, mime)
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["../../README.md", "..%2f..%2fREADME.md", "schema.sql", "demo.gif.bak", "", "00_intro.PNG"],
+)
+def test_console_media_rejects_anything_outside_the_whitelist(name: str) -> None:
+    from chartwire.api.app import CONSOLE_MEDIA
+
+    assert name not in CONSOLE_MEDIA

@@ -115,5 +115,9 @@ chartwire db upgrade
 echo "[start] demo seed (모든 데이터는 합성)"
 chartwire seed --demo --if-empty
 
+# 상담 신청 접수함 보존 90일 — 홈페이지의 개인정보 고지가 약속하는 파기를 기동 때마다 실제로 실행한다.
+# 실패해도 기동은 계속한다(접수함이 비어 있거나 테이블이 아직 없을 수 있다).
+chartwire db purge-consultations --older-than-days 90 || echo "[start] 접수함 파기 건너뜀"
+
 echo "[start] serve all --embedded on 0.0.0.0:$PORT"
 exec chartwire serve all --embedded --host 0.0.0.0 --port "$PORT"
