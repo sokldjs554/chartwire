@@ -20,7 +20,7 @@ export CHARTWIRE_TEST_DB ?= chartwire_test
 export CHARTWIRE_TEST_REDIS_DB ?= 1
 
 .PHONY: help dev-up test test-unit test-integration lint migrate-roundtrip schema-dump schema-check eval \
-	loadtest-a loadtest-b loadtest-c loadtest-d loadtest-h loadtest-smoke loadtest-results perf-study bulk cdk-synth readme-numbers demo
+	loadtest-a loadtest-b loadtest-c loadtest-d loadtest-h loadtest-smoke loadtest-results perf-study bulk cdk-synth readme-numbers readme-numbers-check demo
 
 help: ## 타깃 목록
 	@grep -E '^[a-zA-Z_ %-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -90,10 +90,18 @@ bulk: ## 합성 대량 적재 (8 테넌트 / 2M 세그먼트, §4.6) → docs/pe
 cdk-synth: ## AWS CDK 합성 + cdk-nag + 템플릿 단정, 커밋된 템플릿과 diff 0 (§12.1)
 	cd infra/cdk && $(PY) app.py && $(PYTEST) tests -q && git diff --exit-code -- cdk.out/ChartwireStack.template.json
 
-readme-numbers: ## README + docs/perf/README.md 숫자 마커를 docs/{eval,loadtest,perf}/*.json 에서 채운다 (§11.4)
+readme-numbers: ## README + docs/perf/README.md + 콘솔 홈 화면의 숫자 마커를 docs/{eval,loadtest,perf}/*.json 에서 채운다 (§11.4)
 	$(CHARTWIRE) readme-numbers --write
 	$(CHARTWIRE) readme-numbers --write --readme docs/perf/README.md
+	$(CHARTWIRE) readme-numbers --write --readme console/index.html
 	$(CHARTWIRE) loadtest results --out docs/loadtest
+
+# CI(frozen-artifacts)가 거는 게이트와 같은 명령. 위 readme-numbers 가 --write 하는 세 파일을 그대로
+# --check 한다 — 한 파일만 게이트 밖에 있으면 측정 JSON 이 바뀔 때 그 파일만 조용히 낡는다.
+readme-numbers-check: ## README + docs/perf/README.md + console/index.html 의 숫자가 측정 JSON 과 같은지 검사 (stale → exit 1)
+	$(PY) scripts/readme_numbers.py --check
+	$(PY) scripts/readme_numbers.py --check --readme docs/perf/README.md
+	$(PY) scripts/readme_numbers.py --check --readme console/index.html
 
 demo: ## api + worker + stt-worker 를 한 프로세스로 (http://localhost:8000/console) — 시드된 데모, 합성 데이터만
 	$(CHARTWIRE) db bootstrap-roles && $(CHARTWIRE) db upgrade && $(CHARTWIRE) seed --demo --if-empty

@@ -281,3 +281,47 @@ def test_console_media_rejects_anything_outside_the_whitelist(name: str) -> None
     from chartwire.api.app import CONSOLE_MEDIA
 
     assert name not in CONSOLE_MEDIA
+
+
+# ── num/row 마커 — README 와 같은 게이트(scripts/readme_numbers.py) 위에 얹혀 있다 ──────────────
+
+
+def _comment_spans(html: str) -> list[tuple[int, str]]:
+    """``<!--`` … ``-->`` 짝을 순서대로 (시작 오프셋, 본문) 으로 돌려준다."""
+    spans, pos = [], 0
+    while (open_at := html.find("<!--", pos)) >= 0:
+        close_at = html.find("-->", open_at + 4)
+        if close_at < 0:
+            spans.append((open_at, html[open_at + 4 :]))
+            break
+        spans.append((open_at, html[open_at + 4 : close_at]))
+        pos = close_at + 3
+    return spans
+
+
+def test_console_has_no_nested_html_comment() -> None:
+    """HTML 주석은 중첩되지 않는다 — 주석 안의 ``<!--`` 는 그 주석을 그 자리에서 끝내고 뒷부분을 화면에 흘린다.
+
+    실제로 밟은 함정이다(랜딩 헤더 주석에 마커 문법을 예시로 적다가). 브라우저는 관대해서 눈으로는
+    잘 안 보이지만 HTML 검증기·미니파이어에서는 오류이고, 예시가 길면 텍스트가 그대로 샌다.
+    """
+    html = CONSOLE.read_text(encoding="utf-8")
+    nested = [html[:at].count("\n") + 1 for at, body in _comment_spans(html) if "<!--" in body]
+    assert nested == [], f"HTML 주석 안에 '<!--' 가 있습니다 (줄 {nested})"
+
+
+def test_console_measured_numbers_all_sit_inside_row_blocks() -> None:
+    """모든 num 마커는 row 블록 안에 있어야 한다 — README 와 같은 '미측정이면 블록째 삭제' 경로.
+
+    row 밖의 마커는 그 숫자가 아직 측정되지 않았을 때 ``readme_numbers.py`` 의 ``--write`` 와
+    ``--check`` 가 **둘 다** exit 2 로 죽어서, ``make readme-numbers`` 가 그 줄에서 멈추고
+    손으로 마커를 떼는 것 말고는 복구 경로가 없다.
+    """
+    html = CONSOLE.read_text(encoding="utf-8")
+    rows = [m.span() for m in re.finditer(r"<!-- row:[A-Za-z0-9_.]+ -->.*?<!-- /row -->", html, flags=re.S)]
+    naked = [
+        (html[: m.start()].count("\n") + 1, m.group(1))
+        for m in re.finditer(r"<!-- num:([A-Za-z0-9_.]+) -->.*?<!-- /num -->", html, flags=re.S)
+        if not any(start <= m.start() and m.end() <= end for start, end in rows)
+    ]
+    assert naked == [], f"row 블록 밖의 num 마커: {naked}"

@@ -23,6 +23,9 @@ Modes:
   unmeasured row still present); exit 2 for an unregistered key.
 * ``--list``   print the registry.
 
+``--readme`` 는 README 전용이 아니다: 같은 마커를 쓰는 파일이면 무엇이든 대상이 된다 —
+``console/index.html`` (데모 홈 화면의 실측 수치) 과 ``docs/perf/README.md`` 가 그렇게 검사된다.
+
 Stdlib only: CI runs it without installing the package.
 """
 
@@ -118,6 +121,8 @@ KEYS: dict[str, Key] = {
             ("sessions_never_started", "clients.outcomes.running"),
         )
     },
+    # 무릎에서도 적재 자체는 멀쩡했다는 증거 — ack 분위수가 무너진 실행의 세그먼트 행수 (콘솔 §무릎 각주).
+    "load.A.n200.segment_rows": Key("docs/loadtest/A.json", "$.runs[?n==200].db.segment_rows", "d"),
     "load.B.credit_zero_at_s": Key("docs/loadtest/B.json", "$.credit_zero_at_s", ".1f"),
     "load.B.pause_count": Key("docs/loadtest/B.json", "$.pause_count", "d"),
     "load.B.stream_len_max": Key("docs/loadtest/B.json", "$.stream_len_max", "d"),
@@ -127,12 +132,21 @@ KEYS: dict[str, Key] = {
     "load.C.ack_p95_delta_pct": Key("docs/loadtest/C.json", "$.ack_p95_delta_pct", "+.1f"),
     "load.C.dropped_partials": Key("docs/loadtest/C.json", "$.dropped_partials", "d"),
     "load.D.resume_success_pct": Key("docs/loadtest/D.json", "$.resume_success_pct", ".1f"),
+    # 비율만으로는 "몇 번 끊겼는지"가 사라진다 — 분모(reconnects)와 분자(resumes_ok)를 따로 싣는다.
+    "load.D.reconnects": Key("docs/loadtest/D.json", "$.reconnects", "d"),
+    "load.D.resumes_ok": Key("docs/loadtest/D.json", "$.resumes_ok", "d"),
     "load.D.superseded_closes": Key("docs/loadtest/D.json", "$.superseded_closes", "d"),
     "load.D.rebuild_count": Key("docs/loadtest/D.json", "$.rebuild_count", "d"),
     "load.D.loss": Key("docs/loadtest/D.json", "$.loss", "d"),
     "load.D.dup": Key("docs/loadtest/D.json", "$.dup", "d"),
+    "load.D.sessions": Key("docs/loadtest/D.json", "$.sessions", "d"),
+    # The run *shape* of H, not only its result — a rate is unreadable without the load that produced it.
+    "load.H.events": Key("docs/loadtest/H.json", "$.events", "d"),
+    "load.H.workers": Key("docs/loadtest/H.json", "$.workers", "d"),
+    "load.H.tenants": Key("docs/loadtest/H.json", "$.tenants", "d"),
     "load.H.events_per_s": Key("docs/loadtest/H.json", "$.events_per_s", ".0f"),
     "load.H.dlq_count": Key("docs/loadtest/H.json", "$.dlq_count", "d"),
+    "load.H.reclaimed": Key("docs/loadtest/H.json", "$.reclaimed", "d"),
     "load.E.loss": Key("docs/loadtest/E.json", "$.loss", "d"),
     "load.E.reconnect_p95_ms": Key("docs/loadtest/E.json", "$.reconnect_p95_ms", ".0f"),
     # ---- perf study (docs/perf/summary.json, merged over --state before|after; docs/perf/README.md) ----
@@ -232,6 +246,8 @@ KEYS: dict[str, Key] = {
     "eval.purge.residual_rows": Key("docs/eval/purge.json", "$.residual_rows", "d"),
     "eval.purge.residual_objects": Key("docs/eval/purge.json", "$.residual_objects", "d"),
     "eval.purge.residual_keys": Key("docs/eval/purge.json", "$.residual_keys", "d"),
+    "eval.purge.signed_notes_surviving": Key("docs/eval/purge.json", "$.signed_notes_surviving", "d"),
+    "eval.purge.signed_notes_expected": Key("docs/eval/purge.json", "$.signed_notes_expected", "d"),
     "eval.purge.unwrap_failure_pct": Key("docs/eval/purge.json", "$.unwrap_failure_pct", ".0f"),
     "eval.purge.decrypt_failure_pct": Key("docs/eval/purge.json", "$.decrypt_failure_pct", ".0f"),
     "eval.purge.receipts_verified_pct": Key("docs/eval/purge.json", "$.receipts_verified_pct", ".0f"),
@@ -339,6 +355,14 @@ class Rendered:
     deleted_rows: list[str]
     unknown: list[str]
     unmeasured_outside_rows: list[str]
+    changed: list[str]
+    """Keys of the *markers* whose body the fill actually rewrote.
+
+    Not ``filled`` minus "already correct": a key may sit in several markers (``console/index.html``
+    has 53 markers over 34 keys), and only some of them may be stale. Comparing per key — looking up
+    "the" marker for a key with a regex — silently misses every occurrence but the first, which is how
+    ``--check`` used to print an empty ``값 변경 []`` while still exiting 1.
+    """
 
     @property
     def ok(self) -> bool:
@@ -346,7 +370,7 @@ class Rendered:
 
 
 def render(readme: str, values: dict[str, str | None], keys: dict[str, Key] = KEYS) -> Rendered:
-    result = Rendered(readme, [], [], [], [])
+    result = Rendered(readme, [], [], [], [], [])
     unknown = {m.group("key") for m in NUM_RE.finditer(readme) if m.group("key") not in keys}
     result.unknown = sorted(unknown)
 
@@ -368,6 +392,8 @@ def render(readme: str, values: dict[str, str | None], keys: dict[str, Key] = KE
             result.unmeasured_outside_rows.append(key)
             return m.group(0)
         result.filled.append(key)
+        if m.group("body") != value:
+            result.changed.append(key)
         return f"<!-- num:{key} -->{value}<!-- /num -->"
 
     result.text = NUM_RE.sub(fill, text)
@@ -416,19 +442,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{len(result.filled)}개 마커 채움, {len(result.deleted_rows)}개 행 삭제")
         return 0
     if result.text != original:
-        stale = [k for k in result.filled if _current(original, k) != _current(result.text, k)]
+        stale = sorted(set(result.changed))
         print(
-            f"[stale] README가 리포트와 다릅니다: 값 변경 {stale}, 삭제 대상 행 {result.deleted_rows}",
+            f"[stale] {readme_path} 가 리포트와 다릅니다: 값 변경 {stale}, 삭제 대상 행 {result.deleted_rows}",
             file=sys.stderr,
         )
         return 1
-    print("README 숫자 마커가 최신입니다")
+    print(f"{readme_path} 숫자 마커가 최신입니다")
     return 0
-
-
-def _current(text: str, key: str) -> str | None:
-    m = re.search(rf"<!-- num:{re.escape(key)} -->(.*?)<!-- /num -->", text, re.DOTALL)
-    return None if m is None else m.group(1)
 
 
 if __name__ == "__main__":

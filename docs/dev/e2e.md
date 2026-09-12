@@ -107,20 +107,23 @@ python scripts/console_screenshots.py --chromium /opt/pw-browsers/chromium \
 
 - **환자를 매번 새로 고른다.** 흐름의 마지막이 동의 철회 + 환자 단위 파기라 한 번 쓴 환자는 `consent_state=purged` 가 되어 재사용할 수 없다
   (`가상환자-0001…0020` 중 아직 `granted` 인 것을 고른다. 다 쓰면 `chartwire db downgrade base && chartwire db upgrade && chartwire seed --demo`).
-- **역할 전환은 의도된 것이다.** 임상의는 동의를 철회할 수 있지만 `GET /v1/purge-jobs/{id}` 와 `verify-decrypt` 는 `{admin, auditor}` 전용이라
-  (§4 에서 `$HA` 를 쓰는 것과 같은 이유) 콘솔의 추적 폴링이 **403 을 한 번 받고** 멈춘다. 드라이버는 그 지점에서 `--admin`(기본 `admin@demo.clinic`)으로
-  다시 로그인한다.
-- 그래서 출력 JSON 의 `browser_errors` 에는 **예상된 두 줄**이 남는다: 초안이 아직 없을 때의 `notes/latest` 404 와 위의 403. 그 밖의 오류는 0 이어야 한다.
-  (404 는 이제 콘솔이 "아직 초안이 없습니다 — 녹음을 끝내면 워커가 만듭니다" 로 안내하고, `note.status` 가 오면 자동으로 불러온다.)
+- **역할 전환은 의도된 것이다.** 임상의는 동의를 철회할 수 있지만 `GET /v1/purge-jobs/{id}` 와 `verify-decrypt` 는 `{admin, auditor}` 전용이다
+  (§4 에서 `$HA` 를 쓰는 것과 같은 이유). 철회 직후 콘솔은 파기 작업 id 를 입력칸에 적고 **폴링을 걸지 않는다** — 받을 수 없는 403 을 부르는 대신
+  "admin 으로 전환한 뒤 추적을 누르세요" 를 남긴다(`RECEIPT_ROLES`). 드라이버는 그 지점에서 `--admin`(기본 `admin@demo.clinic`)으로 다시 로그인하고
+  `#trackPurge` 를 누른다.
+- 그래서 출력 JSON 의 `browser_errors` 는 **0 줄이어야 한다**. 한 줄이라도 있으면 드라이버가 exit 1 로 끝난다 — 스크린샷을 다시 만들 때의 게이트다.
+  (초안이 아직 없을 때의 `notes/latest` 404 도 콘솔이 "아직 초안이 없습니다 — 녹음을 끝내면 워커가 만듭니다" 로 받아 내고, `note.status` 가 오면 자동으로 불러온다.)
 - **한 번 파기된 환자는 이름으로 찾을 수 없다.** `patient_shred` 가 이름 블라인드 인덱스를 지우므로 `--patient` 로 같은 가명을 다시 주면
   `findPatient` 가 빈 결과를 돌려주고 드라이버가 `#patientInfo` 에서 멈춘다 — 위의 "환자를 매번 새로 고른다" 가 그 이유다.
-- GIF 만들기(10 fps, 폭 1100, 팔레트 40색, ≤ 8 MB — 46 초 녹화가 7.1 MB). Playwright 번들 ffmpeg 는 `scale` 필터뿐이라 **팔레트 필터도 gif 먹서도 없다** — 전체 빌드를 쓴다:
+- GIF 만들기(10 fps, 폭 1000, 팔레트 40색, ≤ 8 MB — 39 초 녹화가 6.2 MB). 녹화가 길어져 폭 1100 이 8 MB 를 넘으면 **색을 줄이기 전에 폭을 줄인다**:
+  1100→1000 이 40색을 지키면서 6.2 MB 로 떨어뜨렸고, 폭을 지키고 40→32색으로 간 쪽은 7.0 MB 에 회색 계조가 뭉갰다. Playwright 번들 ffmpeg 는
+  `scale` 필터뿐이라 **팔레트 필터도 gif 먹서도 없다** — 전체 빌드를 쓴다:
 
 ```bash
 FF=$(python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())")   # uv pip install imageio-ffmpeg
 V=var/demo-video/*.webm
-"$FF" -y -i $V -vf "fps=10,scale=1100:-2:flags=lanczos,palettegen=max_colors=40:stats_mode=diff" var/palette.png
-"$FF" -y -i $V -i var/palette.png -lavfi "fps=10,scale=1100:-2:flags=lanczos[x];[x][1:v]paletteuse=dither=none:diff_mode=rectangle" \
+"$FF" -y -i $V -vf "fps=10,scale=1000:-2:flags=lanczos,palettegen=max_colors=40:stats_mode=diff" var/palette.png
+"$FF" -y -i $V -i var/palette.png -lavfi "fps=10,scale=1000:-2:flags=lanczos[x];[x][1:v]paletteuse=dither=none:diff_mode=rectangle" \
      -loop 0 docs/images/demo.gif
 ```
 

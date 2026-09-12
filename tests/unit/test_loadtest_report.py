@@ -264,12 +264,15 @@ def test_reports_resolve_through_readme_numbers_registry(tmp_path: Path) -> None
     ]
     unresolved = [k for k in load_keys if values[k] is None]
     # legitimately null in this fixture: credit never hit 0 (B), nothing reconnected (D), and every session
-    # reached `ended` so `clients.outcomes` has no `running` bucket (A n=200). The README rows for those
-    # keys are deleted instead of guessed; every other key resolves.
+    # reached `ended` so `clients.outcomes` has no `running` bucket (A n=200). `load.D.sessions` is the
+    # run *plan* (`$.sessions`), written by `runner.py` 의 `common` 헤더 for every scenario — not by
+    # `d_body()`, which is all this fixture calls. The README rows for those keys are deleted instead of
+    # guessed; every other key resolves.
     assert unresolved == [
         "load.A.n200.sessions_never_started",
         "load.B.credit_zero_at_s",
         "load.D.resume_success_pct",
+        "load.D.sessions",
     ], unresolved
     assert values["load.A.n200.ack_p95_ms"] == "120" and values["load.D.loss"] == "0"
 

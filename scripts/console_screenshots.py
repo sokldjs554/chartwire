@@ -8,7 +8,8 @@ first demo script whose catalog entry expects an alert, and the recorder length 
 ``total_ms``) → open the viewer → start the JS recorder → risk banner → session end → SOAP draft →
 consent revoke → **re-login as the demo admin** → purge receipt → "복호화 시도" → Ops. The role switch is not cosmetic: ``rbac.MATRIX``
 lets a clinician revoke a consent but only ``admin``/``auditor`` may read ``GET /v1/purge-jobs/{id}`` and
-call ``verify-decrypt`` (a clinician gets 403), and the Ops panel needs ``admin`` for the DLQ list.
+call ``verify-decrypt``, and the Ops panel needs ``admin`` for the DLQ list. The console knows this and
+does not poll the receipt as a clinician, so a clean run ends with **zero** browser errors.
 
 ``--video-dir`` records the whole run as WebM (Playwright ``record_video_dir``); ``docs/images/demo.gif``
 is produced from it with a **full** ffmpeg build (``imageio-ffmpeg``) — the Playwright-bundled binary
@@ -121,14 +122,17 @@ def run(
         page.goto(f"{base}/console", wait_until="load")
         page.wait_for_selector("#banner")
         page.wait_for_timeout(500)
-        shot(SHOTS[0])  # 로그인 전 소개 화면 (5분 투어 · 계정 · 알아 둘 것)
+        shot(SHOTS[0])  # 로그인 전 홈(마케팅) 화면 — 히어로 · 증거 · 5분 투어
 
+        # 새 UI 는 홈이 먼저다: 헤더의 "콘솔 로그인" 이 작업 화면(#/console)을 연다.
+        # 예전 UI 는 /console 이 곧 작업 화면이라 이 단계가 없었다 (로그인 폼이 첫 화면에 있었다).
+        page.click("#headerConsole")
         # login (clinician@demo.clinic / demo1234! are the console defaults)
         page.click("#loginBtn")
         wait_text(page, "#who", "clinician", 10)
 
         # a fresh session for the run: patient by exact blind-index name, the chosen script
-        page.click("details > summary")
+        page.click("#createDetails > summary")  # 새 UI 에는 details 가 여럿(헤더 계정 · FAQ) — id 로 집는다
         page.fill("#patientName", patient)
         page.click("#findPatient")
         wait_text(page, "#patientInfo", "consent=", 10)
@@ -185,6 +189,8 @@ def run(
         job_id = wait_until(lambda: page.input_value("#purgeJobId") or None, 20)
 
         # … then re-login as the admin: GET /v1/purge-jobs/{id} and verify-decrypt are {admin, auditor}
+        # 로그인 컨트롤은 헤더 드롭다운(#acctDetails) 안에 있고 로그인 성공 시 접힌다 — 다시 펼친다
+        page.evaluate("() => { const d = document.getElementById('acctDetails'); if (d) d.open = true; }")
         page.fill("#email", admin_email)
         page.click("#loginBtn")
         wait_text(page, "#who", "admin", 10)
@@ -203,8 +209,10 @@ def run(
             )  # 합계 · 검증 · 해시 · 판정까지 한 장에 (단계는 접혀 있다)
             page.locator("#verifyOut").scroll_into_view_if_needed()
             page.evaluate(
-                "() => window.scrollTo(0, window.scrollY + document.getElementById('receipt').getBoundingClientRect().top - 44)"
-            )  # 44 px = 고정 배너 높이 — 영수증 제목이 배너 밑에 숨지 않게
+                "() => { const h = document.querySelector('.site-header'); const s = document.getElementById('steps');"
+                " const off = (h ? h.getBoundingClientRect().bottom : 44) + (s ? s.getBoundingClientRect().height : 0) + 8;"
+                " window.scrollTo(0, window.scrollY + document.getElementById('receipt').getBoundingClientRect().top - off); }"
+            )  # 고정 고지 띠 + 사이트 헤더 + sticky 단계 칩 높이만큼 — 영수증 제목이 그 밑에 숨지 않게
             page.wait_for_timeout(300)
             shot(SHOTS[4], keep_scroll=True)  # 영수증 위치를 그대로 찍는다
             page.set_viewport_size({"width": 1440, "height": 1000})

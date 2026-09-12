@@ -348,8 +348,14 @@ jobs:
           python-version: "3.11"
       - name: held-out risk set unchanged
         run: cd src/chartwire/eval/data && sha256sum -c FROZEN.txt
-      - name: README numbers in sync with docs/{eval,loadtest,perf}/*.json (stdlib only)
-        run: python scripts/readme_numbers.py --check
+      # docs/perf/README.md 와 콘솔 홈 화면(console/index.html)도 README 와 같은 num 마커를 쓴다 — 측정 JSON 이
+      # 바뀌면 셋 다 낡는다. `make readme-numbers` 가 --write 하는 파일 집합과 같게 유지할 것
+      # (`make readme-numbers-check` 와 같은 명령).
+      - name: README + docs/perf + console numbers in sync with docs/{eval,loadtest,perf}/*.json (stdlib only)
+        run: |
+          python scripts/readme_numbers.py --check
+          python scripts/readme_numbers.py --check --readme docs/perf/README.md
+          python scripts/readme_numbers.py --check --readme console/index.html
       - name: docs/loadtest/results.md is the rendered form of the JSON reports
         run: |
           pip install -e . -q

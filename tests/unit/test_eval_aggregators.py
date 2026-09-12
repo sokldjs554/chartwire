@@ -90,6 +90,11 @@ def test_perf_query_selection_and_plan_summary() -> None:
     )
     assert study.detect_state("0006_rls") == "before" and study.detect_state("0007_perf") == "after"
     assert study.detect_state("0003_segments") is None and study.detect_state(None) is None
+    # 0007 뒤에 붙는 마이그레이션은 인덱스와 무관해도 여전히 "after" 다 — 여기가 슬러그 완전일치로
+    # 굳어 있으면 head 가 올라갈 때마다 perf study 가 상태를 못 읽고 조용히 멈춘다.
+    assert study.detect_state("0008_consultations") == "after"
+    assert study.detect_state("0042_anything") == "after"
+    assert study.detect_state("head") is None
 
 
 # ------------------------------------------------ quality pass 2: the executing purge / rls runs

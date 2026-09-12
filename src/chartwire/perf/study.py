@@ -38,7 +38,10 @@ from chartwire.perf.queries import (
 )
 
 STATES: Final = ("before", "after")
-REVISION_STATE: Final = {"0006_rls": "before", "0007_perf": "after"}
+RLS_REVISION: Final = 6
+"""``0006_rls`` — RLS is in place but the perf indexes are not: the ``before`` baseline."""
+PERF_REVISION: Final = 7
+"""``0007_perf`` adds the indexes the study measures; that revision and every later one is ``after``."""
 PLANS_DIR: Final = "plans"
 SUMMARY_FILE: Final = "summary.json"
 LEAKPROOF_FILE: Final = "leakproof.txt"
@@ -128,11 +131,22 @@ def current_revision(conn: psycopg.Connection[Any]) -> str | None:
 
 
 def detect_state(revision: str | None) -> str | None:
+    """Which side of the perf indexes this database is on, from its Alembic revision.
+
+    Compares the revision's leading number rather than matching whole slugs: a migration added
+    after ``0007_perf`` for an unrelated reason (``0008_consultations``) still measures the
+    indexed schema, and must not read as "unknown" and strand ``perf study`` at head.
+    """
     if revision is None:
         return None
-    for prefix, state in REVISION_STATE.items():
-        if revision.startswith(prefix.split("_")[0]):
-            return state
+    head = revision.split("_")[0]
+    if not head.isdigit():
+        return None
+    number = int(head)
+    if number >= PERF_REVISION:
+        return "after"
+    if number == RLS_REVISION:
+        return "before"
     return None
 
 
