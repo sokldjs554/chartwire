@@ -60,6 +60,10 @@ RUN pip install --no-index --find-links=/wheels chartwire && rm -rf /wheels
 
 WORKDIR /app
 COPY --chown=chartwire:chartwire console ./console
+# 홈 화면이 자기 스크린샷을 보여 준다(GET /console/media/{name}). 이미지에는 저장소의 docs/ 가 없으므로
+# 콘솔 옆 media/ 로 복사한다 — app 은 저장소 docs/images 가 없으면 이 디렉터리를 본다.
+# live-gate 가 공개 URL 에서 404 를 잡기 전까지 히어로 스크린샷이 배포본에서 깨져 있었다.
+COPY --chown=chartwire:chartwire docs/images ./console/media
 COPY --chown=chartwire:chartwire deploy/render-demo/start.sh /usr/local/bin/chartwire-demo-start
 RUN chmod 0755 /usr/local/bin/chartwire-demo-start
 

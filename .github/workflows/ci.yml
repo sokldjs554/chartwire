@@ -318,6 +318,12 @@ jobs:
         run: |
           served=$(curl -fsS http://127.0.0.1:8000/v1/release | python3 -c 'import sys, json; print(json.load(sys.stdin)["git_sha"])')
           test "$served" = "$GITHUB_SHA"
+      # 이미지 안에는 저장소 docs/ 가 없다 — 홈 화면의 스크린샷 라우트가 컨테이너 배치에서도 200 인지 본다.
+      # (live-gate 가 공개 URL 에서 404 로 잡았던 것; 여기서 먼저 잡는다.)
+      - name: 홈 화면 스크린샷이 컨테이너 배치에서도 서빙된다
+        run: |
+          test "$(curl -s -o /dev/null -w '%{content_type}' http://127.0.0.1:8000/console/media/00_intro.png)" = image/png
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/console/media/..%2F..%2FREADME.md)" = 404
       - name: 데모 계정으로 로그인하고 세션이 조회된다 (익명은 401)
         run: |
           tok=$(curl -fsS -X POST http://127.0.0.1:8000/v1/auth/token \

@@ -234,6 +234,26 @@ def console_path(settings: Settings | None = None) -> Path | None:
     return None
 
 
+def console_media_files(index: Path | None) -> dict[str, tuple[Path, str]]:
+    """Where each whitelisted demo image lives — resolved once, at factory time (no I/O in the handler).
+
+    Two layouts: a repository checkout keeps the images in ``docs/images``; the demo image
+    (``deploy/render-demo/Dockerfile``) has no ``docs/`` and copies them next to the console as
+    ``console/media/``. Each file takes the first place it is found in, so a partial copy still
+    serves what it has and the rest is a 404, never a wrong file.
+    """
+    candidates = [Path(__file__).resolve().parents[3] / "docs" / "images"]
+    if index is not None:
+        candidates.append(index.parent / "media")
+    found: dict[str, tuple[Path, str]] = {}
+    for name, (source, mime) in CONSOLE_MEDIA.items():
+        for directory in candidates:
+            if (directory / source).is_file():
+                found[name] = (directory / source, mime)
+                break
+    return found
+
+
 # ------------------------------------------------------------------ factory
 
 
@@ -251,7 +271,7 @@ CONSOLE_MEDIA: Final[dict[str, tuple[str, str]]] = {
 
 _FAVICON_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
-    '<rect width="32" height="32" rx="7" fill="#2456c9"/>'
+    '<rect width="32" height="32" rx="7" fill="#1f6f5b"/>'
     '<path d="M6 17h4l3-7 3 13 3-9 2 3h5" fill="none" stroke="#fff" stroke-width="2.5" '
     'stroke-linecap="round" stroke-linejoin="round"/></svg>'
 )
@@ -309,12 +329,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(ops_routes.router)
 
     index = console_path(settings)
-    _images = Path(__file__).resolve().parents[3] / "docs" / "images"
-    media_files: dict[str, tuple[Path, str]] = {
-        name: (_images / source, mime)
-        for name, (source, mime) in CONSOLE_MEDIA.items()
-        if (_images / source).is_file()
-    }
+    media_files = console_media_files(index)
 
     @app.get("/console", include_in_schema=False)
     @app.get("/console/index.html", include_in_schema=False)

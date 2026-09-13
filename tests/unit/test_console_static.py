@@ -283,6 +283,29 @@ def test_console_media_rejects_anything_outside_the_whitelist(name: str) -> None
     assert name not in CONSOLE_MEDIA
 
 
+def test_console_media_resolves_from_console_media_in_the_container_layout(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """데모 이미지에는 저장소 docs/ 가 없다 — 콘솔 옆 media/ 에서 찾아야 한다.
+
+    live-gate 가 공개 URL 에서 잡은 404: 저장소 배치에서만 찾던 코드가 컨테이너에서 파일을 못 봤다.
+    저장소 쪽 후보를 빈 디렉터리로 돌려 컨테이너와 같은 상황을 만들고, 하나씩 복사한 파일만 서빙되는지 본다.
+    """
+    from chartwire.api import app as app_module
+
+    monkeypatch.setattr(
+        app_module.Path, "resolve", lambda self: tmp_path / "site-packages" / "x" / "y" / "z" / "app.py"
+    )
+    console = tmp_path / "app" / "console"
+    (console / "media").mkdir(parents=True)
+    (console / "index.html").write_text("<!DOCTYPE html>", encoding="utf-8")
+    (console / "media" / "00_intro.png").write_bytes(b"\x89PNG")
+    found = app_module.console_media_files(console / "index.html")
+    assert set(found) == {"00_intro.png"}, "복사된 파일만, 나머지는 404"
+    assert found["00_intro.png"] == (console / "media" / "00_intro.png", "image/png")
+    assert app_module.console_media_files(None) == {}
+
+
 # ── num/row 마커 — README 와 같은 게이트(scripts/readme_numbers.py) 위에 얹혀 있다 ──────────────
 
 

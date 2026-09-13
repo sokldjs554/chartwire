@@ -65,6 +65,8 @@ Phase 2 — 유휴 박스에서 **직렬** 측정(bulk → perf → eval → loa
 | eval | 채택 판정이 커밋된 JSON 의 수치에서 다시 나오고 지금 코드와 일치 (`adopt` ⇔ 실제로 도는 정책) | `pytest tests/unit/test_eval_adoption.py` |
 | 배포(병합 후) | 공개 URL 이 그 커밋을 서빙할 때까지 기다린 뒤 readyz · 콘솔 · 로그인 · 401/403 검증 | `live-gate` 워크플로 (`scripts/wait_for_release.py --base … --sha …`) |
 
+`live-gate` 의 첫 실행(`8df3698`)이 잡은 결함: 홈 화면 스크린샷 라우트 `/console/media/{name}` 이 저장소 배치의 `docs/images/` 에서만 파일을 찾아 **데모 이미지(`docs/` 없음)에서는 404** 였다 — 로컬·CI 의 저장소 배치에서는 한 번도 재현되지 않았다. 이미지는 `console/media/` 로 복사하고 app 은 두 자리를 차례로 보며, `render-demo` 잡이 컨테이너 배치에서 그 라우트를 대조한다.
+
 ## 5. 처음부터 알려 준 함정 (발견이 아님)
 
 스펙과 환경 문서가 에이전트에게 **시작 전에** 준 것들이다. 아래는 그래서 코드에 처음부터 반영돼 있고, 버그 저널에는 없다.
