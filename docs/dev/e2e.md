@@ -115,15 +115,15 @@ python scripts/console_screenshots.py --chromium /opt/pw-browsers/chromium \
 - **초안은 기다리는 것이지 조르는 것이 아니다.** 녹음이 끝나면 워커가 초안을 만들고 `note.status` 가 뷰어 소켓으로 오며, 콘솔이 그 순간 스스로 불러온다(`soap.load()`). 드라이버도 `#statements .stmt` 가 뜰 때까지 **기다린다** — 예전처럼 `#loadNote` 를 1.5 s 마다 누르면 워커를 앞질러 아직 없는 초안을 부르게 되고, 그 `notes/latest` 404 가 브라우저 콘솔 오류로 잡혀 위 게이트가 간헐적으로 빨개진다(실제로 한 번 그렇게 실패했다). 이벤트를 90 s 안에 못 받았을 때만 `#loadNote` 를 **한 번** 누른다 — 그때는 초안이 이미 있으므로 404 가 나지 않는다.
 - **한 번 파기된 환자는 이름으로 찾을 수 없다.** `patient_shred` 가 이름 블라인드 인덱스를 지우므로 `--patient` 로 같은 가명을 다시 주면
   `findPatient` 가 빈 결과를 돌려주고 드라이버가 `#patientInfo` 에서 멈춘다 — 위의 "환자를 매번 새로 고른다" 가 그 이유다.
-- GIF 만들기(10 fps, 폭 1000, 팔레트 40색, ≤ 8 MB — 39 초 녹화가 7.7 MB; 따뜻한 팔레트로 바꾼 뒤 그라디언트가 색을 더 먹는다). 녹화가 길어져 폭 1100 이 8 MB 를 넘으면 **색을 줄이기 전에 폭을 줄인다**:
+- GIF 만들기(10 fps, 폭 940, 팔레트 40색, ≤ 8 MB — 38 초 녹화가 7.75 MB; 따뜻한 팔레트로 바꾼 뒤 그라디언트가 색을 더 먹어 1100 → 1000 → 940 으로 두 번 좁혔다). 8 MB 를 넘으면 **색을 줄이기 전에 폭을 줄인다**:
   1100→1000 이 40색을 지키면서 6.2 MB 로 떨어뜨렸고, 폭을 지키고 40→32색으로 간 쪽은 7.0 MB 에 회색 계조가 뭉갰다. Playwright 번들 ffmpeg 는
   `scale` 필터뿐이라 **팔레트 필터도 gif 먹서도 없다** — 전체 빌드를 쓴다:
 
 ```bash
 FF=$(python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())")   # uv pip install imageio-ffmpeg
 V=var/demo-video/*.webm
-"$FF" -y -i $V -vf "fps=10,scale=1000:-2:flags=lanczos,palettegen=max_colors=40:stats_mode=diff" var/palette.png
-"$FF" -y -i $V -i var/palette.png -lavfi "fps=10,scale=1000:-2:flags=lanczos[x];[x][1:v]paletteuse=dither=none:diff_mode=rectangle" \
+"$FF" -y -i $V -vf "fps=10,scale=940:-2:flags=lanczos,palettegen=max_colors=40:stats_mode=diff" var/palette.png
+"$FF" -y -i $V -i var/palette.png -lavfi "fps=10,scale=940:-2:flags=lanczos[x];[x][1:v]paletteuse=dither=none:diff_mode=rectangle" \
      -loop 0 docs/images/demo.gif
 ```
 

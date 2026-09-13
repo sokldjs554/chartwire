@@ -201,11 +201,13 @@ def run(
         page.click("#verifyDecrypt")
         wait_text(page, "#verifyOut", "failed", 15)
         page.wait_for_timeout(400)
-        if shots:
+        # 영수증을 좁은 폭으로 찍는 이 구간은 **녹화 중에는 건너뛴다**. 녹화 프레임은 1440×1000 으로 고정이라
+        # 뷰포트를 900 px 로 줄이면 영상에 회색 반쪽 화면이 몇 초 남는다 — 데모 영상 끝에 실제로 그렇게 찍혀 있었다.
+        # 04_purge_receipt.png 는 녹화하지 않는 1회차가 이미 좁은 폭으로 찍어 두므로 잃는 것이 없다.
+        if shots and video_dir is None:
             # 토스트는 5 s 뒤 사라지는 순간적인 안내라 정적 캡처에서는 걷어내고, 영수증과 판정이 화면에 들어오게 스크롤한다
             page.evaluate("() => { document.getElementById('toasts').innerHTML = ''; }")
             # 영수증은 문서다: 960 px 아래의 1열 레이아웃에서 전체 폭으로 찍어야 표가 읽힌다 (사이드 패널 360 px 는 좁다).
-            # 영상(--no-shots)에서는 뷰포트를 바꾸지 않는다 — 녹화 프레임은 1440×1000 으로 고정이라 검은 여백만 남는다.
             page.set_viewport_size(
                 {"width": 900, "height": 1400}
             )  # 합계 · 검증 · 해시 · 판정까지 한 장에 (단계는 접혀 있다)

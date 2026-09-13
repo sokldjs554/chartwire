@@ -545,16 +545,6 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
 #intro .decision .why{ order:4; margin:auto 0 0; padding-top:10px; font-size:13px; line-height:1.7;
   color:var(--muted); border-top:1px solid var(--line); word-break:keep-all; }
 
-/* ── 10 한계 카드 ────────────────────────────────────────────────────── */
-#intro .limit-grid{ margin-top:28px; }
-#intro .limit{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r-md);
-  padding:20px; min-width:0; }
-#intro .limit .num{ display:inline-flex; align-items:center; justify-content:center;
-  width:26px; height:26px; border-radius:var(--r-pill); border:1px solid var(--line-strong);
-  font-family:var(--mono); font-size:12px; font-weight:700; color:var(--muted); margin-bottom:10px; }
-#intro .limit h3{ font-size:16px; line-height:1.5; margin:0 0 6px; }
-#intro .limit p{ margin:0; color:var(--muted); font-size:14px; line-height:1.75; }
-
 /* ── 11 재현 ─────────────────────────────────────────────────────────── */
 #intro .repro-grid{ margin-top:28px; }
 #intro .repro-foot{ margin-top:20px; color:var(--muted); font-size:14px; line-height:1.8; }
@@ -1126,7 +1116,6 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
       <a href="#sec-evidence">숫자</a>
       <a href="#sec-decisions">고른 것</a>
       <a href="#sec-controls">보호</a>
-      <a href="#sec-limits">한계</a>
       <a href="https://github.com/sokldjs554/chartwire" target="_blank" rel="noopener">GitHub ↗</a>
     </nav>
 
@@ -1500,7 +1489,7 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
       <!-- row:load.A.knee --><p>ack p95 는 N=50 에서 <!-- num:load.A.n50.ack_p95_ms -->223<!-- /num --> ms, N=100 에서 <!-- num:load.A.n100.ack_p95_ms -->449<!-- /num --> ms 로 완만하게 늘어납니다. 그러다 N=200 에서 <!-- num:load.A.n200.ack_p95_ms -->9036<!-- /num --> ms 로 무너집니다 — 20배입니다. 무릎의 정체는 처리량 미달이 아니라 이 지연 붕괴이고, 처리량도 같이 꺾여 의도한 1,000 chunk/s 대신 <!-- num:load.A.n200.chunks_per_s -->790<!-- /num --> chunk/s 에 그칩니다. 병목은 저장소가 아니라 파이썬 프로세스 하나가 코어 하나를 넘지 못하는 것입니다 — api 이벤트 루프와 stt-worker 가 각자 CPU 천장에 붙고 PostgreSQL · Redis 는 한가합니다.</p><!-- /row -->
 
       <div class="callout">
-        <p>손실 0 · 중복 0 은 시나리오 A–D 에서 확인한 값이지, 어떤 부하에서도 새 세션을 받아낸다는 뜻이 아닙니다. 「떨어뜨리지 않는다」를 시스템 전체에 대한 주장으로 읽으면 안 됩니다. 수평 확장은 미실행입니다.</p>
+        <p>손실 0 · 중복 0 은 시나리오 A–D 에서 확인한 값입니다 — 「어떤 부하에서도 떨어뜨리지 않는다」는 뜻으로 읽으면 안 됩니다.</p>
       </div>
 
       <div class="scroll-x">
@@ -1582,43 +1571,6 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
       </div>
 
       <p class="footnote">후보는 원칙으로 선언한 변형뿐입니다 — 스펙 원문, 임계값, 전체 억제, 이전 품질 패스의 선택기. held-out 문장을 보고 만들지 않았고, 목록은 고정입니다. 통과할 때까지 후보를 늘리는 순간 「튜닝 안 함」은 거짓이 됩니다.</p>
-    </div>
-  </section>
-
-  <!-- ── 10 한계 6카드 (고객 후기의 치환) ────────────────────────────── -->
-  <section class="section" id="sec-limits">
-    <div class="container">
-      <p class="kicker">아직</p>
-      <h2>아직 못 하는 것</h2>
-      <p class="lead">해 보지 않은 것을 잘한다고 적지 않으려고, 따로 모아 둡니다.</p>
-
-      <div class="grid-3 limit-grid">
-        <article class="limit"><span class="num">1</span>
-          <h3>인식 품질과 노트 품질은 재지 않았습니다</h3>
-          <p>합성 대본과 STT 시뮬레이터라 실제 진료 음성의 값이 아닙니다.</p>
-        </article>
-        <article class="limit"><span class="num">2</span>
-          <h3>부하 수치에는 클라이언트 몫이 섞여 있습니다</h3>
-          <p>같은 박스, 클라이언트 시계로 쟀습니다. 분리 인프라의 값이 아닙니다.</p>
-        </article>
-        <!-- row:eval.risk_heldout --><article class="limit"><span class="num">3</span>
-          <h3>위험 탐지는 안전망이지 분류기가 아닙니다</h3>
-          <p>held-out <!-- num:eval.risk_heldout.n -->300<!-- /num -->문장에서 정밀도 <!-- num:eval.risk_heldout.precision -->0.76<!-- /num --> · 재현율 <!-- num:eval.risk_heldout.recall -->0.57<!-- /num --> — 목표 0.6 에 미달했고, 기준을 낮추는 대신 그대로 싣습니다. 경보가 없다고 위험이 없다는 뜻이 아닙니다.</p>
-        </article><!-- /row -->
-        <!-- row:eval.risk_ingrammar --><article class="limit"><span class="num">4</span>
-          <h3>어떤 수치는 당연히 높게 나옵니다</h3>
-          <p>문법 안에서 만든 <!-- num:eval.risk_ingrammar.n -->10705<!-- /num -->문장의 정밀도 <!-- num:eval.risk_ingrammar.precision -->1.00<!-- /num --> · 재현율 <!-- num:eval.risk_ingrammar.recall -->1.00<!-- /num --> 은 자기 테스트 세트 기준이라 회귀 점검용입니다. held-out 세트가 있는 것은 위험 탐지뿐입니다.</p>
-        </article><!-- /row -->
-        <article class="limit"><span class="num">5</span>
-          <h3>LLM 은 아직 돌려 보지 않았습니다</h3>
-          <p>키 없이 만든 빌드라 어댑터와 픽스처 재생 테스트만 있습니다. 위 「고른 것」에서도 미측정으로 남겨 두었습니다.</p>
-        </article>
-        <article class="limit"><span class="num">6</span>
-          <h3>AWS 는 설계도까지, 배포는 하지 않았습니다</h3>
-          <p>cdk-nag 통과 · 템플릿 커밋까지입니다. 공개 데모는 Render 무료 인스턴스에서 돕니다.</p>
-        </article>
-      </div>
-      <p><a class="link-cta" href="https://github.com/sokldjs554/chartwire/blob/main/docs/limitations.md" target="_blank" rel="noopener">전체 한계 목록 → docs/limitations.md</a></p>
     </div>
   </section>
 
@@ -1721,7 +1673,7 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
         </details>
         <details>
           <summary>임상에 쓸 수 있나요?</summary>
-          <p>쓸 수 없습니다. 연구 · 포트폴리오 구현이고 STT 품질과 노트 품질은 평가하지 않았습니다.</p>
+          <p>쓸 수 없습니다. 연구 · 포트폴리오 구현이고, 임상 판단을 대신하도록 만들지 않았습니다.</p>
         </details>
         <details>
           <summary>상담을 남기면 연락이 오나요?</summary>
@@ -1750,7 +1702,6 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
             <li><a href="#sec-how">흐름</a></li>
             <li><a href="#sec-decisions">고른 것</a></li>
             <li><a href="#sec-controls">보호</a></li>
-            <li><a href="#sec-limits">한계</a></li>
           </ul>
         </nav>
         <nav aria-label="문서">
@@ -2061,7 +2012,9 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
           <button type="button" class="btn" id="riskAck">확인 (ACK)</button>
           <button type="button" class="btn secondary" id="riskJump">전사에서 보기</button>
         </div>
-        <!-- row:eval.risk_heldout.note --><p class="safety-note">경보가 오지 않았다는 것이 위험이 없다는 뜻은 아닙니다 — held-out <!-- num:eval.risk_heldout.n -->300<!-- /num -->문장에서 재현율 <!-- num:eval.risk_heldout.recall -->0.57<!-- /num --> · 정밀도 <!-- num:eval.risk_heldout.precision -->0.76<!-- /num --> 의 안전망입니다(목표 0.6 미달). 분류기가 아니라 규칙 기반 안전망입니다.</p><!-- /row -->
+        <!-- 제품 화면에는 제품 이야기만 둔다. 이 기능의 측정치(held-out P/R)와 그 해석은 README 표 ③·④ 와
+             docs/eval/ 에 있다 — 데모를 보는 사람에게 필요한 것은 "이 배너가 무엇이고 무엇을 하지 않는가" 다. -->
+        <p class="safety-note">결정론적 한국어 위험 사전과 범위 규칙이 띄웁니다 — 부정 · 가정 · 과거 · 타인 · 질문 · 관용구는 걸러 냅니다. 놓치기 쉬운 발화를 초 단위로 올려 주는 안전망이고, 임상 판단을 대신하지 않습니다.</p>
 
         <div class="transcript-head">
           <h4 class="ws-h4">전사</h4>
@@ -2187,7 +2140,7 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
           <label class="chk"><input type="checkbox" id="opsPoll"> <code>/metrics</code> 2 s 폴링</label>
           <span id="opsInfo" class="muted"></span>
         </div>
-        <p class="hint ops-caveat">이 게이지는 프로세스 전체 · 테넌트 합산이고 공유 개발 DB 의 부하테스트 잔여 데이터를 포함합니다 — 이 데모 세션의 값이 아닙니다.</p>
+        <p class="hint ops-caveat">이 게이지는 프로세스 전체 · 테넌트 합산입니다 — 이 세션만의 값이 아닙니다.</p>
         <table class="kv ops-kv">
           <caption class="sr-only">/metrics 에서 읽은 운영 지표</caption>
           <tbody>
