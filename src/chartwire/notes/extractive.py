@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from dataclasses import dataclass
 
 from chartwire.core.pii import has_identifier
 from chartwire.notes.korean import report_form
@@ -103,6 +104,27 @@ def chartable_text(seg: SegmentView) -> str | None:
     return None
 
 
+@dataclass(frozen=True)
+class Selection:
+    """How the ≤12 slots of a section are filled when a session says more than fits.
+
+    ``DEFAULT_SELECTION`` is what ships. The two ``False`` settings reproduce the provider before each
+    quality pass so the adoption harness (``chartwire eval adopt``) can measure what the change bought
+    on the same eval corpus — they are not serving options.
+
+    * ``family_first`` — one utterance per §10.1 fact family per round (scarcest family first) before
+      filling by ``seq``. Off: plain ``seq`` order up to the cap, which starves the late phases
+      (약물·음주) the way the pre-pass provider did.
+    * ``quantified_first`` — inside a family a statement carrying a number (``10mg``, ``5시간``) outranks a
+      vague one at the same depth. Off: ``seq`` order inside the family.
+    """
+
+    family_first: bool = True
+    quantified_first: bool = True
+
+
+DEFAULT_SELECTION = Selection()
+
 MAX_QUOTE_CHARS = 200
 """``Evidence.quote`` limit (§9.1). Longer utterances are cited by their first 190 characters in the
 direct-quotation form so both quote and statement stay within the schema limits."""
@@ -111,7 +133,9 @@ _MIN_QUOTE_CHARS = 4
 _KIND: dict[Section, StatementKind] = {"S": "reported", "O": "observed", "P": "plan_item"}
 
 
-def build_draft(segments: Iterable[SegmentView], *, max_per_section: int = 12) -> NoteDraftOut:
+def build_draft(
+    segments: Iterable[SegmentView], *, max_per_section: int = 12, selection: Selection = DEFAULT_SELECTION
+) -> NoteDraftOut:
     """Pure core of the provider — also used by the mutation and paraphrase mocks."""
     buckets: dict[Section, dict[str, list[SegmentView]]] = {"S": {}, "O": {}, "P": {}}
     seen: dict[Section, set[str]] = {"S": set(), "O": set(), "P": set()}
@@ -135,7 +159,7 @@ def build_draft(segments: Iterable[SegmentView], *, max_per_section: int = 12) -
         buckets[section].setdefault(family, []).append(seg)
     statements: list[Statement] = []
     for target in ("S", "O", "P"):
-        picked = _select(buckets[target], max_per_section)
+        picked = _select(buckets[target], max_per_section, selection)
         statements.extend(_statement(target, seg) for seg in sorted(picked, key=lambda s: s.seq))
     return NoteDraftOut(statements=statements)
 
@@ -143,19 +167,27 @@ def build_draft(segments: Iterable[SegmentView], *, max_per_section: int = 12) -
 _QUANTIFIED = re.compile(r"\d")
 
 
-def _select(buckets: dict[str, list[SegmentView]], limit: int) -> list[SegmentView]:
+def _select(
+    buckets: dict[str, list[SegmentView]], limit: int, selection: Selection = DEFAULT_SELECTION
+) -> list[SegmentView]:
     """≤``limit`` segments: one per cue family (scarcest first) per round, then the next round.
 
     Within a family a *quantified* statement (``10mg``, ``5시간``, ``3kg``, ``일주일에 5일``) outranks a vague
     one at the same depth — the measurable fact is what the note needs when the ≤12 cap bites; the
     output order is still by ``seq``.
     """
+    if not selection.family_first:
+        everything = sorted((s for items in buckets.values() for s in items), key=lambda s: s.seq)
+        return everything[:limit]
     order = [name for name, _ in CUE_FAMILIES if name in buckets]
     order += [name for name in buckets if name not in order]
-    ranked = {
-        name: sorted(items, key=lambda s: (not _QUANTIFIED.search(s.text), s.seq))
-        for name, items in buckets.items()
-    }
+    if selection.quantified_first:
+        ranked = {
+            name: sorted(items, key=lambda s: (not _QUANTIFIED.search(s.text), s.seq))
+            for name, items in buckets.items()
+        }
+    else:
+        ranked = {name: sorted(items, key=lambda s: s.seq) for name, items in buckets.items()}
     picked: list[SegmentView] = []
     depth = 0
     while len(picked) < limit:

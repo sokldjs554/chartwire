@@ -188,6 +188,18 @@ class ConsultationOut(_Out):
     message: str
 
 
+# ------------------------------------------------------------------ release
+
+
+class ReleaseOut(_Out):
+    """``GET /v1/release`` — the commit that is serving, for the live deploy gate. Public, nothing secret."""
+
+    git_sha: str
+    version: str
+    node_id: str
+    started_at: datetime
+
+
 # ------------------------------------------------------------------ sessions
 
 

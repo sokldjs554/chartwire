@@ -302,7 +302,7 @@ jobs:
         run: docker build -f deploy/render-demo/Dockerfile -t chartwire-demo:local .
       - name: 빈 디스크에서 기동 (initdb → 역할 → 마이그레이션 → 데모 시드 → serve)
         run: |
-          docker run -d --name cwdemo -p 8000:8000 chartwire-demo:local
+          docker run -d --name cwdemo -p 8000:8000 -e CHARTWIRE_GIT_SHA="$GITHUB_SHA" chartwire-demo:local
           for _ in $(seq 1 90); do
             curl -fsS http://127.0.0.1:8000/healthz > /dev/null 2>&1 && break
             sleep 2
@@ -313,6 +313,11 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/)" = 302
           curl -fsS http://127.0.0.1:8000/console | grep -q SYNTHETIC
           curl -fsS http://127.0.0.1:8000/readyz
+      # live-gate.yml 이 공개 URL 에서 기다리는 바로 그 라우트 — 컨테이너가 자기 커밋을 정확히 말하는지 여기서 먼저 본다.
+      - name: /v1/release 가 이 커밋을 말한다 (live-gate 가 기다리는 라우트)
+        run: |
+          served=$(curl -fsS http://127.0.0.1:8000/v1/release | python3 -c 'import sys, json; print(json.load(sys.stdin)["git_sha"])')
+          test "$served" = "$GITHUB_SHA"
       - name: 데모 계정으로 로그인하고 세션이 조회된다 (익명은 401)
         run: |
           tok=$(curl -fsS -X POST http://127.0.0.1:8000/v1/auth/token \

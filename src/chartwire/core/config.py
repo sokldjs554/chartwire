@@ -85,6 +85,9 @@ class Settings(BaseSettings):
     """Comma-separated console origins; empty → no CORS middleware."""
     console_dir: Path | None = None
     """Directory holding ``console/index.html`` (default: repo ``console/`` or ``/app/console``)."""
+    git_sha: str = ""
+    """Commit this build was made from, reported by ``GET /v1/release``. Empty → ``RENDER_GIT_COMMIT``
+    (Render sets it on every deploy) → ``"unknown"``. Never derived from a working tree at runtime."""
     trusted_proxy_ips: str = ""
     """Proxies whose ``X-Forwarded-For`` uvicorn may believe (comma-separated IPs/CIDRs, or ``*``).
 

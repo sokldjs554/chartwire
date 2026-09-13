@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from chartwire.risk.detector import DETECTOR_VERSION, RiskHit, scan
+from chartwire.risk.detector import DEFAULT_POLICY, DETECTOR_VERSION, Policy, RiskHit, scan
 from chartwire.risk.scope import ScopeFlags
 
 
@@ -274,3 +274,51 @@ def test_matching_ignores_whitespace(spaced: str, unspaced: str):
     a, b = one(spaced), one(unspaced)
     assert (a.phrase, a.category, a.severity) == (b.phrase, b.category, b.severity)
     assert b.alerts
+
+
+# --------------------------------------------------------------------------- rival policies (adoption harness)
+
+
+def test_default_policy_is_lex1_and_the_serving_path_never_passes_one():
+    assert Policy(past="split", min_severity=1) == DEFAULT_POLICY
+    assert scan("작년부터 죽고 싶었어요", "patient") == scan(
+        "작년부터 죽고 싶었어요", "patient", policy=DEFAULT_POLICY
+    )
+
+
+def test_past_rule_variants_change_exactly_the_past_reading():
+    denied, ongoing = "작년엔 죽고 싶었는데 지금은 아니에요", "작년부터 죽고 싶었어요"
+    # lex-1: the denial suppresses, the ongoing ideation is a demoted alert (severity 2 → 1)
+    assert not one(denied).alerts and one(ongoing).alerts and one(ongoing).severity == 1
+    # §9.4 as written: a present denial changes nothing — both are demoted alerts
+    literal = Policy(past="spec_literal")
+    lit_denied, lit_ongoing = (
+        scan(denied, "patient", policy=literal)[0],
+        scan(ongoing, "patient", policy=literal)[0],
+    )
+    assert lit_denied.alerts and lit_ongoing.alerts and (lit_denied.severity, lit_ongoing.severity) == (1, 1)
+    assert lit_denied.scope.past and not lit_denied.scope.present_denial
+    # full suppression: any past marker silences both
+    quiet = Policy(past="suppress_all")
+    assert not scan(denied, "patient", policy=quiet)[0].alerts
+    assert not scan(ongoing, "patient", policy=quiet)[0].alerts
+    # a sentence without a past marker is untouched by either rival
+    for policy in (literal, quiet):
+        hit = scan("요즘은 그냥 사라지고 싶어요", "patient", policy=policy)[0]
+        assert hit.alerts and hit.severity == 2 and not hit.scope.past
+
+
+def test_severity_floor_only_moves_the_alert_line():
+    floor2 = Policy(min_severity=2)
+    weak = scan("살아야 할 이유를 모르겠어요", "patient", policy=floor2)[0]
+    strong = scan("요즘은 그냥 사라지고 싶어요", "patient", policy=floor2)[0]
+    assert (weak.severity, weak.alerts, weak.alert_floor) == (1, False, 2)
+    assert (strong.severity, strong.alerts, strong.alert_floor) == (2, True, 2)
+    # the hit itself is unchanged apart from the floor — same phrase, span and flags as lex-1
+    default = one("살아야 할 이유를 모르겠어요")
+    assert (weak.phrase, weak.start, weak.end, weak.scope) == (
+        default.phrase,
+        default.start,
+        default.end,
+        default.scope,
+    )

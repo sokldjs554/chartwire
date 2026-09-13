@@ -97,3 +97,5 @@ stt-worker(§7.4)는 `hit.alerts` 인 경우에만 `risk_events` 행을 만들�
 **과거 사고(思考)의 해석**: 히트가 과거 표지(`예전 / 작년 / 그때 / 했었 / 었는데 …`)와 함께 나타나고 **현재 부정**(`지금은 아니 / 요즘은 없 / 이제는 안 …`)이 뒤따르면 **억제**하고, 현재 부정이 없으면 **severity 를 1 낮춰 경보**합니다.
 
 `작년엔 죽고 싶었는데 지금은 아니에요` 는 억제되고, `작년부터 죽고 싶었어요` 는 severity 2 → 1 로 낮춰 경보합니다. spec §9.4 의 원문은 두 경우를 구분하지 않고 *severity −1, ≥ 1 이면 경보* 라고만 적었는데, 그러면 명시적으로 부인한 과거 사고까지 경보가 되어 **held-out 세트의 `past` 행 대부분(`alert=false`)이 오탐**이 되고 생성기 골드(억제 종류 전부 `alert=false`)와도 어긋났습니다. 두 해석을 하나로 합치는 대신 규칙을 위와 같이 나눴고, 그 결과 in-grammar `past_kind.alerted` 는 0/31 로 생성기 골드와 일치합니다. in-grammar P/R/F1 에서 `past` 발화를 **제외**하고 `past_kind.{n, alerted}` 로 따로 보고하는 방식은 그대로입니다 — `per_kind.past.fp_rate` 가 남은 차이를 보여줍니다.
+
+**재서 기각한 대안** — 이 규칙의 대안 둘(스펙 원문 그대로 · 과거 표지 전부 억제)과 경보 하한을 2 로 올리는 대안은 `detector.Policy` 로 남아 있고, `chartwire eval adopt` 가 같은 held-out 세트에서 lex-1 과 나란히 잽니다(`docs/eval/adoption.json`, README 표 ④). 서빙 경로는 정책을 넘기지 않으며 `DEFAULT_POLICY` 가 곧 lex-1 입니다. 숫자는 이 문서에 적지 않습니다 — JSON 에서만 README 로 들어갑니다.

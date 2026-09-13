@@ -86,6 +86,8 @@ Decision{status, reason}
 | `MutationProvider(base, classes, seed)` | 탐지율 평가 | 시드 | 7 변이: `number_change · drug_swap · fabricated_statement · evidence_seq_wrong · diagnosis_insert · negation_flip · speaker_swap`; 적용 내역은 `last_applied` |
 | `ParaphrasingMockProvider(seed)` | 거짓 기각률 평가 | 시드 | 인용은 그대로 두고 S 문장만: 어미 `요→다/습니다`, 문두 조사 교체(은/는↔이/가), 동의어 5쌍, 인접 발화 병합(근거 2개), 수사↔숫자(`두 시간`↔`2시간`), 존대 제거 |
 
+섹션당 12칸을 채우는 방식은 `extractive.Selection` 으로 스위치가 나 있다(`family_first` · `quantified_first`; `DEFAULT_SELECTION` 이 지금 코드). 이전 품질 패스의 선택기(seq 순 채우기, 가족 우선만)는 `chartwire eval adopt` 가 같은 코퍼스에서 지금 선택기와 나란히 재기 위해 남겨 둔 것이지 서빙 옵션이 아니다 — 판정과 수치는 `docs/eval/adoption.json` 과 README 표 ④, 규칙은 `eval/README.md` 해석 규칙 8.
+
 어미 변환(`korean.py`)은 자모 산술과 작은 표로 만든 결정론적 변환이지 형태소 분석기가 아니다. 다룰 수 없는 어미
 (`네요`, `거든요`, `게요` …)는 직접 인용형 `“…”라고 함` 으로 떨어진다 — 문법적이고 항상 검증 가능하다.
 

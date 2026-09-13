@@ -1,0 +1,41 @@
+# 실제 배포본 대조 게이트 — `ci` 와 따로 둔다. `ci` 는 코드에 대한 판정이고, 이 워크플로는
+# 공개 URL(https://chartwire.onrender.com)이 **이 커밋**을 실제로 서빙하는지에 대한 판정이다.
+#
+# 순서가 중요하다: push 직후 몇 분 동안은 이전 릴리스가 답하고, 잠든 무료 인스턴스는 깨는 데 1~2분이 더
+# 든다. 그때 스모크를 돌리면 옛 빌드를 검증하고 새 빌드라고 적게 된다. 그래서 scripts/wait_for_release.py 는
+# GET /v1/release 의 git_sha 가 GITHUB_SHA 와 같아질 때까지 기다린 뒤에만 검사를 시작한다(최대 30분).
+# 결과 JSON 은 아티팩트로 남는다 — 어떤 검사가 어떤 값으로 통과했는지 나중에 볼 수 있게.
+#
+# 상담신청 접수(POST /v1/consultations)는 일부러 건드리지 않는다 — push 마다 실제 접수함이 찬다.
+name: live-gate
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: live-gate
+  cancel-in-progress: true   # 연달아 push 하면 마지막 커밋만 기다린다
+
+jobs:
+  render-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 이 커밋을 서빙할 때까지 기다린 뒤 공개 URL 을 검증 (stdlib only)
+        run: |
+          python scripts/wait_for_release.py \
+            --base https://chartwire.onrender.com \
+            --sha "$GITHUB_SHA" \
+            --timeout 1800 --interval 20 \
+            --out "$RUNNER_TEMP/live-verification.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-verification
+          path: ${{ runner.temp }}/live-verification.json

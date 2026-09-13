@@ -1,7 +1,7 @@
-"""``chartwire eval risk|grounding|inject|paraphrase|injection|purge|rls|protocol|all --seed 42 --out docs/eval``.
+"""``chartwire eval risk|grounding|inject|paraphrase|injection|adopt|purge|rls|protocol|all --seed 42 --out docs/eval``.
 
 Every report is ``build_report(seed, body)`` → ``<out>/<name>.json`` (spec §11.1 header). The
-computed evaluations (risk, grounding, inject, paraphrase, injection) need no services; the
+computed evaluations (risk, grounding, inject, paraphrase, injection, adopt) need no services; the
 aggregators (purge, rls, protocol) re-emit measurements produced elsewhere and are skipped —
 loudly — when their input does not exist. ``--check`` applies the CI ``eval-smoke`` thresholds.
 """
@@ -17,6 +17,7 @@ from typing import Any
 import typer
 
 from chartwire.eval import (
+    adoption_eval,
     corpus,
     grounding_eval,
     harness_env,
@@ -111,6 +112,17 @@ def run_paraphrase(out: Path, seed: int, n: int) -> dict[str, Any]:
     return body
 
 
+def run_adopt(out: Path, seed: int, n: int) -> dict[str, Any]:
+    """Baseline vs rival policy on the same set, decided by the rule in ``adoption_eval`` (adopt / reject)."""
+    body = adoption_eval.evaluate(corpus.load_heldout(), _scripts(seed, n), seed=seed)
+    _write(out, "adoption", seed, body)
+    c = body["counts"]
+    typer.echo(f"adoption       adopt={c['adopt']} reject={c['reject']} not_measured={c['not_measured']}")
+    for row in body["candidates"]:
+        typer.echo(f"  {row['decision']:<12} {row['id']:<28} {row.get('reason', '')}")
+    return body
+
+
 def run_aggregate(out: Path, seed: int, name: str, source: Path | None) -> dict[str, Any] | None:
     body: dict[str, Any] | None
     try:
@@ -176,6 +188,12 @@ def injection_cmd(seed: int = Seed, out: Path = Out, n: int = N) -> None:
 def paraphrase_cmd(seed: int = Seed, out: Path = Out, n: int = N) -> None:
     """의미 보존 바꿔쓰기에 대한 검증기 오거부율 (변환별)."""
     run_paraphrase(out, seed, n)
+
+
+@app.command("adopt")
+def adopt_cmd(seed: int = Seed, out: Path = Out, n: int = N) -> None:
+    """채택 판정: 지금 코드와 그 대안을 같은 세트에서 재고, 코드에 적힌 규칙으로 adopt/reject 를 기록합니다."""
+    run_adopt(out, seed, n)
 
 
 @app.command("purge")
@@ -249,6 +267,7 @@ def all_cmd(
     run_inject(out, seed, n, per_class)
     injection = run_injection(out, seed, n)
     para = run_paraphrase(out, seed, n)
+    run_adopt(out, seed, n)
     purge = run_aggregate(out, seed, "purge", None)
     rls = run_aggregate(out, seed, "rls", None)
     protocol = protocol_eval.collect(run_tests=run_tests)

@@ -24,7 +24,15 @@ def test_eval_all_writes_every_computed_report_with_header(tmp_path: Path, monke
     assert result.exit_code == 0, result.output
     out = tmp_path / "eval"
     names = {p.stem for p in out.glob("*.json")}
-    assert names == {"risk_heldout", "risk_ingrammar", "grounding", "inject", "injection", "paraphrase"}
+    assert names == {
+        "risk_heldout",
+        "risk_ingrammar",
+        "grounding",
+        "inject",
+        "injection",
+        "paraphrase",
+        "adoption",
+    }
     for name in names:
         report = _load(out, name)
         assert report["seed"] == 7 and "git_sha" in report and "generated_at" in report and "cpu" in report

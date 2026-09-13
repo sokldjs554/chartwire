@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>chartwire — 실시간 음성차팅 백엔드 데모 콘솔</title>
+<title>chartwire — 정신과 실시간 음성 차팅 백엔드 · 데모</title>
 <!--
   chartwire 데모 콘솔 (spec §13.3). 단일 파일 · 순수 JS · 빌드/CDN 없음 · /console 로 서빙.
   홈(마케팅) → 상담 신청(#/contact) → 데모 콘솔(#/console) 세 뷰가 한 문서 안에 있다.
@@ -24,43 +24,44 @@
   --sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI",
           "Malgun Gothic", "맑은 고딕", system-ui, "Noto Sans KR", sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "D2Coding", monospace;
-  --bg:#f6f7f9; --panel:#ffffff; --elev:#ffffff; --ink:#1c1e21; --muted:#667085;
-  --line:#e3e6ea; --line-strong:#cdd3da;
-  --accent:#2456c9; --accent-ink:#ffffff; --accent-tint:#e9f0ff;
-  --ok:#1a7f4b; --warn:#b7791f; --bad:#c0392b; --info:#1d6fa5;
+  --serif: Georgia, "Times New Roman", "Noto Serif KR", "Apple Myungjo", "Batang", serif;
+  --bg:#f7f4ee; --panel:#fffdf9; --elev:#ffffff; --ink:#1d2a27; --muted:#65726e;
+  --line:#e7e1d7; --line-strong:#cfc6b8;
+  --accent:#1f6f5b; --accent-ink:#ffffff; --accent-tint:#e6f1ec;
+  --ok:#1f7a4d; --warn:#a8711a; --bad:#b8402e; --info:#2a6f8f;
   --sev1:#e0b400; --sev2:#e67e22; --sev3:#c0392b; --mark:#fff3a3;
   /* 흰 글자를 얹는 '채움' 색은 라이트·다크에서 같은 값을 쓴다 — 다크에서 밝아지면 대비가 무너진다.
      --bad/--ok 는 글자·테두리용, --*-fill 은 배경용. (--sev3 가 이미 쓰는 방식) */
-  --bad-fill:#c0392b; --ok-fill:#1a7f4b; --bad-tint:#fdeceb; --disabled-ink:#5b6472;
+  --bad-fill:#c0392b; --ok-fill:#1a7f4b; --bad-tint:#fbe9e4; --disabled-ink:#5f6a66; --sand:#efe8dc; --sand-2:#e4dac8; --glow:rgba(255,255,255,.55); --glow-2:rgba(255,255,255,.95);
   --maxw:1200px; --gutter:clamp(16px,4vw,32px);
   --banner-h:34px; --header-h:64px;
-  --r-sm:6px; --r-md:10px; --r-lg:12px; --r-pill:999px;
+  --r-sm:8px; --r-md:14px; --r-lg:20px; --r-pill:999px;
 }
 /* 다크는 색 토큰만 재정의 — 레이아웃·여백·radius 는 그대로 */
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#111418; --panel:#1a1f26; --elev:#212831; --ink:#e6e9ee; --muted:#98a2b3;
-    --line:#2b323c; --line-strong:#3a424e;
-    --accent:#6d9cff; --accent-ink:#0b1220; --accent-tint:#16213a;
-    --ok:#4cc38a; --warn:#e2b85a; --bad:#ff6b5c; --info:#63b3e8; --mark:#5b4b00;
-    --bad-tint:#3b1f1c; --disabled-ink:#9aa4b2;   /* --bad-fill/--ok-fill 은 다크에서도 그대로 */
+    --bg:#151917; --panel:#1d2320; --elev:#252c29; --ink:#e9e6df; --muted:#9aa59f;
+    --line:#2d3532; --line-strong:#3e4844;
+    --accent:#7fc9ad; --accent-ink:#0e1a15; --accent-tint:#1c2f28;
+    --ok:#5fcf98; --warn:#e2b85a; --bad:#ff7a66; --info:#6fb8dc; --mark:#5b4b00;
+    --bad-tint:#3a2420; --disabled-ink:#9aa4a0; --sand:#232927; --sand-2:#2b3330; --glow:rgba(255,255,255,.07); --glow-2:rgba(255,255,255,.12);   /* --bad-fill/--ok-fill 은 다크에서도 그대로 */
   }
 }
 
 /* 수동 전환: OS 설정(위 media query)이 기본이고, 헤더 토글이 data-theme 로 덮어쓴다. */
 :root[data-theme="dark"]{
-  --bg:#111418; --panel:#1a1f26; --elev:#212831; --ink:#e6e9ee; --muted:#98a2b3;
-  --line:#2b323c; --line-strong:#3a424e;
-  --accent:#6d9cff; --accent-ink:#0b1220; --accent-tint:#16213a;
-  --ok:#4cc38a; --warn:#e2b85a; --bad:#ff6b5c; --info:#63b3e8; --mark:#5b4b00;
-  --bad-tint:#3b1f1c; --disabled-ink:#9aa4b2;
+  --bg:#151917; --panel:#1d2320; --elev:#252c29; --ink:#e9e6df; --muted:#9aa59f;
+  --line:#2d3532; --line-strong:#3e4844;
+  --accent:#7fc9ad; --accent-ink:#0e1a15; --accent-tint:#1c2f28;
+  --ok:#5fcf98; --warn:#e2b85a; --bad:#ff7a66; --info:#6fb8dc; --mark:#5b4b00;
+  --bad-tint:#3a2420; --disabled-ink:#9aa4a0; --sand:#232927; --sand-2:#2b3330; --glow:rgba(255,255,255,.07); --glow-2:rgba(255,255,255,.12);
 }
 :root[data-theme="light"]{
-  --bg:#f6f7f9; --panel:#ffffff; --elev:#ffffff; --ink:#1c1e21; --muted:#667085;
-  --line:#e3e6ea; --line-strong:#cdd3da;
-  --accent:#2456c9; --accent-ink:#ffffff; --accent-tint:#e9f0ff;
-  --ok:#1a7f4b; --warn:#b7791f; --bad:#c0392b; --info:#1d6fa5; --mark:#fff3a3;
-  --bad-tint:#fdeceb; --disabled-ink:#5b6472;
+  --bg:#f7f4ee; --panel:#fffdf9; --elev:#ffffff; --ink:#1d2a27; --muted:#65726e;
+  --line:#e7e1d7; --line-strong:#cfc6b8;
+  --accent:#1f6f5b; --accent-ink:#ffffff; --accent-tint:#e6f1ec;
+  --ok:#1f7a4d; --warn:#a8711a; --bad:#b8402e; --info:#2a6f8f; --mark:#fff3a3;
+  --bad-tint:#fbe9e4; --disabled-ink:#5f6a66; --sand:#efe8dc; --sand-2:#e4dac8; --glow:rgba(255,255,255,.55); --glow-2:rgba(255,255,255,.95);
 }
 
 *{ box-sizing:border-box; }
@@ -94,17 +95,17 @@ a{ color:var(--accent); }
 #workspace, #view-console{ font-size:14px; line-height:1.45; }
 
 #intro h1, #view-home h1{
-  font-size:clamp(30px,5.4vw,56px); line-height:1.22; letter-spacing:-0.025em;
-  font-weight:700; margin:0 0 14px;
+  font-size:clamp(34px,5.6vw,60px); line-height:1.16; letter-spacing:-0.03em;
+  font-weight:700; margin:0 0 18px;
   word-break:keep-all; overflow-wrap:anywhere; text-wrap:balance;
 }
-#intro h2, #view-home h2{ font-size:clamp(22px,3.4vw,36px); line-height:1.3; letter-spacing:-0.02em;
-  font-weight:700; margin:0 0 10px; word-break:keep-all; text-wrap:balance; }
+#intro h2, #view-home h2{ font-size:clamp(26px,3.6vw,40px); line-height:1.25; letter-spacing:-0.025em;
+  font-weight:700; margin:0 0 14px; word-break:keep-all; text-wrap:balance; }
 #intro h3, #view-home h3{ font-size:20px; line-height:1.4; letter-spacing:-0.01em; font-weight:700;
   margin:0 0 6px; word-break:keep-all; }
 #intro h4{ font-size:16px; font-weight:700; margin:0 0 4px; word-break:keep-all; }
-#intro .lead, #view-home .lead{ font-size:clamp(16px,2.2vw,18px); line-height:1.75; color:var(--muted);
-  max-width:640px; word-break:keep-all; text-wrap:pretty; margin:0 0 10px; }
+#intro .lead, #view-home .lead{ font-size:clamp(16px,2.2vw,18px); line-height:1.8; color:var(--muted);
+  max-width:660px; word-break:keep-all; text-wrap:pretty; margin:0 0 12px; }
 #intro p, #intro li, #intro figcaption,
 #view-home p, #view-home li, #view-home figcaption{ word-break:keep-all; overflow-wrap:anywhere;
   text-wrap:pretty; }
@@ -113,7 +114,7 @@ a{ color:var(--accent); }
 
 /* ── 레이아웃 ────────────────────────────────────────────────────────────── */
 .container{ max-width:var(--maxw); margin-inline:auto; padding-inline:var(--gutter); }
-.section{ padding-block:clamp(56px,9vw,112px); border-top:1px solid var(--line); }
+.section{ padding-block:clamp(64px,10vw,128px); border-top:1px solid var(--line); }
 .section--tight{ padding-block:clamp(36px,6vw,72px); }
 .grid-3{ display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
 .scroll-x{ overflow-x:auto; -webkit-overflow-scrolling:touch;
@@ -154,19 +155,19 @@ a{ color:var(--accent); }
 .cta-row{ display:flex; flex-direction:row; flex-wrap:wrap; gap:12px; margin:20px 0 12px; }
 .cta-row > a, .cta-row > button{
   display:inline-flex; align-items:center; justify-content:center; gap:8px;
-  font:inherit; font-weight:700; padding:14px 22px;
+  font:inherit; font-weight:700; padding:15px 24px;
   border:1px solid transparent; border-radius:var(--r-sm);
   text-decoration:none; cursor:pointer; min-height:44px;
   transition:background-color 160ms ease, color 160ms ease, border-color 160ms ease;
 }
 .btn-primary{ background:var(--accent); color:var(--accent-ink); }
-.btn-secondary{ background:transparent; color:var(--accent); border-color:var(--accent); }
+.btn-secondary{ background:var(--panel); color:var(--ink); border-color:var(--line-strong); }
 .btn-primary:hover{ background:color-mix(in srgb, var(--accent) 86%, #000); }
-.btn-secondary:hover{ background:var(--accent-tint); }
+.btn-secondary:hover{ background:var(--sand); }
 /* .cta-row > button 의 border 축약형이 .btn-* 보다 특정도가 높아 테두리를 지운다 — 되돌린다 */
 .cta-row > .btn-primary, .mobile-bar > .btn-primary{ border-color:var(--accent); }
-.cta-row > .btn-secondary, .mobile-bar > .btn-secondary{ border-color:var(--accent);
-  background:transparent; color:var(--accent); }
+.cta-row > .btn-secondary, .mobile-bar > .btn-secondary{ border-color:var(--line-strong);
+  background:var(--panel); color:var(--ink); }
 .btn-sm{ padding:9px 14px; font-size:14px; min-height:36px; border-radius:var(--r-sm); }
 /* hover 에 transform·그림자 없음 — 상호작용은 색으로만 */
 
@@ -348,142 +349,165 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
    토큰·공용 컴포넌트(.container/.section/.cta-row/.btn-*(primary·secondary)/.form/.badge/.toast/
    .feat/.tpl/#steps …)는 designsystem.css 가 담당한다. 여기서 재정의하지 않는다.
    조립 순서: designsystem.css → landing.css → workspace.css
+   결: 따뜻한 중립색 바탕에 깊은 초록 하나. 그림자는 히어로 패널과 제품 화면 두 곳에만 쓴다.
    ========================================================================== */
 
 /* ── 사이트 헤더 내부 (헤더 골격 자체는 designsystem.css) ─────────────── */
 .site-header__in{ display:flex; align-items:center; gap:16px; width:100%; }
-.wordmark{ display:flex; align-items:baseline; gap:8px; text-decoration:none; color:var(--ink);
+.wordmark{ display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--ink);
   flex:none; min-width:0; }
-.wordmark b{ font-size:18px; letter-spacing:-0.02em; }
-.wordmark small{ color:var(--muted); font-size:12px; white-space:nowrap; }
-.site-nav{ display:flex; align-items:center; gap:18px; margin-inline:auto; }
+.wordmark .mark{ width:28px; height:28px; border-radius:9px; background:var(--accent); color:#fff;
+  display:inline-grid; place-items:center; flex:none; }
+.wordmark .mark svg{ width:16px; height:16px; display:block; }
+.wordmark b{ font-size:19px; letter-spacing:-0.02em; }
+.wordmark small{ color:var(--muted); font-size:12px; white-space:nowrap; margin-left:2px; }
+.site-nav{ display:flex; align-items:center; gap:22px; margin-inline:auto; }
 .site-nav a{ color:var(--muted); text-decoration:none; font-size:14px;
   transition:color 160ms ease; }
 .site-nav a:hover{ color:var(--ink); }
-.site-header__cta{ display:flex; align-items:center; gap:12px; flex:none; }
+.site-header__cta{ display:flex; align-items:center; gap:14px; flex:none; }
 .site-header__cta .link{ font-size:14px; color:var(--muted); text-decoration:none; }
 .site-header__cta .link:hover{ color:var(--ink); text-decoration:underline; }
-@media (max-width:720px){
+@media (max-width:860px){
   .site-nav{ display:none; }
   .wordmark small{ display:none; }
   .site-header__cta{ margin-inline-start:auto; }
 }
+@media (max-width:360px){
+  .site-header__in{ gap:10px; }
+  .wordmark b{ font-size:17px; }
+  .site-header__cta{ gap:8px; }
+  .site-header__cta .link{ display:none; }   /* 콘솔 진입은 하단 바 · 히어로 버튼 · 푸터에 남아 있다 */
+}
 
-/* ── 공통: 랜딩 카드 · 작은 글씨 ─────────────────────────────────────── */
+/* ── 공통: 섹션 머리말 · 랜딩 카드 · 작은 글씨 ───────────────────────── */
+#intro .kicker{ margin:0 0 12px; font-size:12px; font-weight:700; letter-spacing:.14em;
+  color:var(--accent); text-transform:uppercase; }
 #intro .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r-md);
-  padding:16px; min-width:0; display:flex; flex-direction:column; gap:6px; }
-#intro .card p{ margin:0; color:var(--muted); font-size:14px; line-height:1.7; }
-#intro .card .src{ margin-top:auto; padding-top:8px; font-family:var(--mono); font-size:11px;
+  padding:22px; min-width:0; display:flex; flex-direction:column; gap:8px; }
+#intro .card p{ margin:0; color:var(--muted); font-size:14px; line-height:1.75; }
+#intro .card .src{ margin-top:auto; padding-top:10px; font-family:var(--mono); font-size:11px;
   color:var(--muted); word-break:break-all; }
 #intro .small{ font-size:14px; }
-#intro .footnote{ color:var(--muted); font-size:12px; line-height:1.6; margin:0;
-  max-width:62ch; word-break:keep-all; }
+#intro .footnote{ color:var(--muted); font-size:13px; line-height:1.7; margin:0;
+  max-width:64ch; word-break:keep-all; }
 #intro code{ font-size:.92em; }
 
-/* ── 02 히어로 ───────────────────────────────────────────────────────── */
-#intro .hero{ padding-block:clamp(40px,7vw,88px) 0; }
-#intro .eyebrow{ margin:0 0 12px; font-size:13px; font-weight:700; letter-spacing:-0.01em;
+/* ── 02 히어로: 왼쪽 글 · 오른쪽 빛이 드는 패널 ──────────────────────── */
+#intro .hero{ padding-block:clamp(48px,8vw,104px) clamp(24px,4vw,48px); }
+#intro .hero .container{ display:grid; grid-template-columns:minmax(0,1.05fr) minmax(300px,.95fr);
+  gap:clamp(28px,5vw,64px); align-items:center; }
+#intro .eyebrow{ margin:0 0 16px; font-size:13px; font-weight:700; letter-spacing:.02em;
   color:var(--accent); word-break:keep-all; }
-#intro .hero-sub{ margin:0 0 16px; font-size:clamp(17px,2.6vw,22px); line-height:1.55;
-  letter-spacing:-0.015em; color:var(--ink); max-width:44ch; word-break:keep-all;
-  text-wrap:balance; }
-#intro .hero .cta-row{ margin-bottom:10px; }
-
-/* 03 히어로 미디어 — 상단만 라운드 + 하단 페이드 */
-#intro .shot{ margin:32px 0 0; background:var(--panel);
-  border:1px solid var(--line); border-bottom:0;
-  border-radius:var(--r-lg) var(--r-lg) 0 0; overflow:hidden; }
-#intro .shot img{ display:block; width:100%; max-width:100%; height:auto; }
-@supports ((mask-image: linear-gradient(#000, transparent)) or (-webkit-mask-image: linear-gradient(#000, transparent))){
-  #intro .shot img{
-    -webkit-mask-image:linear-gradient(#000 72%, transparent);
-            mask-image:linear-gradient(#000 72%, transparent); }
+#intro .hero-sub{ margin:0 0 18px; font-size:clamp(17px,2.4vw,21px); line-height:1.6;
+  letter-spacing:-0.01em; color:var(--ink); max-width:44ch; word-break:keep-all; text-wrap:balance; }
+#intro .hero .lead{ margin-bottom:6px; }
+#intro .hero .cta-row{ margin:26px 0 14px; }
+#intro .hero-visual{ position:relative; min-height:clamp(300px,38vw,520px); border-radius:var(--r-lg);
+  overflow:hidden; border:1px solid var(--line);
+  background:
+    radial-gradient(120% 80% at 88% 8%, var(--glow-2), rgba(255,255,255,0) 60%),
+    linear-gradient(160deg, var(--glow), rgba(255,255,255,0) 45%),
+    linear-gradient(135deg, var(--sand) 0%, var(--sand-2) 100%);
+  box-shadow:0 30px 70px -40px rgba(30,40,35,.35); }
+#intro .hero-visual::before{ content:''; position:absolute; top:-20%; right:-10%; width:70%; height:130%;
+  background:linear-gradient(115deg, rgba(255,255,255,0) 30%, var(--glow) 50%, rgba(255,255,255,0) 70%);
+  transform:rotate(8deg); pointer-events:none; }
+#intro .hero-visual svg{ position:absolute; left:clamp(20px,4vw,40px); right:clamp(20px,4vw,40px);
+  top:clamp(28px,5vw,56px); width:auto; height:auto; max-height:40%; color:var(--accent); opacity:.85; }
+#intro .hero-verbs{ position:absolute; left:clamp(20px,4vw,40px); bottom:clamp(20px,3vw,32px); margin:0;
+  font-family:var(--serif); font-style:italic; font-size:clamp(17px,2vw,21px); line-height:1.5;
+  letter-spacing:.02em; color:var(--muted); }
+#intro .hero-verbs span{ display:block; }
+#intro .hero-verbs b{ font-weight:700; font-style:normal; color:var(--accent); font-family:var(--sans); }
+@media (max-width:900px){
+  #intro .hero .container{ grid-template-columns:1fr; }
+  #intro .hero-visual{ min-height:260px; order:2; }
 }
-#intro .shot-caption{ margin:10px 0 0; color:var(--muted); font-size:13px; line-height:1.6;
-  word-break:keep-all; max-width:78ch; }
 
-/* ── 04 증거 벤토 (gap:0 + 의사요소 헤어라인) ────────────────────────── */
-#intro .evidence{ display:grid; grid-template-columns:repeat(2,1fr); gap:0; position:relative;
-  background:var(--panel); border:1px solid var(--line); border-radius:var(--r-lg);
-  margin-top:28px; }
-#intro .evidence .cell{ position:relative; min-width:0; padding:clamp(20px,4vw,40px); }
-#intro .evidence .cell--full{ grid-column:1 / -1; display:flex; flex-direction:column; gap:10px;
-  align-items:flex-start; }
-#intro .evidence .cell:nth-child(1)::before,
-#intro .evidence .cell:nth-child(2)::before{
-  content:''; position:absolute; bottom:0; left:40px; right:0; height:1px; background:var(--line); }
-#intro .evidence .cell:nth-child(2)::before{ left:0; right:40px; }
-#intro .evidence .cell:nth-child(3)::before,
-#intro .evidence .cell:nth-child(4)::before{
-  content:''; position:absolute; bottom:0; left:40px; right:0; height:1px; background:var(--line); }
-#intro .evidence .cell:nth-child(4)::before{ left:0; right:40px; }
-#intro .evidence .cell:nth-child(1)::after,
-#intro .evidence .cell:nth-child(3)::after{
-  content:''; position:absolute; right:0; top:40px; bottom:40px; width:1px; background:var(--line); }
-#intro .evidence .value{ font-family:var(--mono); font-variant-numeric:tabular-nums;
-  font-size:clamp(28px,5vw,44px); font-weight:700; line-height:1; letter-spacing:-0.03em;
-  color:var(--accent); word-break:keep-all; }
-#intro .evidence .value--text{ font-family:var(--sans); font-size:clamp(20px,3.2vw,28px);
-  line-height:1.25; letter-spacing:-0.02em; }
-#intro .evidence .label{ font-weight:700; margin:10px 0 6px; word-break:keep-all; }
-#intro .evidence .note{ color:var(--muted); font-size:13px; line-height:1.6; margin:0;
+/* 03 제품 화면 — 히어로 아래 한 장, 브라우저 창처럼 */
+#intro .proof{ padding-block:0 clamp(16px,3vw,32px); }
+#intro .shot{ margin:0; background:var(--panel); border:1px solid var(--line);
+  border-radius:var(--r-lg); overflow:hidden; box-shadow:0 40px 80px -48px rgba(30,40,35,.35); }
+#intro .shot-bar{ display:flex; align-items:center; gap:6px; padding:10px 14px;
+  border-bottom:1px solid var(--line); background:var(--bg); }
+#intro .shot-bar i{ width:10px; height:10px; border-radius:50%; background:var(--line-strong); }
+#intro .shot-bar span{ margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--muted); }
+#intro .shot img{ display:block; width:100%; max-width:100%; height:auto; }
+#intro .shot-caption{ margin:12px 0 0; color:var(--muted); font-size:13px; line-height:1.7;
+  word-break:keep-all; max-width:80ch; }
+
+/* ── 04 실측 타일 4장 ─────────────────────────────────────────────────── */
+#intro .evidence{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:32px; }
+#intro .evidence .cell{ position:relative; min-width:0; padding:22px 22px 20px; background:var(--panel);
+  border:1px solid var(--line); border-radius:var(--r-md); display:flex; flex-direction:column; }
+#intro .evidence .cell--full{ grid-column:1 / -1; flex-direction:row; flex-wrap:wrap; gap:10px 24px;
+  align-items:center; justify-content:space-between; background:transparent; border:0; padding:6px 0 0; }
+#intro .evidence .label{ order:-1; font-size:11px; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 12px; word-break:keep-all; }
+#intro .evidence .value{ font-family:var(--sans); font-variant-numeric:tabular-nums;
+  font-size:clamp(26px,3.4vw,34px); font-weight:700; line-height:1.15; letter-spacing:-0.03em;
+  color:var(--ink); word-break:keep-all; }
+#intro .evidence .value--text{ font-size:clamp(18px,2.2vw,22px); line-height:1.35; letter-spacing:-0.015em; }
+#intro .evidence .note{ color:var(--muted); font-size:13px; line-height:1.7; margin:12px 0 0;
   word-break:keep-all; }
-#intro .soft-cta{ margin-top:16px; color:var(--muted); font-size:14px; }
+#intro .evidence .cell--full .note{ margin:0; flex:1 1 420px; }
+#intro .soft-cta{ margin-top:18px; color:var(--muted); font-size:14px; }
+@media (max-width:1000px){ #intro .evidence{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:600px){ #intro .evidence{ grid-template-columns:1fr; } }
 
 /* ── 05 문제 정의 ────────────────────────────────────────────────────── */
-#intro .problem-cards{ margin-top:28px; }
-#intro .problem-cards h3{ font-size:17px; line-height:1.5; margin:0 0 4px; }
-#intro .accordion{ margin-top:28px; border:1px solid var(--line); border-radius:var(--r-md);
+#intro .problem-cards{ margin-top:32px; }
+#intro .problem-cards h3{ font-size:17px; line-height:1.5; margin:0 0 2px; }
+#intro .accordion{ margin-top:16px; border:1px solid var(--line); border-radius:var(--r-md);
   background:var(--panel); }
-#intro .accordion__title{ margin:0; padding:12px 16px; border-bottom:1px solid var(--line);
-  font-weight:700; font-size:14px; color:var(--muted); }
+#intro .accordion__title{ margin:0; padding:12px 18px; border-bottom:1px solid var(--line);
+  font-weight:700; font-size:13px; color:var(--muted); letter-spacing:.04em; }
 #intro .accordion details{ border-bottom:1px solid var(--line); }
 #intro .accordion details:last-child{ border-bottom:0; }
-#intro .accordion summary{ cursor:pointer; padding:14px 16px; font-weight:700;
-  list-style:none; display:flex; align-items:center; gap:10px; word-break:keep-all; }
+#intro .accordion summary{ cursor:pointer; padding:16px 18px; font-weight:700;
+  list-style:none; display:flex; align-items:center; gap:12px; word-break:keep-all; }
 #intro .accordion summary::-webkit-details-marker{ display:none; }
 #intro .accordion summary::before{ content:'+'; flex:none; font-family:var(--mono);
   color:var(--accent); font-size:16px; width:16px; text-align:center; }
 #intro .accordion details[open] summary::before{ content:'–'; }
-#intro .accordion details p{ margin:0; padding:0 16px 14px 42px; color:var(--muted);
-  font-size:14px; line-height:1.7; }
+#intro .accordion details p{ margin:0; padding:0 18px 16px 46px; color:var(--muted);
+  font-size:14px; line-height:1.75; }
 
 /* ── 06 작동 방식 ────────────────────────────────────────────────────── */
-#intro .flowdiag{ display:block; width:100%; max-width:100%; height:auto; margin:24px 0 8px;
+#intro .flowdiag{ display:block; width:100%; max-width:100%; height:auto; margin:28px 0 8px;
   color:var(--line-strong); }
 #intro .flowdiag text{ fill:var(--muted); }
 #intro .steps-list{ list-style:none; counter-reset:step; margin:16px 0 0; padding:0;
   border-top:1px solid var(--line); }
 #intro .steps-list > li{ counter-increment:step; display:flex; gap:20px; align-items:flex-start;
-  flex-wrap:wrap; padding:20px 0; border-bottom:1px solid var(--line); }
+  flex-wrap:wrap; padding:24px 0; border-bottom:1px solid var(--line); }
 #intro .steps-list__body{ flex:1 1 320px; min-width:0; }
-#intro .steps-list__body h3::before{ content:counter(step) ". "; font-family:var(--mono);
-  color:var(--accent); }
-#intro .steps-list__body p{ margin:0; color:var(--muted); font-size:15px; line-height:1.75; }
+#intro .steps-list__body h3::before{ content:counter(step,decimal-leading-zero); font-family:var(--mono);
+  font-size:13px; color:var(--accent); margin-right:12px; letter-spacing:.06em; }
+#intro .steps-list__body p{ margin:0; color:var(--muted); font-size:15px; line-height:1.8; }
 #intro .steps-list > li > .link-cta{ flex:none; padding-top:2px; white-space:nowrap; }
 
 /* ── 07 기능 그리드 ──────────────────────────────────────────────────── */
-#intro .feature-grid{ margin-top:24px; }
+#intro .feature-grid{ margin-top:28px; }
 #intro .feature-grid h3{ font-size:17px; }
 
-/* ── 08 통제 6타일 ───────────────────────────────────────────────────── */
-#intro .controls{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:28px; }
+/* ── 08 보호 장치 6타일 ──────────────────────────────────────────────── */
+#intro .controls{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:32px; }
 #intro .control{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r-md);
-  padding:14px; display:flex; flex-direction:column; gap:6px; min-width:0; }
-#intro .control .ico{ width:28px; height:28px; color:var(--accent); flex:none; }
-#intro .control b{ font-size:14px; }
-#intro .control p{ margin:0; color:var(--muted); font-size:13px; line-height:1.6;
-  word-break:keep-all; }
-#intro .control .src{ margin-top:auto; padding-top:6px; font-family:var(--mono); font-size:11px;
+  padding:20px; display:flex; flex-direction:column; gap:8px; min-width:0; }
+#intro .control .ico{ width:30px; height:30px; color:var(--accent); flex:none; }
+#intro .control b{ font-size:15px; }
+#intro .control p{ margin:0; color:var(--muted); font-size:13px; line-height:1.7; word-break:keep-all; }
+#intro .control .src{ margin-top:auto; padding-top:8px; font-family:var(--mono); font-size:11px;
   color:var(--muted); word-break:break-all; }
-@media (prefers-color-scheme: dark){ #intro .control{ background:var(--elev); } }
 @media (max-width:900px){ #intro .controls{ grid-template-columns:repeat(2,1fr); } }
 @media (max-width:560px){ #intro .controls{ grid-template-columns:1fr; } }
 
 /* ── 09 무릎 ─────────────────────────────────────────────────────────── */
-#intro #sec-knee p{ max-width:78ch; font-size:15px; line-height:1.8; }
-#intro .callout{ border:1px solid var(--line-strong); border-left:3px solid var(--warn);
-  border-radius:var(--r-md); background:var(--panel); padding:16px; margin:20px 0; }
+#intro #sec-knee p{ max-width:78ch; font-size:15px; line-height:1.85; }
+#intro .callout{ border:1px solid var(--line); border-left:3px solid var(--warn);
+  border-radius:var(--r-md); background:var(--panel); padding:18px 20px; margin:22px 0; }
 #intro .callout p{ margin:0; font-size:15px; line-height:1.8; }
 #intro table.perf{ background:var(--panel); }
 #intro table.perf th{ font-weight:700; font-size:13px; }
@@ -491,77 +515,99 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
 #intro table.perf tbody th{ font-family:var(--mono); }
 #intro table.perf td{ font-family:var(--mono); font-variant-numeric:tabular-nums; text-align:right; }
 
+/* ── 09b 채택 판정 카드 ──────────────────────────────────────────────── */
+#intro .rule-strip{ margin:24px 0 0; padding:18px 20px; border:1px dashed var(--line-strong);
+  border-radius:var(--r-md); color:var(--muted); font-size:14px; line-height:1.8; }
+#intro .rule-strip p{ margin:0; max-width:none; }
+#intro .decision-family{ margin:28px 0 0; font-size:12px; font-weight:700; color:var(--muted);
+  letter-spacing:.12em; text-transform:uppercase; }
+#intro .decisions{ display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));
+  margin-top:12px; }
+#intro .decision{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r-md);
+  padding:20px; min-width:0; display:flex; flex-direction:column; gap:8px; }
+#intro .decision h3{ font-size:16px; line-height:1.5; margin:0; order:1; }
+#intro .decision .verdict{ order:0; align-self:flex-start; display:inline-flex; align-items:center; gap:7px;
+  font-family:var(--mono); font-size:12px; font-weight:700; letter-spacing:.04em;
+  padding:3px 10px 3px 8px; border-radius:var(--r-pill); border:1px solid var(--line-strong); color:var(--muted); }
+#intro .decision .verdict::before{ content:''; width:8px; height:8px; border-radius:50%; background:currentColor; }
+#intro .decision .verdict.is-adopt{ color:var(--ok); border-color:var(--ok); background:var(--accent-tint); }
+#intro .decision .verdict.is-reject{ color:var(--bad); border-color:var(--bad); background:var(--bad-tint); }
+#intro .decision .pair{ order:2; margin:0; font-size:13px; color:var(--muted); font-family:var(--mono); }
+#intro .decision .nums{ order:3; margin:0; font-size:14px; line-height:1.75; color:var(--ink); word-break:keep-all; }
+#intro .decision .why{ order:4; margin:auto 0 0; padding-top:10px; font-size:13px; line-height:1.7;
+  color:var(--muted); border-top:1px solid var(--line); word-break:keep-all; }
+
 /* ── 10 한계 카드 ────────────────────────────────────────────────────── */
-#intro .limit-grid{ margin-top:24px; }
+#intro .limit-grid{ margin-top:28px; }
 #intro .limit{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r-md);
-  padding:16px; min-width:0; }
+  padding:20px; min-width:0; }
 #intro .limit .num{ display:inline-flex; align-items:center; justify-content:center;
-  width:24px; height:24px; border-radius:var(--r-pill); border:1px solid var(--line-strong);
-  font-family:var(--mono); font-size:12px; font-weight:700; color:var(--muted); margin-bottom:8px; }
+  width:26px; height:26px; border-radius:var(--r-pill); border:1px solid var(--line-strong);
+  font-family:var(--mono); font-size:12px; font-weight:700; color:var(--muted); margin-bottom:10px; }
 #intro .limit h3{ font-size:16px; line-height:1.5; margin:0 0 6px; }
-#intro .limit p{ margin:0; color:var(--muted); font-size:14px; line-height:1.7; }
+#intro .limit p{ margin:0; color:var(--muted); font-size:14px; line-height:1.75; }
 
 /* ── 11 재현 ─────────────────────────────────────────────────────────── */
-#intro .repro-grid{ margin-top:24px; }
-#intro .repro-foot{ margin-top:18px; color:var(--muted); font-size:14px; line-height:1.8; }
+#intro .repro-grid{ margin-top:28px; }
+#intro .repro-foot{ margin-top:20px; color:var(--muted); font-size:14px; line-height:1.8; }
 #intro .pill-mono{ display:inline-block; font-family:var(--mono); font-size:11px;
   border:1px solid var(--line-strong); border-radius:var(--r-pill); padding:2px 10px;
   margin-right:8px; color:var(--muted); }
 
 /* ── 11b 콘솔 바로 열기 (검색 · 기능 · 대본 · 투어) ──────────────────── */
-#intro .search{ display:flex; gap:8px; margin-top:20px; max-width:640px; }
+#intro .search{ display:flex; gap:8px; margin-top:22px; max-width:640px; }
 #intro .search input{ flex:1; min-width:0; font:inherit; color:var(--ink); background:var(--panel);
-  border:1px solid var(--line); border-radius:var(--r-sm); padding:10px 12px; min-height:44px; }
+  border:1px solid var(--line); border-radius:var(--r-sm); padding:10px 14px; min-height:46px; }
 #intro .search input:focus-visible{ outline:none; border-color:var(--accent);
   box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
-#intro .search .btn{ min-height:44px; padding:10px 16px; }
+#intro .search .btn{ min-height:46px; padding:10px 18px; }
 #intro .hint{ margin:8px 0 0; color:var(--muted); font-size:13px; line-height:1.6; }
-#intro .cta-row--tight{ margin:16px 0 0; }
-#intro .stats{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:16px;
+#intro .cta-row--tight{ margin:18px 0 0; }
+#intro .stats{ display:flex; flex-wrap:wrap; gap:8px 22px; margin-top:18px;
   color:var(--muted); font-size:13px; }
 #intro .stats b{ color:var(--ink); font-family:var(--mono); font-variant-numeric:tabular-nums; }
-#intro .sub-h{ margin:32px 0 8px; font-size:17px; }
-#intro .cards{ display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+#intro .sub-h{ margin:36px 0 8px; font-size:17px; }
+#intro .cards{ display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
   margin-top:12px; }
 #intro .empty{ margin:12px 0 0; color:var(--muted); font-size:14px;
   border:1px dashed var(--line-strong); border-radius:var(--r-md); padding:16px; }
 #intro .tour{ margin:12px 0 0; padding-left:22px; }
-#intro .tour li{ margin-bottom:10px; line-height:1.7; }
+#intro .tour li{ margin-bottom:12px; line-height:1.7; }
 #intro .tour li b{ display:block; }
-#intro .tour li span{ display:block; color:var(--muted); font-size:14px; line-height:1.7; }
+#intro .tour li span{ display:block; color:var(--muted); font-size:14px; line-height:1.75; }
 
 /* ── 12 최종 CTA 배너 ────────────────────────────────────────────────── */
-#intro .cta-banner{ position:relative; background:var(--accent-tint);
-  border-radius:var(--r-lg); padding:clamp(32px,6vw,64px) var(--gutter);
-  text-align:center; }
-#intro .cta-banner::before{ content:''; position:absolute; bottom:100%; left:0; right:0;
-  height:120px; background:linear-gradient(to bottom, transparent, var(--accent-tint));
-  pointer-events:none; }
-#intro .cta-banner h2{ margin:0 0 10px; }
+#intro .cta-banner{ position:relative; border-radius:var(--r-lg); padding:clamp(40px,7vw,80px) var(--gutter);
+  text-align:center; border:1px solid var(--line);
+  background:
+    radial-gradient(90% 90% at 10% 0%, var(--glow), rgba(255,255,255,0) 60%),
+    linear-gradient(135deg, var(--sand) 0%, var(--sand-2) 100%); }
+#intro .cta-banner h2{ margin:0 0 12px; }
 #intro .cta-banner .lead{ margin:0 auto 4px; }
 #intro .cta-banner .cta-row{ justify-content:center; }
 
 /* ── 13 FAQ ──────────────────────────────────────────────────────────── */
-#intro .faq{ margin-top:20px; border-top:1px solid var(--line); }
+#intro .faq{ margin-top:24px; border-top:1px solid var(--line); }
 #intro .faq details{ border-bottom:1px solid var(--line); }
-#intro .faq summary{ cursor:pointer; padding:16px 0; font-weight:700; list-style:none;
-  display:flex; gap:10px; align-items:flex-start; word-break:keep-all; }
+#intro .faq summary{ cursor:pointer; padding:18px 0; font-weight:700; list-style:none;
+  display:flex; gap:12px; align-items:flex-start; word-break:keep-all; }
 #intro .faq summary::-webkit-details-marker{ display:none; }
 #intro .faq summary::before{ content:'Q'; flex:none; font-family:var(--mono);
   color:var(--accent); }
-#intro .faq p{ margin:0; padding:0 0 16px 24px; color:var(--muted); font-size:15px;
+#intro .faq p{ margin:0; padding:0 0 18px 26px; color:var(--muted); font-size:15px;
   line-height:1.8; max-width:72ch; }
 
 /* ── 14 푸터 ─────────────────────────────────────────────────────────── */
-#intro .site-footer{ border-top:1px solid var(--line); padding-block:clamp(36px,6vw,64px);
+#intro .site-footer{ border-top:1px solid var(--line); padding-block:clamp(40px,6vw,72px);
   background:var(--panel); }
 #intro .footer-cols{ display:grid; gap:24px;
   grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); }
-#intro .footer-cols h3{ font-size:13px; color:var(--muted); margin:0 0 10px; }
+#intro .footer-cols h3{ font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+  margin:0 0 12px; }
 #intro .footer-cols ul{ list-style:none; margin:0; padding:0; display:grid; gap:8px; }
 #intro .footer-cols a{ color:var(--ink); text-decoration:none; font-size:14px; }
 #intro .footer-cols a:hover{ text-decoration:underline; }
-#intro .footer-bar{ margin:28px 0 0; padding-top:16px; border-top:1px solid var(--line);
+#intro .footer-bar{ margin:32px 0 0; padding-top:18px; border-top:1px solid var(--line);
   color:var(--muted); font-size:12px; line-height:1.7; word-break:keep-all; }
 
 /* ── 상담 뷰 ─────────────────────────────────────────────────────────── */
@@ -606,10 +652,6 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
 
 /* ── 좁은 화면 정리 ──────────────────────────────────────────────────── */
 @media (max-width:700px){
-  #intro .evidence{ grid-template-columns:1fr; }
-  #intro .evidence .cell::after{ display:none; }
-  #intro .evidence .cell::before{ left:0 !important; right:0 !important; }
-  #intro .evidence .cell:last-child::before{ display:none; }
   #intro .steps-list > li{ gap:10px; }
   #intro .steps-list > li > .link-cta{ flex-basis:100%; }
 }
@@ -1065,15 +1107,17 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
 <header class="site-header" id="siteHeader">
   <div class="container site-header__in" id="siteHeaderMarketing">
     <a class="wordmark" href="#/" data-route="#/">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" focusable="false"><path d="M2 8h1.5M5 8V5.5M8 8V2.5M11 8V5M14 8h-1.5M5 8v2.5M8 8v5.5M11 8v3"/></svg></span>
       <b>chartwire</b>
-      <small>실시간 음성차팅 백엔드 · 데모</small>
+      <small>정신과 실시간 음성 차팅 · 데모</small>
     </a>
 
     <nav class="site-nav" aria-label="주요 섹션">
-      <a href="#sec-problem">문제</a>
-      <a href="#sec-how">작동 방식</a>
-      <a href="#sec-evidence">실측 수치</a>
-      <a href="#sec-controls">안전·통제</a>
+      <a href="#sec-problem">막히는 곳</a>
+      <a href="#sec-how">흐름</a>
+      <a href="#sec-evidence">숫자</a>
+      <a href="#sec-decisions">고른 것</a>
+      <a href="#sec-controls">보호</a>
       <a href="#sec-limits">한계</a>
       <a href="https://github.com/sokldjs554/chartwire" target="_blank" rel="noopener">GitHub ↗</a>
     </nav>
@@ -1161,36 +1205,61 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
   <!-- ── 02 히어로 ─────────────────────────────────────────────────────── -->
   <section class="hero" id="sec-hero">
     <div class="container">
-      <p class="eyebrow">정신과 실시간 음성차팅 · 신뢰성과 컴플라이언스 계층</p>
-      <h1 tabindex="-1">ack 는 PostgreSQL 에 커밋된 뒤에만 올라갑니다</h1>
-      <p class="hero-sub">그래서 진료실 Wi-Fi 가 끊겨도 무엇이 저장됐는지 서버와 클라이언트가 다투지 않습니다.</p>
-      <p class="lead">chartwire 는 음성차팅 제품(녹음 → 전사 → SOAP 초안) 밑에 깔리는 계층입니다. 무손실 WebSocket 스트리밍, 테넌트 격리, 문장마다 근거가 붙은 초안, 그리고 파기 영수증. STT·LLM 모델을 만들지 않고, 그 모델들이 기대는 바닥을 만들고 그 바닥을 숫자로 잽니다.</p>
+      <div class="hero-copy">
+        <p class="eyebrow">정신과 진료실을 위한 실시간 음성 차팅 · 백엔드</p>
+        <h1 tabindex="-1">말한 것은 남고,<br class="brk"> 지운 것은 정말 사라집니다.</h1>
+        <p class="hero-sub">진료실 Wi-Fi 가 끊겨도 무엇이 저장됐는지 서버와 화면이 다투지 않습니다. 환자가 지워 달라고 하면, 지웠다는 영수증이 남습니다.</p>
+        <p class="lead">chartwire 는 녹음 → 전사 → SOAP 초안 밑에서 조용히 일하는 층입니다. 놓치지 않는 스트리밍, 의원과 의원 사이의 벽, 문장마다 붙는 근거, 그리고 파기 영수증. 모델을 만드는 대신 모델이 기대는 바닥을 만들고, 그 바닥을 숫자로 잽니다.</p>
 
-      <div class="cta-row">
-        <button type="button" class="btn-primary js-consult" data-source="hero">서비스 상담신청하기</button>
-        <button type="button" class="btn-secondary js-demo" data-source="hero">상담 없이 데모 콘솔 열기</button>
+        <div class="cta-row">
+          <button type="button" class="btn-primary js-consult" data-source="hero">서비스 상담신청하기</button>
+          <button type="button" class="btn-secondary js-demo" data-source="hero">상담 없이 데모 콘솔 열기</button>
+        </div>
+        <p class="footnote">포트폴리오 데모입니다 — 합성 데이터, 실제 고객·실제 환자 없음. 공개 데모는 무료 인스턴스라 첫 접속에 1~2분 걸립니다.</p>
       </div>
-      <p class="footnote">포트폴리오 데모입니다 — 합성 데이터, 실제 고객·실제 환자 없음. 공개 데모는 무료 인스턴스라 첫 접속에 1~2분 걸립니다.</p>
 
-      <!-- ── 03 히어로 미디어 (self-origin · /console/media/) ────────────── -->
+      <!-- 빛이 드는 패널: 사진 대신 CSS 그라디언트 + 인라인 SVG. 외부 자원 없음 (CSP img-src 'self' data:) -->
+      <div class="hero-visual" aria-hidden="true">
+        <svg viewBox="0 0 400 120" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+          <g stroke-width="3">
+            <path d="M14 60v-8M26 60v-22M38 60v-14M50 60v-34M62 60v-18M74 60v-40M86 60v-12M98 60v-26M110 60v-8"/>
+            <path d="M14 60v8M26 60v22M38 60v14M50 60v34M62 60v18M74 60v40M86 60v12M98 60v26M110 60v8"/>
+          </g>
+          <path d="M136 60h44M172 52l8 8-8 8" opacity=".6"/>
+          <g>
+            <rect x="208" y="22" width="176" height="76" rx="12" stroke-width="1.5"/>
+            <path d="M228 46h96M228 62h136M228 78h72" stroke-width="2.5"/>
+            <path d="M338 76l7 7 13-14" stroke-width="2.5"/>
+          </g>
+        </svg>
+        <p class="hero-verbs"><span>듣고,</span><span>적고,</span><span>지키고,</span><span><b>지웁니다.</b></span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 03 제품 화면 (self-origin · /console/media/) ─────────────────── -->
+  <section class="proof" id="sec-proof">
+    <div class="container">
       <figure class="shot">
+        <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>/console — 라이브 전사 · 위험 경보</span></div>
         <img id="heroShot" src="/console/media/02_live_alert.png" data-media="02_live_alert.png"
              width="1440" height="900" decoding="async"
              alt="데모 콘솔의 라이브 전사 화면. 왼쪽에 임상의와 환자의 발화가 시간순으로 쌓여 있고, 그 위에 SEV3 위험 경보 배너와 SLA 카운트다운, 확인(ACK) 버튼이 떠 있다. 화면 맨 위에는 빨간 SYNTHETIC 고지 띠가 그대로 있다.">
       </figure>
-      <figcaption class="shot-caption">
+      <p class="shot-caption">
         연출이 아니라 Playwright 가 실제로 띄운 서버를 몰아서 찍은 화면입니다. 화면 위 SYNTHETIC 배너는 모든 장면에 그대로 있습니다.
         재현: <code>python scripts/console_screenshots.py</code>
-        · <a href="/console/media/demo.gif" data-media="demo.gif" target="_blank" rel="noopener">데모 45초 보기 (GIF, 용량이 큽니다)</a>
-      </figcaption>
+        · <a href="/console/media/demo.gif" data-media="demo.gif" target="_blank" rel="noopener">데모 39초 보기 (GIF, 용량이 큽니다)</a>
+      </p>
     </div>
   </section>
 
   <!-- ── 04 증거 스트립 (고객 로고 월의 치환) ─────────────────────────── -->
   <section class="section" id="sec-evidence">
     <div class="container">
-      <h2>자랑할 고객사가 없어서, 잰 값을 답니다</h2>
-      <p class="lead">굵게 적힌 수치는 코드가 쓴 JSON 에서 <code>scripts/readme_numbers.py</code> 가 옮겨 적습니다 — 손으로 고치면 CI 가 막습니다. 본문 안의 설명 수치도 같은 방식으로 감싼 것만 최신이 보장됩니다.</p>
+      <p class="kicker">재어 본 것</p>
+      <h2>지금까지 재어 본 것들</h2>
+      <p class="lead">굵은 숫자는 사람이 적은 게 아니라 코드가 만든 JSON 에서 <code>scripts/readme_numbers.py</code> 가 옮겨 온 값입니다. 손으로 고치면 CI 가 막습니다.</p>
 
       <div class="evidence">
         <!-- row:load.A.n50 --><div class="cell">
@@ -1226,44 +1295,45 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
   <!-- ── 05 문제 정의 ────────────────────────────────────────────────── -->
   <section class="section" id="sec-problem">
     <div class="container">
-      <h2>음성차팅 제품은 STT 모델 때문에 실패하지 않습니다</h2>
-      <p class="lead">여기서 실패합니다.</p>
+      <p class="kicker">막히는 곳</p>
+      <h2>진료실에서 실제로 막히는 곳</h2>
+      <p class="lead">음성 차팅이 잘 안 되는 이유는 대개 인식 모델이 아닙니다. 이런 데서 막힙니다.</p>
 
       <div class="grid-3 problem-cards">
         <!-- row:load.D --><article class="card">
-          <h3>진료실 Wi-Fi 가 끊긴다</h3>
+          <h3>진료실 Wi-Fi 가 끊깁니다</h3>
           <p>seq · ack · credit · resume · epoch. ack 는 PostgreSQL 에 durable 하게 남은 뒤에만 올라가고, 링 버퍼 150 청크로 재전송합니다. 카오스 D 에서 재개 <!-- num:load.D.resumes_ok -->140<!-- /num -->/<!-- num:load.D.reconnects -->140<!-- /num --> · 손실 <!-- num:load.D.loss -->0<!-- /num --> · 중복 <!-- num:load.D.dup -->0<!-- /num -->.</p>
         </article><!-- /row -->
         <!-- row:load.A.n100 --><article class="card">
-          <h3>09:00 에 30 의원이 동시에 시작한다</h3>
+          <h3>아침 9시, 30개 의원이 한꺼번에 시작합니다</h3>
           <p>credit 백프레셔(서버가 보내지 말라고 거는 브레이크) · pause · MAXLEN 스트림. 동시 세션 100개에서 <!-- num:load.A.n100.chunks_per_s -->500<!-- /num --> chunk/s, ack p95 <!-- num:load.A.n100.ack_p95_ms -->449<!-- /num --> ms 로 측정했습니다.</p>
         </article><!-- /row -->
         <!-- row:load.A.n50.alert --><article class="card">
-          <h3>자살 사고 발화는 요약이 아니라 초 단위로 닿아야 한다</h3>
+          <h3>위험한 말은 요약이 아니라 그 자리에서 닿아야 합니다</h3>
           <p>세그먼트 커밋과 같은 트랜잭션에서 위험을 판정하고 <code>risk.alert</code> 를 즉시 발행합니다 — SLA 타이머와 에스컬레이션까지. 경보 e2e p95 <!-- num:load.A.n50.alert_e2e_p95_ms -->56<!-- /num --> ms(N=50).</p>
         </article><!-- /row -->
         <!-- row:eval.rls --><article class="card">
-          <h3>한 DB 에 30 의원 — WHERE tenant_id 하나 빠지면 유출</h3>
+          <h3>한 DB 에 30개 의원 — 조건 하나 빠지면 남의 기록이 보입니다</h3>
           <p>PostgreSQL RLS + NOBYPASSRLS 단일 앱 역할. 라우트 × 역할 × 테넌트 <!-- num:eval.rls.attempts -->252<!-- /num -->가지 교차 시도에서 누출 <!-- num:eval.rls.leaks -->0<!-- /num -->.</p>
         </article><!-- /row -->
       </div>
 
       <div class="accordion">
-        <p class="accordion__title">나머지 4가지</p>
+        <p class="accordion__title">그리고 네 가지 더</p>
         <details open>
-          <summary>환각 초안 — 근거 없는 문장이 차트에 남는다</summary>
+          <summary>근거 없는 문장이 차트에 남습니다</summary>
           <p>초안의 모든 문장이 전사 원문을 인용하도록 강제하고, 서버가 8규칙으로 검증합니다. 근거를 못 대면 <code>unsupported</code> 로 표시되고 검토 전까지 서명되지 않습니다.</p>
         </details>
         <details>
-          <summary>동의 철회와 10년 보존이 충돌한다</summary>
+          <summary>동의 철회와 10년 보존이 부딪힙니다</summary>
           <p>세션 DEK 를 파기해 녹음·전사는 열리지 않게 만들고, 이미 서명된 노트는 진료기록으로 별도 키에 봉인해 남깁니다. 두 요구가 한 테이블에서 싸우지 않도록 키를 나눴습니다(ADR-0004).</p>
         </details>
         <!-- row:perf.queries --><details>
-          <summary>수백만 세그먼트에서 한 문장을 찾는다</summary>
+          <summary>수백만 문장 속에서 한 문장을 찾습니다</summary>
           <p>RLS 아래 ILIKE 검색은 앱 역할에서 <!-- num:perf.Q2b.after_ms -->41.2<!-- /num --> ms 였고, SECURITY DEFINER 검색 함수로 <!-- num:perf.Q2d_text.after_ms -->5.8<!-- /num --> ms 가 됐습니다(소유자 역할 <!-- num:perf.Q2c.after_ms -->6.0<!-- /num --> ms). 아웃박스 클레임은 <!-- num:perf.Q4.before_ms -->207.1<!-- /num --> ms → <!-- num:perf.Q4.after_ms -->0.4<!-- /num --> ms, 타임라인은 <!-- num:perf.Q1.before_ms -->27.4<!-- /num --> ms → <!-- num:perf.Q1.after_ms -->2.5<!-- /num --> ms.</p>
         </details><!-- /row -->
         <!-- row:load.H --><details>
-          <summary>무중단 배포와 관측 — 배포 중에 녹음이 끊긴다</summary>
+          <summary>배포하는 동안 녹음이 끊깁니다</summary>
           <p>drain 으로 진행 중인 세션을 밀어내고, 아웃박스는 리스·백오프·DLQ 로 재시도합니다. 시나리오 H 는 이벤트 <!-- num:load.H.events -->100000<!-- /num -->건 · 워커 <!-- num:load.H.workers -->2<!-- /num --> · 테넌트 <!-- num:load.H.tenants -->30<!-- /num --> 에서 <!-- num:load.H.events_per_s -->413<!-- /num --> events/s · DLQ <!-- num:load.H.dlq_count -->0<!-- /num -->, 워커를 SIGKILL 한 뒤 <!-- num:load.H.reclaimed -->1345<!-- /num -->건을 회수했습니다.</p>
         </details><!-- /row -->
       </div>
@@ -1273,7 +1343,8 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
   <!-- ── 06 작동 방식 4단계 ──────────────────────────────────────────── -->
   <section class="section" id="sec-how">
     <div class="container">
-      <h2>한 세션이 지나가는 길</h2>
+      <p class="kicker">흐름</p>
+      <h2>한 번의 진료가 기록이 되기까지</h2>
 
       <svg class="flowdiag" viewBox="0 0 720 96" role="img" aria-label="한 세션의 흐름: 녹음, 라이브 전사와 위험 경보, SOAP 초안과 서명, 동의 철회와 파기 영수증 순서로 이어진다." focusable="false">
         <g fill="none" stroke="currentColor" stroke-width="1.5">
@@ -1328,25 +1399,26 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
   <!-- ── 07 기능 그리드 6칸 ──────────────────────────────────────────── -->
   <section class="section" id="sec-features">
     <div class="container">
-      <h2>무엇이 들어 있나</h2>
+      <p class="kicker">기능</p>
+      <h2>이 안에 들어 있는 것</h2>
       <div class="grid-3 feature-grid">
         <article class="card">
-          <h3>무손실 스트리밍 프로토콜</h3>
+          <h3>끊겨도 잃지 않는 스트리밍</h3>
           <p>sans-I/O 상태 기계, 12 B 헤더(magic 0x4357) · 200 ms 청크 · 링 버퍼 150 청크 · epoch 펜싱.</p>
           <span class="src">docs/protocol.md</span>
         </article>
         <article class="card">
-          <h3>테넌시 격리</h3>
+          <h3>의원과 의원 사이의 벽</h3>
           <p>RLS + 단일 앱 역할. superuser 대조 테스트가 픽스처 자체의 유효성을 증명합니다.</p>
           <span class="src">docs/db/schema.md</span>
         </article>
         <article class="card">
-          <h3>근거 인용 검증</h3>
+          <h3>근거 없는 문장은 초안에 못 들어갑니다</h3>
           <p>8규칙(존재 · 정규화 · 숫자/단위 · 약물명 · 부정 · 화자 · 판정어 · 주입). 커버리지가 낮으면 초안 대신 abstain.</p>
           <span class="src">docs/grounding.md</span>
         </article>
         <article class="card">
-          <h3>위험 발화 안전망</h3>
+          <h3>위험한 말을 초 단위로 올립니다</h3>
           <p>결정론적 한국어 위험 사전 561 어간 + 범위 규칙(부정 · 가정 · 과거 · 타인 · 질문 · 관용구). 모델도 API 키도 없습니다.</p>
           <span class="src">docs/risk-detection.md</span>
         </article>
@@ -1367,8 +1439,9 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
   <!-- ── 08 안전·통제 6타일 (인증 배지의 치환) ───────────────────────── -->
   <section class="section" id="sec-controls">
     <div class="container">
-      <h2>인증 배지는 없습니다 — 대신 테스트가 고정한 통제를 답니다</h2>
-      <p class="lead">chartwire 는 SOC 2 도 HIPAA 도 ISMS-P 도 받지 않았습니다. 포트폴리오 구현이고, 인증은 조직과 감사가 필요한 일입니다. 아래는 인증 대신 「깨지면 CI 가 빨간불이 되는 것」들입니다.</p>
+      <p class="kicker">보호 장치</p>
+      <h2>환자의 말을 이렇게 지킵니다</h2>
+      <p class="lead">인증서는 없습니다 — 포트폴리오 구현이고, SOC 2 나 HIPAA 는 조직과 감사가 있어야 받는 것이니까요. 대신 깨지면 CI 가 빨간불이 되는 보호 장치를 하나씩 적었습니다.</p>
 
       <div class="controls">
         <!-- row:eval.rls.tile --><article class="control">
@@ -1414,7 +1487,8 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
   <!-- ── 09 무릎 공개 ────────────────────────────────────────────────── -->
   <section class="section" id="sec-knee">
     <div class="container">
-      <h2>무릎을 숨기지 않습니다</h2>
+      <p class="kicker">어디까지</p>
+      <h2>어디까지 버티는지도 재어 봤습니다</h2>
       <!-- row:load.A.knee --><p>ack p95 는 N=50 에서 <!-- num:load.A.n50.ack_p95_ms -->223<!-- /num --> ms, N=100 에서 <!-- num:load.A.n100.ack_p95_ms -->449<!-- /num --> ms 로 완만하게 늘어납니다. 그러다 N=200 에서 <!-- num:load.A.n200.ack_p95_ms -->9036<!-- /num --> ms 로 무너집니다 — 20배입니다. 무릎의 정체는 처리량 미달이 아니라 이 지연 붕괴이고, 처리량도 같이 꺾여 의도한 1,000 chunk/s 대신 <!-- num:load.A.n200.chunks_per_s -->790<!-- /num --> chunk/s 에 그칩니다. 병목은 저장소가 아니라 파이썬 프로세스 하나가 코어 하나를 넘지 못하는 것입니다 — api 이벤트 루프와 stt-worker 가 각자 CPU 천장에 붙고 PostgreSQL · Redis 는 한가합니다.</p><!-- /row -->
 
       <div class="callout">
@@ -1438,19 +1512,85 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
     </div>
   </section>
 
+  <!-- ── 09b 채택 판정 (같은 세트에서 잰 대안 · docs/eval/adoption.json) ─── -->
+  <section class="section" id="sec-decisions">
+    <div class="container">
+      <p class="kicker">고른 것</p>
+      <h2>쓰기로 한 것, 쓰지 않기로 한 것</h2>
+      <p class="lead">「붙였다」고 말하는 대신, 같은 데이터에서 재고 나서 골랐습니다. 지금 코드가 품은 선택마다 스펙을 달리 읽었을 법한 대안을 두고 둘을 나란히 잰 기록입니다. 규칙은 코드에 있고, 판정이 지금 코드와 어긋나면 테스트가 실패합니다.</p>
+
+      <!-- row:eval.adoption.rule --><div class="rule-strip">
+        <p>규칙: 1차 지표가 <!-- num:eval.adoption.min_delta -->0.02<!-- /num --> 이상 오르고 보호 지표를 하나도 잃지 않아야 채택합니다. 위험 탐지는 동결 held-out <!-- num:eval.adoption.risk.n -->300<!-- /num -->문장에서(1차 정밀도 · 보호 = 총 재현율과 범주별 재현율), 초안 선택은 eval 코퍼스 <!-- num:eval.adoption.notes.n_sessions -->200<!-- /num -->세션에서(1차 = 유형별 재현율의 평균 · 보호 = coverage · 기권율 · 0 이 된 사실 유형 수) 잽니다. 채택 <!-- num:eval.adoption.counts.adopt -->2<!-- /num --> · 기각 <!-- num:eval.adoption.counts.reject -->3<!-- /num --> · 미측정 <!-- num:eval.adoption.counts.not_measured -->1<!-- /num -->. <code>chartwire eval adopt</code> → <code>docs/eval/adoption.json</code></p>
+      </div><!-- /row -->
+
+      <p class="decision-family">위험 발화 탐지 · 동결 held-out</p>
+      <div class="decisions">
+        <!-- row:eval.adoption.risk.past_split --><article class="decision">
+          <span class="verdict"><!-- num:eval.adoption.risk.past_split.decision -->adopt<!-- /num --></span>
+          <h3>과거 사고를 두 갈래로 — 지금은 아니라고 하면 억제, 아니면 한 등급 낮춰 경보</h3>
+          <p class="pair">§9.4 원문 → lex-1</p>
+          <p class="nums">정밀도 <!-- num:eval.adoption.risk.past_split.baseline.precision -->0.740<!-- /num --> → <!-- num:eval.adoption.risk.past_split.candidate.precision -->0.763<!-- /num --> (<!-- num:eval.adoption.risk.past_split.delta.precision -->+0.024<!-- /num -->) · 재현율 <!-- num:eval.adoption.risk.past_split.baseline.recall -->0.573<!-- /num --> → <!-- num:eval.adoption.risk.past_split.candidate.recall -->0.573<!-- /num --> · 범주별 재현율 전부 유지</p>
+          <p class="why">「작년엔 죽고 싶었는데 지금은 아니에요」를 원문 규칙은 경보했습니다. 부인이 있으면 억제하고 없으면 낮춰서 경보하는 쪽이 정밀도를 올리면서 재현율을 하나도 잃지 않았습니다. 지금 코드입니다.</p>
+        </article><!-- /row -->
+        <!-- row:eval.adoption.risk.past_suppress_all --><article class="decision">
+          <span class="verdict"><!-- num:eval.adoption.risk.past_suppress_all.decision -->reject<!-- /num --></span>
+          <h3>과거 표지가 있으면 전부 억제</h3>
+          <p class="pair">lex-1 → past 무조건 억제</p>
+          <p class="nums">정밀도 <!-- num:eval.adoption.risk.past_suppress_all.baseline.precision -->0.763<!-- /num --> → <!-- num:eval.adoption.risk.past_suppress_all.candidate.precision -->0.833<!-- /num --> (<!-- num:eval.adoption.risk.past_suppress_all.delta.precision -->+0.070<!-- /num -->) 이지만 재현율 <!-- num:eval.adoption.risk.past_suppress_all.baseline.recall -->0.573<!-- /num --> → <!-- num:eval.adoption.risk.past_suppress_all.candidate.recall -->0.565<!-- /num --> · 자살사고 재현율 <!-- num:eval.adoption.risk.past_suppress_all.baseline.suicidal_recall -->0.609<!-- /num --> → <!-- num:eval.adoption.risk.past_suppress_all.candidate.suicidal_recall -->0.594<!-- /num --></p>
+          <p class="why">오탐이 가장 많이 남은 갈래라 끄고 싶은 유혹이 큽니다. 그런데 「작년부터 죽고 싶었어요」처럼 지금도 이어지는 사고까지 조용해집니다. 정밀도를 사서 안전망을 얇게 만들지 않기로 했습니다.</p>
+        </article><!-- /row -->
+        <!-- row:eval.adoption.risk.severity_floor_2 --><article class="decision">
+          <span class="verdict"><!-- num:eval.adoption.risk.severity_floor_2.decision -->reject<!-- /num --></span>
+          <h3>severity 2 부터만 경보</h3>
+          <p class="pair">severity ≥ 1 → ≥ 2</p>
+          <p class="nums">정밀도 <!-- num:eval.adoption.risk.severity_floor_2.candidate.precision -->0.823<!-- /num --> (<!-- num:eval.adoption.risk.severity_floor_2.delta.precision -->+0.059<!-- /num -->) 이지만 재현율 <!-- num:eval.adoption.risk.severity_floor_2.candidate.recall -->0.524<!-- /num --> (<!-- num:eval.adoption.risk.severity_floor_2.delta.recall -->-0.048<!-- /num -->) · 자살사고 재현율 <!-- num:eval.adoption.risk.severity_floor_2.candidate.suicidal_recall -->0.516<!-- /num --></p>
+          <p class="why">「살아야 할 이유를 모르겠어요」 같은 약한 등급이 사라집니다. 놓치는 쪽의 대가가 훨씬 큽니다.</p>
+        </article><!-- /row -->
+      </div>
+
+      <p class="decision-family">SOAP 초안 선택 · eval 코퍼스</p>
+      <div class="decisions">
+        <!-- row:eval.adoption.notes.selection --><article class="decision">
+          <span class="verdict"><!-- num:eval.adoption.notes.selection.decision -->adopt<!-- /num --></span>
+          <h3>사실 가족마다 한 문장씩 먼저, 그 안에서는 숫자 있는 문장 먼저</h3>
+          <p class="pair">seq 순 12칸 → 가족 우선 + 숫자 우선</p>
+          <p class="nums">유형별 평균 재현율 <!-- num:eval.adoption.notes.selection.baseline.fact_recall_macro -->0.732<!-- /num --> → <!-- num:eval.adoption.notes.selection.candidate.fact_recall_macro -->0.847<!-- /num --> (<!-- num:eval.adoption.notes.selection.delta.fact_recall_macro -->+0.116<!-- /num -->) · 0 이 된 유형 <!-- num:eval.adoption.notes.selection.baseline.fact_types_at_zero -->4<!-- /num --> → <!-- num:eval.adoption.notes.selection.candidate.fact_types_at_zero -->0<!-- /num --> / <!-- num:eval.adoption.notes.selection.candidate.fact_types -->17<!-- /num --> · 총합(micro)은 <!-- num:eval.adoption.notes.selection.baseline.fact_recall -->0.606<!-- /num --> → <!-- num:eval.adoption.notes.selection.candidate.fact_recall -->0.579<!-- /num --></p>
+          <p class="why">총합만 보면 내려간 변경입니다 — 기간 사실이 절반이라 약물·음주를 통째로 버려도 총합은 오릅니다. 유형별 평균과 「0 이 된 유형 수」를 보고 골랐고, 그 이유를 규칙에 적어 두었습니다. 지금 코드입니다.</p>
+        </article><!-- /row -->
+        <!-- row:eval.adoption.notes.family_first_alone --><article class="decision">
+          <span class="verdict"><!-- num:eval.adoption.notes.family_first_alone.decision -->reject<!-- /num --></span>
+          <h3>가족 우선만 (숫자 우선 없이)</h3>
+          <p class="pair">seq 순 12칸 → 가족 우선만</p>
+          <p class="nums">유형별 평균 재현율 <!-- num:eval.adoption.notes.family_first_alone.baseline.fact_recall_macro -->0.732<!-- /num --> → <!-- num:eval.adoption.notes.family_first_alone.candidate.fact_recall_macro -->0.443<!-- /num --> (<!-- num:eval.adoption.notes.family_first_alone.delta.fact_recall_macro -->-0.289<!-- /num -->)</p>
+          <p class="why">가족의 첫 발화는 대개 「잠을 잘 못 자요」처럼 막연해서 숫자가 있는 사실이 밀립니다. 두 규칙은 같이 있어야만 낫습니다 — 반쪽은 seq 순 채우기보다도 나빴습니다.</p>
+        </article><!-- /row -->
+        <!-- row:eval.adoption.notes.anthropic_provider --><article class="decision">
+          <span class="verdict"><!-- num:eval.adoption.notes.anthropic_provider.decision -->not_measured<!-- /num --></span>
+          <h3>LLM 프로바이더 (같은 검증기 뒤에서)</h3>
+          <p class="pair">추출형 → Anthropic</p>
+          <p class="nums">실제 키로 돌린 측정이 없습니다. 픽스처 7건은 검증기 회귀 테스트이지 비교 측정이 아닙니다.</p>
+          <p class="why">재지 않은 것은 채택하지 않습니다.</p>
+        </article><!-- /row -->
+      </div>
+
+      <p class="footnote">후보는 원칙으로 선언한 변형뿐입니다 — 스펙 원문, 임계값, 전체 억제, 이전 품질 패스의 선택기. held-out 문장을 보고 만들지 않았고, 목록은 고정입니다. 통과할 때까지 후보를 늘리는 순간 「튜닝 안 함」은 거짓이 됩니다.</p>
+    </div>
+  </section>
+
   <!-- ── 10 한계 6카드 (고객 후기의 치환) ────────────────────────────── -->
   <section class="section" id="sec-limits">
     <div class="container">
-      <h2>이 데모가 하지 않은 것</h2>
-      <p class="lead">평가하지 않은 것을 「좋다」고 적지 않기 위해 따로 적습니다.</p>
+      <p class="kicker">아직</p>
+      <h2>아직 못 하는 것</h2>
+      <p class="lead">해 보지 않은 것을 잘한다고 적지 않으려고, 따로 모아 둡니다.</p>
 
       <div class="grid-3 limit-grid">
         <article class="limit"><span class="num">1</span>
-          <h3>STT 품질 · 노트 품질은 평가하지 않았습니다</h3>
+          <h3>인식 품질과 노트 품질은 재지 않았습니다</h3>
           <p>합성 대본과 STT 시뮬레이터라 실제 진료 음성의 값이 아닙니다.</p>
         </article>
         <article class="limit"><span class="num">2</span>
-          <h3>부하 수치는 클라이언트 혼입입니다</h3>
+          <h3>부하 수치에는 클라이언트 몫이 섞여 있습니다</h3>
           <p>같은 박스, 클라이언트 시계로 쟀습니다. 분리 인프라의 값이 아닙니다.</p>
         </article>
         <!-- row:eval.risk_heldout --><article class="limit"><span class="num">3</span>
@@ -1458,15 +1598,15 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
           <p>held-out <!-- num:eval.risk_heldout.n -->300<!-- /num -->문장에서 정밀도 <!-- num:eval.risk_heldout.precision -->0.76<!-- /num --> · 재현율 <!-- num:eval.risk_heldout.recall -->0.57<!-- /num --> — 목표 0.6 에 미달했고, 기준을 낮추는 대신 그대로 싣습니다. 경보가 없다고 위험이 없다는 뜻이 아닙니다.</p>
         </article><!-- /row -->
         <!-- row:eval.risk_ingrammar --><article class="limit"><span class="num">4</span>
-          <h3>일부 수치는 구성상 높습니다</h3>
+          <h3>어떤 수치는 당연히 높게 나옵니다</h3>
           <p>문법 안에서 만든 <!-- num:eval.risk_ingrammar.n -->10705<!-- /num -->문장의 정밀도 <!-- num:eval.risk_ingrammar.precision -->1.00<!-- /num --> · 재현율 <!-- num:eval.risk_ingrammar.recall -->1.00<!-- /num --> 은 자기 테스트 세트 기준이라 회귀 점검용입니다. held-out 세트가 있는 것은 위험 탐지뿐입니다.</p>
         </article><!-- /row -->
         <article class="limit"><span class="num">5</span>
-          <h3>LLM tier 는 미실행입니다</h3>
-          <p>오프라인 빌드 · API 키 없음. 어댑터와 픽스처 재생 테스트만 있습니다.</p>
+          <h3>LLM 은 아직 돌려 보지 않았습니다</h3>
+          <p>키 없이 만든 빌드라 어댑터와 픽스처 재생 테스트만 있습니다. 위 「고른 것」에서도 미측정으로 남겨 두었습니다.</p>
         </article>
         <article class="limit"><span class="num">6</span>
-          <h3>AWS 인프라는 synth 만, 미배포입니다</h3>
+          <h3>AWS 는 설계도까지, 배포는 하지 않았습니다</h3>
           <p>cdk-nag 통과 · 템플릿 커밋까지입니다. 공개 데모는 Render 무료 인스턴스에서 돕니다.</p>
         </article>
       </div>
@@ -1477,7 +1617,8 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
   <!-- ── 11 재현 방법 ────────────────────────────────────────────────── -->
   <section class="section" id="sec-repro">
     <div class="container">
-      <h2>그대로 돌려 보세요</h2>
+      <p class="kicker">직접</p>
+      <h2>직접 돌려 보세요</h2>
       <div class="grid-3 repro-grid">
         <article class="card">
           <h3>컨테이너로</h3>
@@ -1503,7 +1644,8 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
   <!-- ── 11b 데모 콘솔 바로 열기 (기능 카드 · 대본 · 검색 · 5분 투어) ─── -->
   <section class="section" id="sec-console">
     <div class="container">
-      <h2>콘솔에서 바로 눌러 보기</h2>
+      <p class="kicker">데모</p>
+      <h2>콘솔에서 바로 해 보기</h2>
       <p class="lead">카드를 누르면 그 기능으로 들어갑니다. 로그인 전이면 필요한 데모 계정으로 자동 로그인합니다(④ · ⑤ · 운영 지표는 admin).</p>
 
       <form class="search" id="homeSearchForm" role="search">
@@ -1549,7 +1691,7 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
   <section class="section section--tight" id="sec-cta">
     <div class="container">
       <div class="cta-banner">
-        <h2>읽는 것보다 눌러 보는 게 빠릅니다</h2>
+        <h2>읽는 것보다 한 번 해 보는 게 빠릅니다</h2>
         <p class="lead">상담을 남기면 접수함에 저장됩니다 — 데모라 실제 연락은 가지 않습니다. 기다리지 않고 바로 콘솔에 들어갈 수도 있습니다.</p>
         <div class="cta-row">
           <button type="button" class="btn-primary js-consult" data-source="final-cta">서비스 상담신청하기</button>
@@ -1562,7 +1704,8 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
   <!-- ── 13 FAQ ──────────────────────────────────────────────────────── -->
   <section class="section section--tight" id="sec-faq">
     <div class="container">
-      <h2>자주 묻는 것</h2>
+      <p class="kicker">질문</p>
+      <h2>자주 묻는 질문</h2>
       <div class="faq">
         <details>
           <summary>실제 환자 데이터가 들어 있나요?</summary>
@@ -1595,9 +1738,10 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
         <nav aria-label="제품">
           <h3>제품</h3>
           <ul>
-            <li><a href="#sec-problem">문제</a></li>
-            <li><a href="#sec-how">작동 방식</a></li>
-            <li><a href="#sec-controls">안전·통제</a></li>
+            <li><a href="#sec-problem">막히는 곳</a></li>
+            <li><a href="#sec-how">흐름</a></li>
+            <li><a href="#sec-decisions">고른 것</a></li>
+            <li><a href="#sec-controls">보호</a></li>
             <li><a href="#sec-limits">한계</a></li>
           </ul>
         </nav>
@@ -1644,7 +1788,7 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
       <div class="contact-head">
         <button type="button" class="link js-home">← 홈으로</button>
         <h2 id="consultTitle" tabindex="-1">서비스 상담신청하기</h2>
-        <p class="lead">chartwire 도입 검토를 위한 상담 신청입니다. 접수 내용은 데모 서버의 <code>consultation_requests</code> 에 저장됩니다.</p>
+        <p class="lead">도입을 생각하고 계시다면 남겨 주세요. 접수 내용은 데모 서버의 <code>consultation_requests</code> 에 저장됩니다.</p>
         <div class="notice">
           <p><b>실제 연락처를 넣지 않으셔도 됩니다</b> — 예시 값이 채워져 있고 그대로 제출해도 접수됩니다. 데모라 영업 연락은 가지 않으며, 접수 내용은 90일 뒤 파기됩니다.</p>
         </div>
@@ -3437,6 +3581,18 @@ function applyMediaBase() {
   document.querySelectorAll('a[data-media]').forEach((a) => { a.href = `${base}/console/media/${a.dataset.media}`; });
 }
 
+/* 채택 판정 배지: 마커가 JSON 에서 옮겨 적은 토큰(adopt · reject · not_measured)으로 색과 한국어 설명을 붙인다.
+   토큰이 데이터이므로 여기서 한국어를 따로 적어 두 자리가 어긋나는 일이 없다. */
+function decorateVerdicts() {
+  const ko = { adopt: '쓰기로 함', reject: '쓰지 않기로 함', not_measured: '재지 않음' };
+  document.querySelectorAll('.verdict').forEach((el) => {
+    const token = el.textContent.trim();
+    el.classList.add(token === 'adopt' ? 'is-adopt' : token === 'reject' ? 'is-reject' : 'is-na');
+    el.setAttribute('title', ko[token] || token);
+    el.setAttribute('aria-label', `${token} — ${ko[token] || token}`);
+  });
+}
+
 /* ── 작업 화면 보조 ─────────────────────────────────────────────────────── */
 function setConn(text, kind) {
   const el = $('connState');
@@ -3501,6 +3657,7 @@ tour.render();
 banner.init();
 pstepsReset();
 applyMediaBase();
+decorateVerdicts();
 setConn('연결 전', 'muted');
 intro.show(true);
 routeFromHash();

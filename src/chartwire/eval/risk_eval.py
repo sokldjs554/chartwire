@@ -15,7 +15,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
-from chartwire.risk.detector import DETECTOR_VERSION, scan
+from chartwire.risk.detector import DEFAULT_POLICY, DETECTOR_VERSION, Policy, scan
 from chartwire.synth.gold import alert_expected
 from chartwire.synth.scripts import Script
 
@@ -73,8 +73,8 @@ class Tally:
         }
 
 
-def _alerting_hit(text: str, speaker: str) -> tuple[bool, str | None]:
-    hits = scan(text, speaker)
+def _alerting_hit(text: str, speaker: str, policy: Policy = DEFAULT_POLICY) -> tuple[bool, str | None]:
+    hits = scan(text, speaker, policy=policy)
     if not hits:
         return False, None
     hit = hits[0]
@@ -101,14 +101,18 @@ def per_kind_table(rows: list[tuple[str, bool, bool]]) -> dict[str, dict[str, An
     return out
 
 
-def evaluate_heldout(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    """Score the frozen held-out sentences; the label is the row's ``alert`` field."""
+def evaluate_heldout(rows: list[dict[str, Any]], *, policy: Policy = DEFAULT_POLICY) -> dict[str, Any]:
+    """Score the frozen held-out sentences; the label is the row's ``alert`` field.
+
+    ``policy`` is for the adoption harness only (a rival reading of §9.4 on the same set); the
+    headline report is always the default policy, i.e. ``lex-1``.
+    """
     tally = Tally()
     by_kind: list[tuple[str, bool, bool]] = []
     by_category: dict[str, Tally] = defaultdict(Tally)
     for row in rows:
         expected = bool(row["alert"])
-        alerted, label = _alerting_hit(row["text"], row["speaker"])
+        alerted, label = _alerting_hit(row["text"], row["speaker"], policy)
         tally.add(expected, alerted, label)
         by_kind.append((row["kind"], expected, alerted))
         by_category[row.get("category") or "none"].add(expected, alerted)

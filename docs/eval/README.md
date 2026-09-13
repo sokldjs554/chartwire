@@ -2,7 +2,7 @@
 
 > 모든 데이터는 합성(SYNTHETIC)입니다 — 실제 환자 정보 없음. 이 디렉터리의 숫자는 STT 품질이나 진료기록 품질을 평가한 것이 **아닙니다** (STT는 시뮬레이터, 발화는 생성기 산출물입니다). 평가 대상은 결정론적 안전망(위험 발화 탐지), 근거 검증기, 파기 파이프라인, 테넌시 격리, 스트리밍 프로토콜의 **동작 보증**입니다.
 
-생성 명령: `chartwire eval all --seed 42 --out docs/eval` (개별: `chartwire eval risk|grounding|inject|injection|paraphrase|purge|rls|protocol`). README의 모든 숫자는 `scripts/readme_numbers.py --write`가 이 JSON에서 채우며, 사람이 손으로 적는 숫자는 없습니다 (spec §11.4). 측정되지 않은 항목은 README에서 행째 삭제됩니다. 키 목록: `python scripts/readme_numbers.py --list`.
+생성 명령: `chartwire eval all --seed 42 --out docs/eval` (개별: `chartwire eval risk|grounding|inject|injection|paraphrase|adopt|purge|rls|protocol`). README의 모든 숫자는 `scripts/readme_numbers.py --write`가 이 JSON에서 채우며, 사람이 손으로 적는 숫자는 없습니다 (spec §11.4). 측정되지 않은 항목은 README에서 행째 삭제됩니다. 키 목록: `python scripts/readme_numbers.py --list`.
 
 ## 공통 헤더
 
@@ -19,7 +19,7 @@
 
 | 종류 | 리포트 | 서비스 필요 | 만드는 곳 |
 |---|---|---|---|
-| **계산형** — 하네스가 직접 측정 | `risk_heldout`, `risk_ingrammar`, `grounding`, `inject`, `injection`, `paraphrase` | 없음 (순수 함수, ≈ 40 s) | `chartwire.eval.{risk,grounding,inject,paraphrase}_eval` |
+| **계산형** — 하네스가 직접 측정 | `risk_heldout`, `risk_ingrammar`, `grounding`, `inject`, `injection`, `paraphrase`, `adoption` | 없음 (순수 함수, ≈ 60 s) | `chartwire.eval.{risk,grounding,inject,paraphrase,adoption}_eval` |
 | **실행형** — 하네스가 실제 파이프라인을 돌려 측정 | `purge`, `rls` | PostgreSQL + Redis (`CHARTWIRE_TEST_DB` / `CHARTWIRE_TEST_REDIS_DB`) | `chartwire eval purge --run` / `chartwire eval rls --run` |
 | **집계형** — 다른 실행의 측정을 헤더와 함께 재기록 | `protocol`, `alert_latency` (+ `--run` 없이 호출한 `purge`/`rls`) | 입력 파일 | `protocol_eval` (입력이 없으면 **건너뜀** → README 행 삭제) |
 
@@ -45,6 +45,7 @@
 | `protocol.json` | hypothesis 예제 수(실제 실행), 카오스 실행의 손실/중복 (집계형). | `hypothesis_examples, property_tests, per_test, chaos_loss, chaos_dup` |
 | `alert_latency.json` | 세그먼트 커밋 → 뷰어 `risk.alert` p50/p95 (WP-H 가 시나리오 A 안에서 기록). | `p50_ms, p95_ms` |
 | `anthropic.json` | `scripts/eval_anthropic.py`를 실제 키로 실행했을 때만 존재. 없으면 README는 "미실행"으로 표기. | — |
+| `adoption.json` | **채택 판정.** 지금 코드의 선택(위험 탐지의 `past` 규칙·경보 하한, 초안 선택기의 가족 우선·숫자 우선)마다 스펙을 달리 읽은 대안을 두고, 기준선과 후보를 **같은 세트**에서 잰 뒤 `adoption_eval.RULES` 의 규칙으로 `adopt / reject / not_measured` 를 기록. 후보·규칙·판정 세트가 JSON 안에 그대로 적혀 있다. | `rules.<family>.{primary, min_delta, guards}`, `decision_sets`, `shipped`, `candidates[{id, family, title, change, baseline, candidate, delta, checks[{name, ok, detail}], decision, reason, shipped}]`, `counts.{adopt, reject, not_measured}` — README 키 `eval.adoption.<id>.{baseline,candidate,delta}.<metric>`, `eval.adoption.<id>.decision` |
 
 CI `eval-smoke`: `chartwire eval all --seed 7 --n 20 --per-class 20 --check --out <tmp>` — held-out 재현율 ≥ 0.55·정밀도 ≥ 0.70, injection 누출 0, 파기 잔여 0·RLS 누출 0(입력이 있을 때), 패러프레이즈 오거부 ≤ 5 %, 그리고 동결 해시 검사(`chartwire eval risk` 가 먼저 검증). 임계값은 `chartwire.eval.cli.SMOKE_THRESHOLDS` 한 곳에 있습니다. **held-out 임계값은 목표치(§11.1 의 0.6)가 아니라 지금 코드의 측정값(0.573 / 0.763)에서 내려온 바닥값입니다** — held-out 은 튜닝 대상이 아니므로 게이트를 측정값에 맞추고, 더 좋은 측정이 나오면 그때 올립니다. 숫자를 맞추려고 임계값을 낮추지 않습니다.
 
@@ -95,3 +96,4 @@ cd src/chartwire/eval/data && sha256sum -c FROZEN.txt
 | `eval` | 42 | `e0001`–`e0200` | 위험 in-grammar, grounding, 변이/패러프레이즈, injection(`e0010, e0020, …` 20개) — 하네스는 파일 없이 메모리에서 생성 |
 
 출력: 스크립트당 `<ref>.json` 하나(계약은 `chartwire.synth.scripts.Script`), `index.json`, 세션 단위 골드 `gold.jsonl`. 같은 시드는 바이트 단위로 동일한 파일을 만듭니다 (`tests/unit/test_synth_scripts.py`). 발화 → `SegmentView` 변환은 `chartwire.eval.corpus.segment_views` (seq = 발화 인덱스, stt-worker 의 번호 매김과 같음).
+8. **`adoption.json` 은 "재고 나서 골랐다" 의 기록이지 성적표가 아닙니다.** 한 행은 같은 코드의 두 정책(`risk.detector.Policy`, `notes.extractive.Selection`)이고 `shipped` 가 어느 쪽이 지금 도는지 말합니다. 규칙은 가족마다 코드에 선언돼 있습니다 — 위험 탐지: 1차 정밀도 Δ ≥ +0.02, 보호 = 총 재현율 **그리고 범주별 재현율** 어느 것도 내려가지 않을 것(정밀도를 사서 자살사고 한 문장을 잃으면 그물이 얇아진 것); 초안 선택: 1차 = **유형별 재현율의 평균(macro)**, 보호 = coverage · 기권율 · 0 이 된 유형 수. 총합(micro) fact recall 은 결정에 쓰지 않습니다 — duration 이 골드의 절반이라(해석 규칙 2) 약물·음주 사실을 통째로 버리는 선택기가 총합을 **올릴** 수 있고, 실제로 `notes.selection` 행이 그 경우입니다. **판정은 지금 코드와 어긋날 수 없습니다**: `tests/unit/test_eval_adoption.py` 가 커밋된 JSON 의 수치로 판정을 다시 내려 `decision` 과 대조하고, `adopt` 인 후보가 실제로 돌고 있는지(`shipped`)를 확인합니다. **held-out 누출**: 위험 탐지 후보는 held-out 집계를 한 번 더 보는 일이므로 후보는 문장을 보지 않고 원칙으로 선언한 변형(스펙 원문 · 임계값 · 전체 억제)뿐이고 `CANDIDATES` 는 고정입니다 — 통과할 때까지 후보를 늘리는 순간 "튜닝 안 함" 은 거짓이 됩니다. `not_measured` 는 실측 없이 목록에만 있는 행(LLM 프로바이더)입니다: 재지 않은 것은 채택하지 않습니다.

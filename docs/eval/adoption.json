@@ -1,0 +1,543 @@
+{
+  "seed": 42,
+  "git_sha": "a0b3e41deb5eb57571d1e1b002a3cd7cb15289b9-dirty",
+  "generated_at": "2026-09-13T09:10:46+00:00",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz x4",
+  "ram_gb": 15.7,
+  "python": "3.11.15",
+  "pg_version": null,
+  "rules": {
+    "risk": {
+      "decision_set": "동결 held-out 300문장 (FROZEN.txt, 튜닝 대상 아님 — 후보 버전당 한 번만 본다)",
+      "primary": "precision",
+      "min_delta": 0.02,
+      "guards": [
+        {
+          "metric": "recall",
+          "direction": "not_lower",
+          "why": "안전망의 재현율은 정밀도를 사서 내릴 수 없다"
+        },
+        {
+          "metric": "category_recall",
+          "direction": "each_not_lower",
+          "why": "총합이 유지돼도 자살사고 한 문장을 잃으면 그물이 얇아진 것"
+        }
+      ]
+    },
+    "notes": {
+      "decision_set": "eval 코퍼스 200 세션 (seed 42) · 1차 지표는 유형별 재현율의 평균(macro) — 총합(micro)은 duration 이 절반이라 결정에 쓰지 않는다",
+      "primary": "fact_recall_macro",
+      "min_delta": 0.02,
+      "guards": [
+        {
+          "metric": "coverage",
+          "direction": "not_lower",
+          "why": "근거 없는 문장이 늘어나면 안 된다"
+        },
+        {
+          "metric": "abstain_rate",
+          "direction": "not_higher",
+          "why": "초안을 못 내는 세션이 늘어나면 안 된다"
+        },
+        {
+          "metric": "fact_types_at_zero",
+          "direction": "not_higher",
+          "why": "어떤 사실 유형도 통째로 빠지면 안 된다 — 총합이 올라도"
+        }
+      ]
+    }
+  },
+  "decision_sets": {
+    "risk": {
+      "set": "heldout",
+      "n": 300,
+      "frozen_sha256": "031a8f7dfa378a7d88b16fe464a14c4c75a848ec8fbbae0953ec8d59ade5a916"
+    },
+    "notes": {
+      "set": "eval_scripts",
+      "seed": 42,
+      "n_sessions": 200
+    }
+  },
+  "shipped": {
+    "risk": {
+      "detector_version": "lex-1",
+      "past": "split",
+      "min_severity": 1
+    },
+    "notes": {
+      "family_first": true,
+      "quantified_first": true
+    }
+  },
+  "candidates": [
+    {
+      "id": "risk.past_split",
+      "family": "risk",
+      "title": "과거 사고를 두 갈래로 — 지금은 아니라고 하면 억제, 아니면 한 등급 낮춰 경보",
+      "change": "스펙 §9.4 원문은 과거 표지가 있으면 무조건 severity −1 이고, 「작년엔 죽고 싶었는데 지금은 아니에요」도 경보한다. 후보는 히트 뒤에 현재 표지 + 부정이 오면 억제하고, 없으면 원문대로 한 등급 낮춰 경보한다.",
+      "baseline_label": "§9.4 원문 (과거 표지 → severity −1, 부인 무시)",
+      "candidate_label": "lex-1 (부인 있으면 억제 · 없으면 severity −1)",
+      "baseline_policy": {
+        "past": "spec_literal",
+        "min_severity": 1
+      },
+      "candidate_policy": {
+        "past": "split",
+        "min_severity": 1
+      },
+      "shipped": "candidate",
+      "baseline": {
+        "precision": 0.7396,
+        "recall": 0.5726,
+        "f1": 0.6455,
+        "tp": 71,
+        "fp": 25,
+        "fn": 53,
+        "past_fp": 13,
+        "category_recall": {
+          "harm_to_others": 0.5,
+          "self_harm": 0.6667,
+          "substance_acute": 0.375,
+          "suicidal_ideation": 0.6094
+        }
+      },
+      "candidate": {
+        "precision": 0.7634,
+        "recall": 0.5726,
+        "f1": 0.6544,
+        "tp": 71,
+        "fp": 22,
+        "fn": 53,
+        "past_fp": 10,
+        "category_recall": {
+          "harm_to_others": 0.5,
+          "self_harm": 0.6667,
+          "substance_acute": 0.375,
+          "suicidal_ideation": 0.6094
+        }
+      },
+      "delta": {
+        "precision": 0.0238,
+        "recall": 0.0,
+        "f1": 0.0089,
+        "tp": 0,
+        "fp": -3,
+        "fn": 0,
+        "past_fp": -3
+      },
+      "checks": [
+        {
+          "name": "precision Δ ≥ +0.02",
+          "ok": true,
+          "detail": "0.7396→0.7634 (+0.0238)"
+        },
+        {
+          "name": "recall not_lower",
+          "ok": true,
+          "detail": "0.5726→0.5726",
+          "why": "안전망의 재현율은 정밀도를 사서 내릴 수 없다"
+        },
+        {
+          "name": "category_recall each_not_lower",
+          "ok": true,
+          "detail": "모든 항목 유지",
+          "why": "총합이 유지돼도 자살사고 한 문장을 잃으면 그물이 얇아진 것"
+        }
+      ],
+      "decision": "adopt",
+      "reason": "1차 지표가 기준을 넘었고 보호 지표를 하나도 잃지 않았다 — 0.7396→0.7634 (+0.0238)"
+    },
+    {
+      "id": "risk.past_suppress_all",
+      "family": "risk",
+      "title": "과거 표지가 있으면 전부 억제",
+      "change": "남은 오탐의 가장 큰 갈래가 past 다. 과거 표지가 보이면 부인 여부와 관계없이 경보를 끄면 그 오탐이 거의 사라진다 — 대신 「작년부터 죽고 싶었어요」처럼 지금도 이어지는 사고까지 조용해진다.",
+      "baseline_label": "lex-1",
+      "candidate_label": "past → 무조건 억제",
+      "baseline_policy": {
+        "past": "split",
+        "min_severity": 1
+      },
+      "candidate_policy": {
+        "past": "suppress_all",
+        "min_severity": 1
+      },
+      "shipped": "baseline",
+      "baseline": {
+        "precision": 0.7634,
+        "recall": 0.5726,
+        "f1": 0.6544,
+        "tp": 71,
+        "fp": 22,
+        "fn": 53,
+        "past_fp": 10,
+        "category_recall": {
+          "harm_to_others": 0.5,
+          "self_harm": 0.6667,
+          "substance_acute": 0.375,
+          "suicidal_ideation": 0.6094
+        }
+      },
+      "candidate": {
+        "precision": 0.8333,
+        "recall": 0.5645,
+        "f1": 0.6731,
+        "tp": 70,
+        "fp": 14,
+        "fn": 54,
+        "past_fp": 2,
+        "category_recall": {
+          "harm_to_others": 0.5,
+          "self_harm": 0.6667,
+          "substance_acute": 0.375,
+          "suicidal_ideation": 0.5938
+        }
+      },
+      "delta": {
+        "precision": 0.0699,
+        "recall": -0.0081,
+        "f1": 0.0187,
+        "tp": -1,
+        "fp": -8,
+        "fn": 1,
+        "past_fp": -8
+      },
+      "checks": [
+        {
+          "name": "precision Δ ≥ +0.02",
+          "ok": true,
+          "detail": "0.7634→0.8333 (+0.0699)"
+        },
+        {
+          "name": "recall not_lower",
+          "ok": false,
+          "detail": "0.5726→0.5645",
+          "why": "안전망의 재현율은 정밀도를 사서 내릴 수 없다"
+        },
+        {
+          "name": "category_recall each_not_lower",
+          "ok": false,
+          "detail": "suicidal_ideation 0.6094→0.5938",
+          "why": "총합이 유지돼도 자살사고 한 문장을 잃으면 그물이 얇아진 것"
+        }
+      ],
+      "decision": "reject",
+      "reason": "기각 — recall not_lower: 0.5726→0.5645; category_recall each_not_lower: suicidal_ideation 0.6094→0.5938"
+    },
+    {
+      "id": "risk.severity_floor_2",
+      "family": "risk",
+      "title": "severity 2 부터만 경보",
+      "change": "가장 약한 등급(1)을 경보에서 뺀다. 「살아야 할 이유를 모르겠어요」 같은 문장이 조용해진다.",
+      "baseline_label": "lex-1 (severity ≥ 1)",
+      "candidate_label": "severity ≥ 2",
+      "baseline_policy": {
+        "past": "split",
+        "min_severity": 1
+      },
+      "candidate_policy": {
+        "past": "split",
+        "min_severity": 2
+      },
+      "shipped": "baseline",
+      "baseline": {
+        "precision": 0.7634,
+        "recall": 0.5726,
+        "f1": 0.6544,
+        "tp": 71,
+        "fp": 22,
+        "fn": 53,
+        "past_fp": 10,
+        "category_recall": {
+          "harm_to_others": 0.5,
+          "self_harm": 0.6667,
+          "substance_acute": 0.375,
+          "suicidal_ideation": 0.6094
+        }
+      },
+      "candidate": {
+        "precision": 0.8228,
+        "recall": 0.5242,
+        "f1": 0.6404,
+        "tp": 65,
+        "fp": 14,
+        "fn": 59,
+        "past_fp": 4,
+        "category_recall": {
+          "harm_to_others": 0.5,
+          "self_harm": 0.6667,
+          "substance_acute": 0.375,
+          "suicidal_ideation": 0.5156
+        }
+      },
+      "delta": {
+        "precision": 0.0594,
+        "recall": -0.0484,
+        "f1": -0.014,
+        "tp": -6,
+        "fp": -8,
+        "fn": 6,
+        "past_fp": -6
+      },
+      "checks": [
+        {
+          "name": "precision Δ ≥ +0.02",
+          "ok": true,
+          "detail": "0.7634→0.8228 (+0.0594)"
+        },
+        {
+          "name": "recall not_lower",
+          "ok": false,
+          "detail": "0.5726→0.5242",
+          "why": "안전망의 재현율은 정밀도를 사서 내릴 수 없다"
+        },
+        {
+          "name": "category_recall each_not_lower",
+          "ok": false,
+          "detail": "suicidal_ideation 0.6094→0.5156",
+          "why": "총합이 유지돼도 자살사고 한 문장을 잃으면 그물이 얇아진 것"
+        }
+      ],
+      "decision": "reject",
+      "reason": "기각 — recall not_lower: 0.5726→0.5242; category_recall each_not_lower: suicidal_ideation 0.6094→0.5156"
+    },
+    {
+      "id": "notes.selection",
+      "family": "notes",
+      "title": "사실 가족마다 한 문장씩 먼저, 그 안에서는 숫자 있는 문장 먼저",
+      "change": "섹션당 12문장 상한을 seq 순으로 채우면 이른 단계(수면·기간)가 자리를 다 차지해 약물·음주 사실이 통째로 빠진다. 후보는 §10.1 사실 가족마다 한 문장씩 먼저 뽑고, 같은 가족 안에서는 10mg · 5시간처럼 숫자가 있는 문장을 먼저 뽑는다. 출력 순서는 그대로 seq 다.",
+      "baseline_label": "seq 순으로 12칸 채우기",
+      "candidate_label": "가족 우선 + 숫자 우선 (지금 코드)",
+      "baseline_policy": {
+        "family_first": false,
+        "quantified_first": false
+      },
+      "candidate_policy": {
+        "family_first": true,
+        "quantified_first": true
+      },
+      "shipped": "candidate",
+      "baseline": {
+        "fact_recall_macro": 0.7315,
+        "fact_recall": 0.6063,
+        "fact_types": 17,
+        "fact_types_at_zero": 4,
+        "coverage": 1.0,
+        "abstain_rate": 0.0,
+        "statements_per_session": 16.07,
+        "recall_by_type": {
+          "alcohol": 0.0,
+          "alcohol_days": 0.0,
+          "awakenings": 1.0,
+          "bedtime": 1.0,
+          "duration": 0.4509,
+          "early_awakening": 1.0,
+          "medication": 0.0,
+          "panic_duration": 1.0,
+          "panic_frequency": 1.0,
+          "plan_followup": 1.0,
+          "plan_medication": 1.0,
+          "ritual_hours": 1.0,
+          "sleep_hours": 1.0,
+          "sleep_latency": 1.0,
+          "wear_off": 1.0,
+          "weight_gain": 0.0,
+          "weight_loss": 0.9851
+        }
+      },
+      "candidate": {
+        "fact_recall_macro": 0.847,
+        "fact_recall": 0.5793,
+        "fact_types": 17,
+        "fact_types_at_zero": 0,
+        "coverage": 1.0,
+        "abstain_rate": 0.0,
+        "statements_per_session": 16.07,
+        "recall_by_type": {
+          "alcohol": 1.0,
+          "alcohol_days": 1.0,
+          "awakenings": 0.3333,
+          "bedtime": 1.0,
+          "duration": 0.2821,
+          "early_awakening": 0.7162,
+          "medication": 0.6412,
+          "panic_duration": 1.0,
+          "panic_frequency": 1.0,
+          "plan_followup": 1.0,
+          "plan_medication": 1.0,
+          "ritual_hours": 1.0,
+          "sleep_hours": 0.7343,
+          "sleep_latency": 0.6923,
+          "wear_off": 1.0,
+          "weight_gain": 1.0,
+          "weight_loss": 1.0
+        }
+      },
+      "delta": {
+        "fact_recall_macro": 0.1155,
+        "fact_recall": -0.027,
+        "fact_types": 0,
+        "fact_types_at_zero": -4,
+        "coverage": 0.0,
+        "abstain_rate": 0.0,
+        "statements_per_session": 0.0
+      },
+      "checks": [
+        {
+          "name": "fact_recall_macro Δ ≥ +0.02",
+          "ok": true,
+          "detail": "0.7315→0.8470 (+0.1155)"
+        },
+        {
+          "name": "coverage not_lower",
+          "ok": true,
+          "detail": "1.0000→1.0000",
+          "why": "근거 없는 문장이 늘어나면 안 된다"
+        },
+        {
+          "name": "abstain_rate not_higher",
+          "ok": true,
+          "detail": "0.0000→0.0000",
+          "why": "초안을 못 내는 세션이 늘어나면 안 된다"
+        },
+        {
+          "name": "fact_types_at_zero not_higher",
+          "ok": true,
+          "detail": "4.0000→0.0000",
+          "why": "어떤 사실 유형도 통째로 빠지면 안 된다 — 총합이 올라도"
+        }
+      ],
+      "decision": "adopt",
+      "reason": "1차 지표가 기준을 넘었고 보호 지표를 하나도 잃지 않았다 — 0.7315→0.8470 (+0.1155)"
+    },
+    {
+      "id": "notes.family_first_alone",
+      "family": "notes",
+      "title": "가족 우선만 (숫자 우선 없이)",
+      "change": "위 변경의 첫 절반만 적용한 상태 — 가족마다 한 문장씩 뽑되 그 안에서는 seq 순. 가족의 첫 발화가 대개 막연한 문장(「잠을 잘 못 자요」)이라 숫자가 있는 사실이 뒤로 밀린다.",
+      "baseline_label": "seq 순으로 12칸 채우기",
+      "candidate_label": "가족 우선만",
+      "baseline_policy": {
+        "family_first": false,
+        "quantified_first": false
+      },
+      "candidate_policy": {
+        "family_first": true,
+        "quantified_first": false
+      },
+      "shipped": "neither",
+      "baseline": {
+        "fact_recall_macro": 0.7315,
+        "fact_recall": 0.6063,
+        "fact_types": 17,
+        "fact_types_at_zero": 4,
+        "coverage": 1.0,
+        "abstain_rate": 0.0,
+        "statements_per_session": 16.07,
+        "recall_by_type": {
+          "alcohol": 0.0,
+          "alcohol_days": 0.0,
+          "awakenings": 1.0,
+          "bedtime": 1.0,
+          "duration": 0.4509,
+          "early_awakening": 1.0,
+          "medication": 0.0,
+          "panic_duration": 1.0,
+          "panic_frequency": 1.0,
+          "plan_followup": 1.0,
+          "plan_medication": 1.0,
+          "ritual_hours": 1.0,
+          "sleep_hours": 1.0,
+          "sleep_latency": 1.0,
+          "wear_off": 1.0,
+          "weight_gain": 0.0,
+          "weight_loss": 0.9851
+        }
+      },
+      "candidate": {
+        "fact_recall_macro": 0.4427,
+        "fact_recall": 0.4915,
+        "fact_types": 17,
+        "fact_types_at_zero": 3,
+        "coverage": 1.0,
+        "abstain_rate": 0.0,
+        "statements_per_session": 16.07,
+        "recall_by_type": {
+          "alcohol": 0.7658,
+          "alcohol_days": 0.0,
+          "awakenings": 0.0,
+          "bedtime": 0.1667,
+          "duration": 0.2821,
+          "early_awakening": 0.6419,
+          "medication": 0.3529,
+          "panic_duration": 0.1429,
+          "panic_frequency": 0.3333,
+          "plan_followup": 1.0,
+          "plan_medication": 1.0,
+          "ritual_hours": 0.2,
+          "sleep_hours": 0.5874,
+          "sleep_latency": 0.6026,
+          "wear_off": 0.45,
+          "weight_gain": 0.0,
+          "weight_loss": 1.0
+        }
+      },
+      "delta": {
+        "fact_recall_macro": -0.2888,
+        "fact_recall": -0.1148,
+        "fact_types": 0,
+        "fact_types_at_zero": -1,
+        "coverage": 0.0,
+        "abstain_rate": 0.0,
+        "statements_per_session": 0.0
+      },
+      "checks": [
+        {
+          "name": "fact_recall_macro Δ ≥ +0.02",
+          "ok": false,
+          "detail": "0.7315→0.4427 (-0.2888)"
+        },
+        {
+          "name": "coverage not_lower",
+          "ok": true,
+          "detail": "1.0000→1.0000",
+          "why": "근거 없는 문장이 늘어나면 안 된다"
+        },
+        {
+          "name": "abstain_rate not_higher",
+          "ok": true,
+          "detail": "0.0000→0.0000",
+          "why": "초안을 못 내는 세션이 늘어나면 안 된다"
+        },
+        {
+          "name": "fact_types_at_zero not_higher",
+          "ok": true,
+          "detail": "4.0000→3.0000",
+          "why": "어떤 사실 유형도 통째로 빠지면 안 된다 — 총합이 올라도"
+        }
+      ],
+      "decision": "reject",
+      "reason": "기각 — fact_recall_macro Δ ≥ +0.02: 0.7315→0.4427 (-0.2888)"
+    },
+    {
+      "id": "notes.anthropic_provider",
+      "family": "notes",
+      "title": "LLM 프로바이더 (같은 검증기 뒤에서)",
+      "change": "AnthropicProvider 는 추출형과 같은 스키마·같은 8규칙 검증기 뒤에 붙는다. 키 없이 빌드하므로 실측이 없고, 픽스처 7건(assessment 키 · 환각 인용 · 숫자 불일치 · 주입 …)은 검증기 회귀 테스트이지 비교 측정이 아니다.",
+      "baseline_label": "추출형 (지금 코드)",
+      "candidate_label": "Anthropic 프로바이더",
+      "baseline_policy": null,
+      "candidate_policy": null,
+      "shipped": "baseline",
+      "decision": "not_measured",
+      "reason": "실제 키로 돌린 측정이 없다 — 재지 않은 것은 채택하지 않는다 (docs/eval/README.md `anthropic.json`)",
+      "checks": []
+    }
+  ],
+  "counts": {
+    "adopt": 2,
+    "reject": 3,
+    "not_measured": 1
+  }
+}

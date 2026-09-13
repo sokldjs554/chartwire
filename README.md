@@ -133,6 +133,28 @@ Q2 는 **같은 SQL 이 실행 역할에 따라 다른 플랜을 받는다**는 
 <!-- /row -->
 
 
+### ④ 채택 판정 — 같은 세트에서 잰 대안
+
+붙였다는 말 대신 **재고 나서 고른 기록**입니다. 지금 코드가 품은 선택마다 스펙을 달리 읽었을 법한 대안을 두고, 둘을 **같은 세트**에서 잰 뒤 코드에 적힌 규칙(`chartwire.eval.adoption_eval`)으로 채택/기각을 기록합니다 — `chartwire eval adopt` → [`docs/eval/adoption.json`](docs/eval/adoption.json). 규칙: 1차 지표가 <!-- num:eval.adoption.min_delta -->0.02<!-- /num --> 이상 오르고 **보호 지표를 하나도 잃지 않아야** 채택. 위험 탐지는 동결 held-out <!-- num:eval.adoption.risk.n -->300<!-- /num -->문장(1차 정밀도, 보호 = 총 재현율과 **범주별** 재현율), 초안 선택은 eval 코퍼스 <!-- num:eval.adoption.notes.n_sessions -->200<!-- /num -->세션(1차 = 유형별 재현율의 평균, 보호 = coverage · 기권율 · **0 이 된 사실 유형 수**). 판정이 지금 코드와 어긋나면 단위 테스트가 실패합니다(`tests/unit/test_eval_adoption.py`) — 규칙을 적어 두는 이유가 그것입니다.
+
+| 후보 | 기준 → 후보 | 결정한 수치 | 판정 |
+|---|---|---|---|
+<!-- row:eval.adoption.risk.past_split -->| 과거 사고를 두 갈래로 — 부인이 있으면 억제, 없으면 한 등급 낮춰 경보 | §9.4 원문 → lex-1 | 정밀도 <!-- num:eval.adoption.risk.past_split.baseline.precision -->0.740<!-- /num --> → <!-- num:eval.adoption.risk.past_split.candidate.precision -->0.763<!-- /num --> (<!-- num:eval.adoption.risk.past_split.delta.precision -->+0.024<!-- /num -->) · 재현율 <!-- num:eval.adoption.risk.past_split.baseline.recall -->0.573<!-- /num --> → <!-- num:eval.adoption.risk.past_split.candidate.recall -->0.573<!-- /num --> · 범주별 재현율 전부 유지 | **<!-- num:eval.adoption.risk.past_split.decision -->adopt<!-- /num -->** (지금 코드) |
+<!-- /row -->
+<!-- row:eval.adoption.risk.past_suppress_all -->| 과거 표지가 있으면 전부 억제 | lex-1 → past 무조건 억제 | 정밀도 <!-- num:eval.adoption.risk.past_suppress_all.baseline.precision -->0.763<!-- /num --> → <!-- num:eval.adoption.risk.past_suppress_all.candidate.precision -->0.833<!-- /num --> (<!-- num:eval.adoption.risk.past_suppress_all.delta.precision -->+0.070<!-- /num -->) 이지만 재현율 <!-- num:eval.adoption.risk.past_suppress_all.baseline.recall -->0.573<!-- /num --> → <!-- num:eval.adoption.risk.past_suppress_all.candidate.recall -->0.565<!-- /num -->, 자살사고 재현율 <!-- num:eval.adoption.risk.past_suppress_all.baseline.suicidal_recall -->0.609<!-- /num --> → <!-- num:eval.adoption.risk.past_suppress_all.candidate.suicidal_recall -->0.594<!-- /num --> | **<!-- num:eval.adoption.risk.past_suppress_all.decision -->reject<!-- /num -->** — 정밀도를 사서 안전망을 얇게 만들지 않는다 |
+<!-- /row -->
+<!-- row:eval.adoption.risk.severity_floor_2 -->| severity 2 부터만 경보 | ≥ 1 → ≥ 2 | 정밀도 <!-- num:eval.adoption.risk.severity_floor_2.candidate.precision -->0.823<!-- /num --> (<!-- num:eval.adoption.risk.severity_floor_2.delta.precision -->+0.059<!-- /num -->) 이지만 재현율 <!-- num:eval.adoption.risk.severity_floor_2.candidate.recall -->0.524<!-- /num --> (<!-- num:eval.adoption.risk.severity_floor_2.delta.recall -->-0.048<!-- /num -->), 자살사고 <!-- num:eval.adoption.risk.severity_floor_2.candidate.suicidal_recall -->0.516<!-- /num --> | **<!-- num:eval.adoption.risk.severity_floor_2.decision -->reject<!-- /num -->** |
+<!-- /row -->
+<!-- row:eval.adoption.notes.selection -->| 사실 가족마다 한 문장씩 먼저, 그 안에서는 숫자 있는 문장 먼저 | seq 순 12칸 → 가족 우선 + 숫자 우선 | 유형별 평균 재현율 <!-- num:eval.adoption.notes.selection.baseline.fact_recall_macro -->0.732<!-- /num --> → <!-- num:eval.adoption.notes.selection.candidate.fact_recall_macro -->0.847<!-- /num --> (<!-- num:eval.adoption.notes.selection.delta.fact_recall_macro -->+0.116<!-- /num -->) · 0 이 된 유형 <!-- num:eval.adoption.notes.selection.baseline.fact_types_at_zero -->4<!-- /num --> → <!-- num:eval.adoption.notes.selection.candidate.fact_types_at_zero -->0<!-- /num --> / <!-- num:eval.adoption.notes.selection.candidate.fact_types -->17<!-- /num --> · **총합(micro)은 <!-- num:eval.adoption.notes.selection.baseline.fact_recall -->0.606<!-- /num --> → <!-- num:eval.adoption.notes.selection.candidate.fact_recall -->0.579<!-- /num --> 로 내려간다** — duration 이 절반이라 총합만 보면 기각했을 변경 | **<!-- num:eval.adoption.notes.selection.decision -->adopt<!-- /num -->** (지금 코드) |
+<!-- /row -->
+<!-- row:eval.adoption.notes.family_first_alone -->| 가족 우선만 (숫자 우선 없이) | seq 순 12칸 → 가족 우선만 | 유형별 평균 재현율 <!-- num:eval.adoption.notes.family_first_alone.baseline.fact_recall_macro -->0.732<!-- /num --> → <!-- num:eval.adoption.notes.family_first_alone.candidate.fact_recall_macro -->0.443<!-- /num --> (<!-- num:eval.adoption.notes.family_first_alone.delta.fact_recall_macro -->-0.289<!-- /num -->) — 가족의 첫 발화가 대개 막연한 문장이라 숫자 있는 사실이 밀린다 | **<!-- num:eval.adoption.notes.family_first_alone.decision -->reject<!-- /num -->** — 두 규칙은 같이 있어야만 낫다 |
+<!-- /row -->
+<!-- row:eval.adoption.notes.anthropic_provider -->| LLM 프로바이더 (같은 검증기 뒤에서) | 추출형 → Anthropic | 실제 키로 돌린 측정이 없다. 픽스처 7건은 검증기 회귀 테스트이지 비교 측정이 아니다 | **<!-- num:eval.adoption.notes.anthropic_provider.decision -->not_measured<!-- /num -->** — 재지 않은 것은 채택하지 않는다 |
+<!-- /row -->
+
+<!-- row:eval.adoption.counts -->채택 <!-- num:eval.adoption.counts.adopt -->2<!-- /num --> · 기각 <!-- num:eval.adoption.counts.reject -->3<!-- /num --> · 미측정 <!-- num:eval.adoption.counts.not_measured -->1<!-- /num -->. 후보는 원칙으로 선언한 변형(스펙 원문 · 임계값 · 전체 억제 · 이전 품질 패스의 선택기)뿐이며 held-out 문장을 보고 만들지 않았고, 목록은 고정입니다 — 통과할 때까지 후보를 늘리지 않습니다([`docs/eval/README.md`](docs/eval/README.md) 해석 규칙 8).
+<!-- /row -->
+
 ### 왜 이 숫자를 믿어도 되는가 / 믿으면 안 되는가
 
 **믿어도 되는 쪽** — 표의 모든 값은 코드가 쓴 JSON(`docs/{loadtest,perf,eval}/*.json`)에서 `scripts/readme_numbers.py` 가 옮긴 것입니다. 손으로 적은 숫자는 없고, 측정되지 않은 행은 지워집니다. CI 의 `frozen-artifacts` 잡이 `--check` 로 문서와 JSON 이 어긋나면 빨간불을 냅니다. 각 리포트에는 시드·git sha·CPU·RAM·PostgreSQL 버전 헤더가 있고, 부하 리포트에는 어느 DB 에서 쟀는지와 **DB 대조**(세션 상태, `stt_offsets`, 세그먼트 seq 연속성, 원장 대비 loss)가 같이 들어 있습니다. 재현 명령은 §10 표에 있습니다.
@@ -203,13 +225,14 @@ flowchart LR
 - 출력 스키마(`notes/schema.py`)에 **Assessment · 진단 · 판정 필드가 없습니다**(`extra='forbid'`). A 는 콘솔의 "AI가 작성하지 않는 영역"에서 임상의만 씁니다.
 - 문장마다 verbatim 인용 근거가 붙고, 결정론적 검증기 8 규칙(존재 · 정규화 일치 · 숫자/단위 · 약물명 · 부정 · 화자 · 판정 언어 · 주입 문구)이 문장을 `supported | unsupported` 로 나눕니다. unsupported 는 검토 전까지 서명 불가, 커버리지 0.85 미만이면 abstain.
 - 기본 프로바이더는 **추출형**(키 없음): 발화를 인용해 초안을 만들므로 **Extractive coverage 1.0 은 구성상 당연**하고, 정직한 수치는 표 ③ 의 fact recall 입니다. 변이(7 클래스)·패러프레이즈·프롬프트 주입 세트가 검증기를 시험합니다.
-- **Anthropic tier 는 미실행**입니다(오프라인 빌드, 키 없음). 어댑터·요청 형태·픽스처 재생 테스트만 있습니다 — [`docs/grounding.md`](docs/grounding.md), ADR-0003.
+- **Anthropic tier 는 미실행**입니다(오프라인 빌드, 키 없음). 어댑터·요청 형태·픽스처 재생 테스트만 있습니다 — [`docs/grounding.md`](docs/grounding.md), ADR-0003. 표 ④ 에는 `not_measured` 로 적혀 있습니다: 재지 않은 것은 채택하지 않습니다.
+- 초안 선택기(가족 우선 · 숫자 우선)는 **이전 선택기와 같은 코퍼스에서 잰 뒤** 채택했습니다 — 총합 fact recall 은 내려가고 유형별 평균은 올라가는, 총합만 보면 반대로 읽히는 변경이었습니다(표 ④).
 
 ## 8. 위험 발화 경보
 
 LLM 없는 결정론적 **고재현율 안전망**입니다: 한국어 사전(범주 4 × 등급 3)과 부정·가정·과거·3인칭·임상가 질문·관용구 범위 규칙. stt-worker 가 final 세그먼트를 커밋하는 **같은 트랜잭션**에서 `risk_events` 를 쓰고, 커밋 뒤 `risk.alert` 를 발행합니다. SLA 안에 확인되지 않으면 에스컬레이션 + `risk_unacked_over_sla` 게이지. 표 ③ 의 held-out 수치는 튜닝하지 않은 동결 세트의 값이며, **임상 정확도 주장이 아닙니다** — [`docs/risk-detection.md`](docs/risk-detection.md).
 
-<!-- row:eval.risk_heldout.plain -->숫자를 그대로 적습니다: 동결된 held-out <!-- num:eval.risk_heldout.n -->300<!-- /num -->문장에서 **정밀도 <!-- num:eval.risk_heldout.precision -->0.76<!-- /num --> · 재현율 <!-- num:eval.risk_heldout.recall -->0.57<!-- /num --> · F1 <!-- num:eval.risk_heldout.f1 -->0.65<!-- /num -->**. 목표였던 "재현율 ≥ 0.6 **그리고** 정밀도 ≥ 0.8" 에 **미달**했고, 기준을 낮추는 대신 그대로 싣습니다. 재현율이 1 이 아니라는 것은 **경보가 오지 않았다고 위험이 없다는 뜻이 아니라는** 뜻입니다 — 이 기능은 임상의의 판단을 대체하는 분류기가 아니라 놓치기 쉬운 발화를 초 단위로 올려 주는 **안전망**이고, 미탐은 남아 있습니다. 남은 오탐의 가장 큰 갈래는 `past`(명시적 현재 부인이 없는 과거 사고)이며, 통째로 억제하면 정밀도는 오르지만 안전망이 얇아지므로 하지 않았습니다. 규칙을 쓴 작업 패키지는 held-out 문장을 **한 번도 열지 않았습니다**(누출 통제: [`docs/eval/README.md`](docs/eval/README.md)).
+<!-- row:eval.risk_heldout.plain -->숫자를 그대로 적습니다: 동결된 held-out <!-- num:eval.risk_heldout.n -->300<!-- /num -->문장에서 **정밀도 <!-- num:eval.risk_heldout.precision -->0.76<!-- /num --> · 재현율 <!-- num:eval.risk_heldout.recall -->0.57<!-- /num --> · F1 <!-- num:eval.risk_heldout.f1 -->0.65<!-- /num -->**. 목표였던 "재현율 ≥ 0.6 **그리고** 정밀도 ≥ 0.8" 에 **미달**했고, 기준을 낮추는 대신 그대로 싣습니다. 재현율이 1 이 아니라는 것은 **경보가 오지 않았다고 위험이 없다는 뜻이 아니라는** 뜻입니다 — 이 기능은 임상의의 판단을 대체하는 분류기가 아니라 놓치기 쉬운 발화를 초 단위로 올려 주는 **안전망**이고, 미탐은 남아 있습니다. 남은 오탐의 가장 큰 갈래는 `past`(명시적 현재 부인이 없는 과거 사고)이며, 통째로 억제하면 정밀도는 오르지만 안전망이 얇아지므로 하지 않았습니다 — 그 대안을 실제로 재서 기각한 기록이 표 ④ 에 있습니다(자살사고 재현율이 내려갑니다). 규칙을 쓴 작업 패키지는 held-out 문장을 **한 번도 열지 않았습니다**(누출 통제: [`docs/eval/README.md`](docs/eval/README.md)).
 <!-- /row -->
 
 <!-- row:eval.risk_heldout.category -->**범주별 재현율** — 이 백엔드의 헤드라인 문제(§1 ③)는 자살 사고이므로 총합만 싣지 않습니다: 자살사고 <!-- num:eval.risk_heldout.category.suicidal_ideation.recall -->0.61<!-- /num --> (탐지 <!-- num:eval.risk_heldout.category.suicidal_ideation.tp -->39<!-- /num --> · **미탐 <!-- num:eval.risk_heldout.category.suicidal_ideation.fn -->25<!-- /num -->**) · 자해 <!-- num:eval.risk_heldout.category.self_harm.recall -->0.67<!-- /num --> · 타해 <!-- num:eval.risk_heldout.category.harm_to_others.recall -->0.50<!-- /num --> · 급성물질 <!-- num:eval.risk_heldout.category.substance_acute.recall -->0.38<!-- /num -->. 총합 재현율이 헤드라인 범주보다 낮은 것은 **급성물질·타해가 끌어내리기 때문**이지 자살 사고가 더 나쁘기 때문이 아닙니다. 재현율은 그 범주 레이블이 붙은 문장에 대한 값입니다; 범주별 **정밀도**는 오탐을 "발화의 레이블" 로 귀속시키므로(발화한 규칙의 범주가 아님) 여기에 싣지 않습니다.
@@ -230,7 +253,7 @@ LLM 없는 결정론적 **고재현율 안전망**입니다: 한국어 사전(�
 docker compose up --build          # → http://127.0.0.1:8000/console (clinician@demo.clinic / demo1234!)
 ```
 
-**공개 URL 로 (사전 요구사항: 없음)** — <https://chartwire.onrender.com> (첫 접속 1~2분). [`render.yaml`](render.yaml) 은 Render 무료 웹 서비스 **한 개**만 만듭니다. 관리형 Postgres/Key Value 를 쓰지 않고 [`deploy/render-demo/`](deploy/render-demo/) 이미지가 PostgreSQL 16 · Redis 7 · api/worker/stt-worker 를 한 컨테이너에 담아, 기동할 때마다 initdb → 역할 생성 → 마이그레이션 → 데모 시드를 멱등하게 다시 돌립니다. **CI 의 `render-demo` 잡이 매번 이 이미지를 실제로 띄워** 루트 302 · 콘솔 · 로그인 · 익명 401 · `chartwire_app` 의 NOBYPASSRLS 를 확인합니다. 데모 전용 형태이고 상태는 보존되지 않으며 성능을 재는 대상이 아닙니다 — 이유와 대가는 [`docs/limitations.md`](docs/limitations.md) §8.
+**공개 URL 로 (사전 요구사항: 없음)** — <https://chartwire.onrender.com> (첫 접속 1~2분). [`render.yaml`](render.yaml) 은 Render 무료 웹 서비스 **한 개**만 만듭니다. 관리형 Postgres/Key Value 를 쓰지 않고 [`deploy/render-demo/`](deploy/render-demo/) 이미지가 PostgreSQL 16 · Redis 7 · api/worker/stt-worker 를 한 컨테이너에 담아, 기동할 때마다 initdb → 역할 생성 → 마이그레이션 → 데모 시드를 멱등하게 다시 돌립니다. **CI 의 `render-demo` 잡이 매번 이 이미지를 실제로 띄워** 루트 302 · 콘솔 · 로그인 · 익명 401 · `chartwire_app` 의 NOBYPASSRLS · `GET /v1/release` 가 그 커밋을 말하는지 확인합니다. 그리고 **`main` 에 push 될 때마다 별도의 [`live-gate`](.github/workflows/live-gate.yml) 워크플로가 실제 공개 URL 을 검증합니다**: [`scripts/wait_for_release.py`](scripts/wait_for_release.py) 가 `GET /v1/release` 의 `git_sha` 가 **그 push 의 커밋과 정확히 같아질 때까지** 기다린 뒤(그 전에는 이전 릴리스가 답합니다 — 잠든 인스턴스는 깨는 데 1~2분 더 걸립니다) `/readyz` · 루트 302 · 콘솔 랜드마크 · 홈 스크린샷 · 데모 로그인 · 익명 401 · 영수증 403 을 검사하고 결과를 `live-verification.json` 아티팩트로 남깁니다. 검사 목록은 스크립트 도크스트링에 있고, 상담 접수(`POST /v1/consultations`)는 일부러 건드리지 않습니다. 데모 전용 형태이고 상태는 보존되지 않으며 성능을 재는 대상이 아닙니다 — 이유와 대가는 [`docs/limitations.md`](docs/limitations.md) §8.
 
 **소스에서 (사전 요구사항: Python 3.11+, PostgreSQL 16 with `pg_trgm`·`pgcrypto`, Redis 7 — `make dev-up` 은 이 둘을 설치하지 않고 기동만 합니다)**
 
@@ -250,7 +273,7 @@ chartwire simulate --script s01 --speed 4 --drop-at 30s   # 프로토콜 준수 
 | 표 ① A/B/C/D | `make loadtest-a loadtest-b loadtest-c loadtest-d` (유휴 박스, 직렬, **전용 빈 DB** `chartwire_load`) | `docs/loadtest/{A,B,C,D}.json`, `results.md`, `docs/eval/alert_latency.json` |
 | 표 ① H | `make loadtest-h` | `docs/loadtest/H.json` |
 | 표 ② | `make bulk && make perf-study` | `docs/perf/summary.json`, `plans/*.json`, `leakproof.txt` |
-| 표 ③ | `make eval` (계산형 6종) + `chartwire eval purge --run` · `chartwire eval rls --run` (실제 파기·라우트 실행) | `docs/eval/*.json` |
+| 표 ③ · ④ | `make eval` (계산형 6종 + `adopt` 채택 판정) + `chartwire eval purge --run` · `chartwire eval rls --run` (실제 파기·라우트 실행) | `docs/eval/*.json` |
 | §3 데모 자산 | `make demo` 를 띄운 뒤 `python scripts/console_screenshots.py --patient 가상환자-NNNN [--video-dir …]` | `docs/images/*.png`, `demo.gif` ([`docs/dev/e2e.md`](docs/dev/e2e.md) §5) |
 | README 갱신 | `make readme-numbers` (README + `docs/perf/README.md` + `results.md` 재렌더) | 마커 채움, 미측정 행 삭제 |
 | 문서 링크 | `python scripts/check_links.py` | README/`docs/**` 의 상대 링크 검사 |

@@ -14,12 +14,36 @@ phrase. Ranking: alertable first, then severity, then phrase length, then earlie
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from typing import Literal
 
 from chartwire.risk.lexicon_ko import PHRASES, Category
 from chartwire.risk.scope import ScopeFlags, classify, find_spans
 
 DETECTOR_VERSION = "lex-1"
+
+PastRule = Literal["split", "spec_literal", "suppress_all"]
+
+
+@dataclass(frozen=True)
+class Policy:
+    """The two knobs of the shipped detector that a rival reading of §9.4 would turn.
+
+    ``DEFAULT`` *is* ``lex-1``; the other values exist so the adoption harness
+    (``chartwire eval adopt``) can measure the road not taken on the same frozen set instead of
+    arguing about it. Nothing in the serving path passes a policy.
+
+    * ``past`` — what a past marker does to a hit. ``split`` (lex-1): suppressed only with an
+      explicit present denial, otherwise severity − 1; ``spec_literal`` (§9.4 as written): always
+      severity − 1, a present denial changes nothing; ``suppress_all``: any past marker suppresses.
+    * ``min_severity`` — the alert floor. lex-1 alerts from severity 1.
+    """
+
+    past: PastRule = "split"
+    min_severity: int = 1
+
+
+DEFAULT_POLICY = Policy()
 
 
 @dataclass(frozen=True)
@@ -30,6 +54,8 @@ class RiskHit:
     start: int
     end: int
     scope: ScopeFlags
+    alert_floor: int = 1
+    """Lowest severity that still alerts — ``Policy.min_severity`` of the scan that produced the hit."""
 
     @property
     def suppressed(self) -> bool:
@@ -37,11 +63,11 @@ class RiskHit:
 
     @property
     def alerts(self) -> bool:
-        """§9.4: alert when severity ≥ 1 and no suppressing scope flag."""
-        return self.severity >= 1 and not self.scope.suppressed
+        """§9.4: alert when severity ≥ the floor (1 for lex-1) and no suppressing scope flag."""
+        return self.severity >= self.alert_floor and not self.scope.suppressed
 
 
-def scan(text: str, speaker: str) -> list[RiskHit]:
+def scan(text: str, speaker: str, *, policy: Policy = DEFAULT_POLICY) -> list[RiskHit]:
     if not text:
         return []
     spans = _candidate_spans(text)
@@ -50,16 +76,28 @@ def scan(text: str, speaker: str) -> list[RiskHit]:
     for start, end, category, base_severity, phrase in spans:
         if any(o_s <= start and end <= o_e and (o_e - o_s) > (end - start) for o_s, o_e, *_ in spans):
             continue
-        flags = classify(text, start, end, speaker)
+        flags = _apply_past_rule(classify(text, start, end, speaker), policy.past)
         # §9.4 / docs/risk-detection.md §9: past *without* a present denial is a lowered alert;
         # past *with* one (``지금은 아니에요``) is suppressed by ``ScopeFlags.suppressed``.
         demoted = flags.past and not flags.present_denial
         severity = max(base_severity - 1, 0) if demoted else base_severity
-        hit = RiskHit(category, severity, phrase, start, end, flags)
+        hit = RiskHit(category, severity, phrase, start, end, flags, policy.min_severity)
         key = (hit.alerts, severity, end - start, -start)
         if best_key is None or key > best_key:
             best, best_key = hit, key
     return [best] if best is not None else []
+
+
+def _apply_past_rule(flags: ScopeFlags, rule: PastRule) -> ScopeFlags:
+    """Re-read the past flags under a rival rule. ``split`` returns them untouched.
+
+    The rivals are expressed through ``present_denial`` because that is the one flag
+    ``ScopeFlags.suppressed`` and the demotion above both key on: forcing it off makes every past
+    hit a demoted alert (§9.4 as written), forcing it on makes every past hit suppressed.
+    """
+    if rule == "split" or not flags.past:
+        return flags
+    return replace(flags, present_denial=rule == "suppress_all")
 
 
 def _candidate_spans(text: str) -> list[tuple[int, int, Category, int, str]]:

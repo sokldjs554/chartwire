@@ -251,6 +251,68 @@ KEYS: dict[str, Key] = {
     "eval.purge.unwrap_failure_pct": Key("docs/eval/purge.json", "$.unwrap_failure_pct", ".0f"),
     "eval.purge.decrypt_failure_pct": Key("docs/eval/purge.json", "$.decrypt_failure_pct", ".0f"),
     "eval.purge.receipts_verified_pct": Key("docs/eval/purge.json", "$.receipts_verified_pct", ".0f"),
+    # ---- adoption decisions (docs/eval/adoption.json) — 같은 세트에서 잰 대안과 코드에 적힌 규칙의 판정 ----
+    # 위험 탐지 행: 1차 지표 precision, 보호 지표 recall 과 범주별 recall (기각 사유가 대개 자살사고 재현율이다).
+    **{
+        f"eval.adoption.{cid}.{side}.{metric}": Key(
+            "docs/eval/adoption.json", f"$.candidates[?id=={cid}].{side}.{path}", fmt
+        )
+        for cid in ("risk.past_split", "risk.past_suppress_all", "risk.severity_floor_2")
+        for side in ("baseline", "candidate")
+        for metric, path, fmt in (
+            ("precision", "precision", ".3f"),
+            ("recall", "recall", ".3f"),
+            ("fp", "fp", "d"),
+            ("past_fp", "past_fp", "d"),
+            ("suicidal_recall", "category_recall.suicidal_ideation", ".3f"),
+        )
+    },
+    **{
+        f"eval.adoption.{cid}.delta.{metric}": Key(
+            "docs/eval/adoption.json", f"$.candidates[?id=={cid}].delta.{metric}", "+.3f"
+        )
+        for cid in ("risk.past_split", "risk.past_suppress_all", "risk.severity_floor_2")
+        for metric in ("precision", "recall")
+    },
+    # 초안 선택 행: 1차 지표는 유형별 재현율 평균(macro); 총합(micro)과 0 이 된 유형 수는 함께 싣는다 — 총합만 보면 반대로 읽힌다.
+    **{
+        f"eval.adoption.{cid}.{side}.{metric}": Key(
+            "docs/eval/adoption.json", f"$.candidates[?id=={cid}].{side}.{metric}", fmt
+        )
+        for cid in ("notes.selection", "notes.family_first_alone")
+        for side in ("baseline", "candidate")
+        for metric, fmt in (
+            ("fact_recall_macro", ".3f"),
+            ("fact_recall", ".3f"),
+            ("fact_types_at_zero", "d"),
+            ("fact_types", "d"),
+        )
+    },
+    **{
+        f"eval.adoption.{cid}.delta.{metric}": Key(
+            "docs/eval/adoption.json", f"$.candidates[?id=={cid}].delta.{metric}", "+.3f"
+        )
+        for cid in ("notes.selection", "notes.family_first_alone")
+        for metric in ("fact_recall_macro", "fact_recall")
+    },
+    # 판정 토큰(adopt · reject · not_measured)과 집계 — 문자열은 그대로 옮겨 적는다.
+    **{
+        f"eval.adoption.{cid}.decision": Key("docs/eval/adoption.json", f"$.candidates[?id=={cid}].decision")
+        for cid in (
+            "risk.past_split",
+            "risk.past_suppress_all",
+            "risk.severity_floor_2",
+            "notes.selection",
+            "notes.family_first_alone",
+            "notes.anthropic_provider",
+        )
+    },
+    "eval.adoption.counts.adopt": Key("docs/eval/adoption.json", "$.counts.adopt", "d"),
+    "eval.adoption.counts.reject": Key("docs/eval/adoption.json", "$.counts.reject", "d"),
+    "eval.adoption.counts.not_measured": Key("docs/eval/adoption.json", "$.counts.not_measured", "d"),
+    "eval.adoption.risk.n": Key("docs/eval/adoption.json", "$.decision_sets.risk.n", "d"),
+    "eval.adoption.notes.n_sessions": Key("docs/eval/adoption.json", "$.decision_sets.notes.n_sessions", "d"),
+    "eval.adoption.min_delta": Key("docs/eval/adoption.json", "$.rules.risk.min_delta", ".2f"),
     "eval.rls.attempts": Key("docs/eval/rls.json", "$.attempts", "d"),
     "eval.rls.leaks": Key("docs/eval/rls.json", "$.leaks", "d"),
     "eval.protocol.hypothesis_examples": Key("docs/eval/protocol.json", "$.hypothesis_examples", "d"),

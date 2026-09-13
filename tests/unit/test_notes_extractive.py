@@ -8,8 +8,10 @@ import pytest
 
 from chartwire.notes.extractive import (
     CUE_FAMILIES,
+    DEFAULT_SELECTION,
     SYMPTOM_CUES,
     ExtractiveProvider,
+    Selection,
     build_draft,
     chartable_text,
     classify,
@@ -188,6 +190,34 @@ def test_scarce_families_get_a_slot_before_a_repeated_early_phase():
     assert len(d.statements) == 12
     seqs = [st.evidence[0].seq for st in d.statements]
     assert seqs == sorted(seqs)  # §9.2: the draft is still emitted in seq order
+
+
+def test_selection_switches_reproduce_the_providers_before_each_quality_pass():
+    """The adoption harness measures the road not taken; the switches must really be that road."""
+    assert Selection(family_first=True, quantified_first=True) == DEFAULT_SELECTION
+    early = [("patient", f"잠드는 데 {i}시간쯤 걸려요") for i in range(1, 13)]
+    late = [("patient", "에스시탈로프람 10mg 먹고 있어요"), ("patient", "일주일에 3번 소주 2병 마셔요")]
+    segs = session(*early, *late)
+    # seq fill: the twelve sleep lines take every slot and the late facts are gone
+    naive = build_draft(
+        segs, max_per_section=12, selection=Selection(family_first=False, quantified_first=False)
+    )
+    assert [st.evidence[0].seq for st in naive.statements] == list(range(1, 13))
+    # the shipped selector keeps them (same session as test_scarce_families_get_a_slot_before_a_repeated_early_phase)
+    shipped = [st.evidence[0].quote for st in build_draft(segs, max_per_section=12).statements]
+    assert "에스시탈로프람 10mg 먹고 있어요" in shipped and "일주일에 3번 소주 2병 마셔요" in shipped
+    # family first without numbers first: the family slot goes to its earliest line, not its quantified one
+    vague = [("patient", f"잠들기가 {w} 힘들어요") for w in ("너무", "정말", "진짜", "요즘", "계속", "늘")]
+    vague += [
+        ("patient", f"잠이 안 와서 {w} 뒤척여요")
+        for w in ("계속", "자꾸", "매일", "밤새", "새벽까지", "한참")
+    ]
+    one_family = session(*vague, ("patient", "하루에 5시간밖에 못 자요"))
+    by_seq = build_draft(one_family, max_per_section=12, selection=Selection(quantified_first=False))
+    assert "하루에 5시간밖에 못 자요" not in [st.evidence[0].quote for st in by_seq.statements]
+    assert "하루에 5시간밖에 못 자요" in [st.evidence[0].quote for st in build_draft(one_family).statements]
+    # quantified-first has nothing to act on without families: identical to seq fill
+    assert build_draft(segs, selection=Selection(family_first=False, quantified_first=True)) == naive
 
 
 def test_coverage_stays_one_by_construction_after_the_family_split():

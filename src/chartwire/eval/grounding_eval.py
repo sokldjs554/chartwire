@@ -17,13 +17,14 @@ from collections import Counter
 from typing import Any
 
 from chartwire.eval.corpus import segment_views
-from chartwire.notes.extractive import build_draft
+from chartwire.notes.extractive import DEFAULT_SELECTION, Selection, build_draft
 from chartwire.notes.policy import decide
 from chartwire.notes.verifier import VERIFIER_VERSION, verify
 from chartwire.synth.scripts import Script
 
 
-def evaluate(scripts: list[Script]) -> dict[str, Any]:
+def evaluate(scripts: list[Script], *, selection: Selection = DEFAULT_SELECTION) -> dict[str, Any]:
+    """``selection`` is for the adoption harness only — the headline report uses what ships."""
     facts_total = facts_recalled = 0
     by_type_total: Counter[str] = Counter()
     by_type_recalled: Counter[str] = Counter()
@@ -33,7 +34,7 @@ def evaluate(scripts: list[Script]) -> dict[str, Any]:
     coverage_sum = 0.0
     for script in scripts:
         segments = segment_views(script)
-        draft = build_draft(segments)
+        draft = build_draft(segments, selection=selection)
         verified = verify(draft, segments)
         decision = decide(verified)
         statuses[decision.status.value] += 1

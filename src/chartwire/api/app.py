@@ -47,6 +47,7 @@ from chartwire.api.routers import (
     opsviews,
     patients,
     purge,
+    release,
     search,
     segments,
     sessions,
@@ -92,6 +93,7 @@ OWN_ROUTERS = (
     purge.router,
     audit.router,
     opsviews.router,
+    release.router,
 )
 
 
