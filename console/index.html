@@ -382,10 +382,14 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
   .site-header__cta{ margin-inline-start:auto; }
 }
 @media (max-width:360px){
-  .site-header__in{ gap:10px; }
-  .wordmark b{ font-size:17px; }
+  /* 좁아도 콘솔 진입은 헤더에 남긴다 — 하단 바는 400 px 스크롤 뒤에야 뜨고 히어로 버튼은 위로 사라지므로,
+     여기서 링크를 숨기면 스크롤 중인 사람에게는 들어갈 문이 하나도 없다. 워드마크를 줄여 자리를 만든다. */
+  .site-header__in{ gap:8px; }
+  .wordmark b{ font-size:0; }                /* 로고 심볼만 남긴다 — 글자는 아래 ::after 가 짧게 대신 */
+  .wordmark b::after{ content:'cw'; font-size:17px; }
   .site-header__cta{ gap:8px; }
-  .site-header__cta .link{ display:none; }   /* 콘솔 진입은 하단 바 · 히어로 버튼 · 푸터에 남아 있다 */
+  .site-header__cta .link{ font-size:13px; }
+  .site-header__cta .btn-sm{ padding:8px 10px; }
 }
 
 /* ── 공통: 섹션 머리말 · 랜딩 카드 · 작은 글씨 ───────────────────────── */
@@ -1111,7 +1115,7 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
     </a>
 
     <nav class="site-nav" aria-label="주요 섹션">
-      <a href="#sec-problem">막히는 곳</a>
+      <a href="#sec-problem">고비</a>
       <a href="#sec-how">흐름</a>
       <a href="#sec-evidence">숫자</a>
       <a href="#sec-decisions">고른 것</a>
@@ -1292,9 +1296,9 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
   <!-- ── 05 문제 정의 ────────────────────────────────────────────────── -->
   <section class="section" id="sec-problem">
     <div class="container">
-      <p class="kicker">막히는 곳</p>
-      <h2>진료실에서 실제로 막히는 곳</h2>
-      <p class="lead">음성 차팅이 잘 안 되는 이유는 대개 인식 모델이 아닙니다. 이런 데서 막힙니다.</p>
+      <p class="kicker">고비</p>
+      <h2>진료실에서 흔들리는 순간, 여기서 버팁니다</h2>
+      <p class="lead">음성 차팅이 무너지는 자리는 대개 인식 모델이 아닙니다. 진짜 고비는 아래 네 가지이고, 각각을 어떻게 버티는지 함께 적었습니다.</p>
 
       <div class="grid-3 problem-cards">
         <!-- row:load.D --><article class="card">
@@ -1484,28 +1488,30 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
   <!-- ── 09 무릎 공개 ────────────────────────────────────────────────── -->
   <section class="section" id="sec-knee">
     <div class="container">
-      <p class="kicker">어디까지</p>
-      <h2>어디까지 버티는지도 재어 봤습니다</h2>
-      <!-- row:load.A.knee --><p>ack p95 는 N=50 에서 <!-- num:load.A.n50.ack_p95_ms -->223<!-- /num --> ms, N=100 에서 <!-- num:load.A.n100.ack_p95_ms -->449<!-- /num --> ms 로 완만하게 늘어납니다. 그러다 N=200 에서 <!-- num:load.A.n200.ack_p95_ms -->9036<!-- /num --> ms 로 무너집니다 — 20배입니다. 무릎의 정체는 처리량 미달이 아니라 이 지연 붕괴이고, 처리량도 같이 꺾여 의도한 1,000 chunk/s 대신 <!-- num:load.A.n200.chunks_per_s -->790<!-- /num --> chunk/s 에 그칩니다. 병목은 저장소가 아니라 파이썬 프로세스 하나가 코어 하나를 넘지 못하는 것입니다 — api 이벤트 루프와 stt-worker 가 각자 CPU 천장에 붙고 PostgreSQL · Redis 는 한가합니다.</p><!-- /row -->
+      <p class="kicker">한계선</p>
+      <h2>한 대로 몇 명까지 받는지 재어 봤습니다</h2>
+      <p class="lead">동시에 진행되는 진료를 50 · 100 · 200 개로 늘려 가며, 녹음 한 조각이 <b>서버에 저장됐다는 응답</b>이 돌아오기까지 걸리는 시간을 쟀습니다.</p>
+      <!-- row:load.A.knee --><p><b>100 개까지는 여유가 있습니다.</b> 응답이 0.2 초(<!-- num:load.A.n50.ack_p95_ms -->223<!-- /num --> ms)에서 0.4 초(<!-- num:load.A.n100.ack_p95_ms -->449<!-- /num --> ms)로 완만하게 늘어납니다. <b>200 개에서 9 초(<!-- num:load.A.n200.ack_p95_ms -->9036<!-- /num --> ms)로 무너집니다</b> — 20배입니다.</p>
+      <p>막은 것은 데이터베이스가 아니었습니다. 파이썬 프로세스 하나가 CPU 코어 하나를 다 쓰면 거기서 더 못 가는데, 그 순간 PostgreSQL 과 Redis 는 한가했습니다. 그래서 이 표는 <b>「이 사양 한 대로는 동시 진료 100 개까지」</b>로 읽으시면 됩니다 — 더 받으려면 서버를 키우는 게 아니라 프로세스를 늘려야 합니다.</p><!-- /row -->
 
       <div class="callout">
-        <p>손실 0 · 중복 0 은 시나리오 A–D 에서 확인한 값입니다 — 「어떤 부하에서도 떨어뜨리지 않는다」는 뜻으로 읽으면 안 됩니다.</p>
+        <p>위의 「손실 0 · 중복 0」은 이 네 가지 시나리오에서 확인한 값입니다 — 「어떤 부하에서도 떨어뜨리지 않는다」는 뜻은 아닙니다.</p>
       </div>
 
       <div class="scroll-x">
         <table class="kv perf">
-          <caption class="sr-only">동시 세션 수별 ack 지연과 처리량</caption>
+          <caption class="sr-only">동시 진료 수별 저장 응답 시간과 처리량</caption>
           <thead>
-            <tr><th scope="col">동시 세션</th><th scope="col">ack p50</th><th scope="col">ack p95</th><th scope="col">처리량</th></tr>
+            <tr><th scope="col">동시 진료</th><th scope="col">보통 응답</th><th scope="col">느린 쪽 5%</th><th scope="col">처리량</th></tr>
           </thead>
           <tbody>
-            <!-- row:load.A.n50.table --><tr><th scope="row">N=50</th><td><!-- num:load.A.n50.ack_p50_ms -->81<!-- /num --> ms</td><td><!-- num:load.A.n50.ack_p95_ms -->223<!-- /num --> ms</td><td><!-- num:load.A.n50.chunks_per_s -->250<!-- /num --> chunk/s</td></tr><!-- /row -->
-            <!-- row:load.A.n100.table --><tr><th scope="row">N=100</th><td><!-- num:load.A.n100.ack_p50_ms -->182<!-- /num --> ms</td><td><!-- num:load.A.n100.ack_p95_ms -->449<!-- /num --> ms</td><td><!-- num:load.A.n100.chunks_per_s -->500<!-- /num --> chunk/s</td></tr><!-- /row -->
-            <!-- row:load.A.n200.table --><tr><th scope="row">N=200</th><td><!-- num:load.A.n200.ack_p50_ms -->4512<!-- /num --> ms</td><td><!-- num:load.A.n200.ack_p95_ms -->9036<!-- /num --> ms</td><td><!-- num:load.A.n200.chunks_per_s -->790<!-- /num --> chunk/s</td></tr><!-- /row -->
+            <!-- row:load.A.n50.table --><tr><th scope="row">50 개</th><td><!-- num:load.A.n50.ack_p50_ms -->81<!-- /num --> ms</td><td><!-- num:load.A.n50.ack_p95_ms -->223<!-- /num --> ms</td><td><!-- num:load.A.n50.chunks_per_s -->250<!-- /num --> chunk/s</td></tr><!-- /row -->
+            <!-- row:load.A.n100.table --><tr><th scope="row">100 개</th><td><!-- num:load.A.n100.ack_p50_ms -->182<!-- /num --> ms</td><td><!-- num:load.A.n100.ack_p95_ms -->449<!-- /num --> ms</td><td><!-- num:load.A.n100.chunks_per_s -->500<!-- /num --> chunk/s</td></tr><!-- /row -->
+            <!-- row:load.A.n200.table --><tr><th scope="row">200 개</th><td><!-- num:load.A.n200.ack_p50_ms -->4512<!-- /num --> ms</td><td><!-- num:load.A.n200.ack_p95_ms -->9036<!-- /num --> ms</td><td><!-- num:load.A.n200.chunks_per_s -->790<!-- /num --> chunk/s</td></tr><!-- /row -->
           </tbody>
         </table>
       </div>
-      <!-- row:load.A.n200.segment_rows --><p class="footnote">지연이 무너진 그 실행에서도 적재 자체는 멀쩡했습니다 — 같은 실행의 세그먼트는 <!-- num:load.A.n200.segment_rows -->8099<!-- /num -->개였습니다.</p><!-- /row -->
+      <!-- row:load.A.n200.segment_rows --><p class="footnote">느려졌을 뿐 잃지는 않았습니다 — 응답이 9 초까지 밀린 그 실행에서도 전사 문장 <!-- num:load.A.n200.segment_rows -->8099<!-- /num -->개가 그대로 저장됐습니다.</p><!-- /row -->
     </div>
   </section>
 
@@ -1667,25 +1673,29 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
       <p class="kicker">질문</p>
       <h2>자주 묻는 질문</h2>
       <div class="faq">
+        <details open>
+          <summary>지금 바로 해 볼 수 있는 게 뭔가요?</summary>
+          <p>전부입니다. 「상담 없이 데모 콘솔 열기」를 누르면 clinician 계정으로 바로 들어가고, 녹음 → 라이브 전사 → 위험 경보 → SOAP 초안 → 동의 철회 → 파기 영수증 → 복호화 시도까지 5분이면 끝까지 눌러 볼 수 있습니다. 녹음 중에 「네트워크 끊기 5초」를 눌러 끊어 보셔도 됩니다 — 다시 붙고 빠진 조각을 채우는 게 로그에 그대로 찍힙니다.</p>
+        </details>
         <details>
           <summary>실제 환자 데이터가 들어 있나요?</summary>
-          <p>없습니다. 대본 20개는 문법으로 만든 합성 한국어이고, 환자는 「가상환자-NNNN」입니다.</p>
+          <p>전부 합성입니다. 대본 20개는 문법으로 만든 한국어이고 환자는 「가상환자-NNNN」이라, 무엇을 누르든 지우든 괜찮습니다. 실제로 동의를 철회하고 파기까지 돌려 보셔도 됩니다.</p>
         </details>
         <details>
           <summary>임상에 쓸 수 있나요?</summary>
-          <p>쓸 수 없습니다. 연구 · 포트폴리오 구현이고, 임상 판단을 대신하도록 만들지 않았습니다.</p>
+          <p>임상 판단에 쓰는 도구는 아닙니다. 여기서 보실 수 있는 것은 그 아래 계층입니다 — 한 조각도 잃지 않는 저장, 문장마다 붙는 근거, 동의를 거둔 뒤의 파기 영수증. 음성차팅 제품을 올리려면 먼저 있어야 하는 바닥입니다.</p>
         </details>
         <details>
           <summary>상담을 남기면 연락이 오나요?</summary>
-          <p>오지 않습니다. 입력값은 서버에 저장되지만 영업 조직이 없습니다. 접수일로부터 90일 뒤 파기하며, 데모 인스턴스가 기동할 때마다 파기 명령이 돕니다.</p>
+          <p>접수는 실제로 됩니다 — <code>POST /v1/consultations</code> 로 저장되고 접수 번호가 나옵니다. 폼에 예시 값이 채워져 있으니 실제 연락처 없이 그대로 제출해 보셔도 됩니다. 다만 영업 조직이 없어 연락은 가지 않고, 접수일로부터 90일 뒤 파기합니다(인스턴스가 기동할 때마다 파기 명령이 돕니다).</p>
         </details>
         <details>
           <summary>데모가 느린데요?</summary>
-          <p>무료 인스턴스 한 컨테이너에 PostgreSQL · Redis · 워커가 함께 들어 있습니다. 여기서 잰 지연은 실측 표와 비교할 수 없습니다 — 빠르게 보려면 <code>docker compose</code> 가 낫습니다.</p>
+          <p>무료 인스턴스 한 컨테이너에 PostgreSQL · Redis · 워커가 다 들어 있어서 그렇습니다. 15분 쉬면 잠들고 다시 깨는 데 1~2분 걸립니다 — 로그인이 멈춘 것처럼 보이면 그때입니다. 제 속도로 보시려면 <code>docker compose up --build</code> 한 줄이면 같은 것이 로컬에서 돕니다.</p>
         </details>
         <details>
           <summary>인증(SOC 2 · HIPAA · ISMS-P)이 있나요?</summary>
-          <p>없습니다. 대신 어떤 통제가 테스트로 고정되어 있는지를 위에 적어 두었습니다.</p>
+          <p>인증은 조직과 감사가 있어야 받는 것이라 아직 없습니다. 대신 인증이 확인하는 항목들 — 테넌트 격리 · 감사 로그 · 동의 범위 · 암호화 · 파기 — 이 각각 테스트로 고정돼 있고, 하나라도 깨지면 CI 가 빨간불이 됩니다. 위 「환자의 말을 이렇게 지킵니다」에 어떤 파일이 무엇을 붙잡는지 적어 두었습니다.</p>
         </details>
       </div>
     </div>
@@ -1698,7 +1708,7 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
         <nav aria-label="제품">
           <h3>제품</h3>
           <ul>
-            <li><a href="#sec-problem">막히는 곳</a></li>
+            <li><a href="#sec-problem">고비</a></li>
             <li><a href="#sec-how">흐름</a></li>
             <li><a href="#sec-decisions">고른 것</a></li>
             <li><a href="#sec-controls">보호</a></li>
@@ -2179,6 +2189,8 @@ const FRAME_MAGIC = 0x4357, FRAME_VER = 1, FLAG_LAST = 1, FLAG_SIM = 4, HEADER_L
 const CHUNK_MS = 200, CHUNK_BYTES = 6400, RING_SIZE = 150, HELLO_TIMEOUT_MS = 5000, END_WAIT_MS = 10000;
 const SCOPES = ['recording', 'transcription', 'ai_drafting', 'search_index'];
 const DEMO_EMAILS = { clinician: 'clinician@demo.clinic', staff: 'staff@demo.clinic', admin: 'admin@demo.clinic', auditor: 'auditor@demo.clinic' };
+const WAKING_MESSAGE = '공개 데모를 깨우는 중입니다 — 무료 인스턴스라 최대 2분 걸립니다. 창을 닫지 말고 기다려 주세요.';
+const LOGIN_HELP = '로그인하지 못했습니다. 테넌트 demo · 비밀번호 demo1234! · 이메일은 역할@demo.clinic 입니다 — 「계정 · API」를 열어 값을 확인해 주세요.';
 const CATEGORY_KO = { suicidal_ideation: '자살 사고', self_harm: '자해', harm_to_others: '타해 위험', substance_acute: '급성 물질 사용' };
 // 세션 선택기 정렬: 녹음할 수 있는 created 가 맨 위, 그다음 진행 순서. 끝난 세션도 남겨 두어야
 // 초안·영수증을 다시 볼 수 있다 (created 만 보이면 녹음이 끝난 세션이 목록에서 사라져 길을 잃는다).
@@ -2504,8 +2516,26 @@ function refreshButtons() {
 }
 async function login() {
   const body = { tenant_slug: $('tenant').value.trim(), email: $('email').value.trim(), password: $('password').value };
-  const out = await tryApi('POST', '/v1/auth/token', body);
-  if (!out) return false;
+  const btn = $('loginBtn');
+  const wasLabel = btn.textContent, wasClass = btn.className;
+  btn.disabled = true;
+  btn.textContent = '로그인 중…';
+  // 공개 데모는 무료 인스턴스라 15분 무접속이면 잠들고, 깨어나는 데 1~2분이 걸린다. 그동안 아무 말도
+  // 없으면 "로그인이 안 된다" 로 읽힌다 — 실제로 그렇게 읽혔다. 기다리는 중이라는 것을 말로 해 준다.
+  const waking = setTimeout(() => toast(WAKING_MESSAGE), 4000);
+  let out;
+  try {
+    out = await tryApi('POST', '/v1/auth/token', body);
+  } finally {
+    clearTimeout(waking);
+    btn.disabled = false;
+  }
+  if (!out) {
+    btn.textContent = wasLabel;
+    btn.className = wasClass;
+    toast(LOGIN_HELP, 'bad');
+    return false;
+  }
   state.token = out.access_token;
   const me = await tryApi('GET', '/v1/me');
   state.role = (me && (me.role || (me.principal && me.principal.role))) || $('demoAccount').value;
