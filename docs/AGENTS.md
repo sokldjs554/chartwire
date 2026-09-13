@@ -46,6 +46,7 @@ Phase 2 — 유휴 박스에서 **직렬** 측정(bulk → perf → eval → loa
 - **REST 응답 상위 집합** — `SessionOut.script_ref`, `MeOut{sub, tenant_id, role, user_id, exp}`, `ConsentRevokedOut.purge_job_id`, `NoteOut{…, legal_hold, retention_until, signed_at}`.
 - **REST 추가 라우트** — `GET /v1/release`(공개, `rbac.PUBLIC`): `ReleaseOut{git_sha, version, node_id, started_at}`; `git_sha` 는 `CHARTWIRE_GIT_SHA` → `RENDER_GIT_COMMIT` → `"unknown"`(작업 트리에서 추측하지 않는다). `.github/workflows/live-gate.yml` 이 push 마다 공개 URL 에서 이 값이 `GITHUB_SHA` 와 같아질 때까지 기다린 뒤 검증한다(`scripts/wait_for_release.py`, stdlib). `POST /v1/consultations`(공개, `rbac.PUBLIC`): 데모 홈페이지 상담신청 → 202 `ConsultationOut{id, received_at, message}`, `consultation_requests`(0008, `tenant_id` 없음·RLS 밖·IP/UA 미저장) 에 저장. 조회 라우트 없음(테넌트 밖 데이터를 특정 테넌트 admin 이 읽게 된다). 클라이언트 주소당 10/h → 429 `CW-4291` (`core.errors.RateLimited`, `Retry-After`); `redis.ratelimit.hit(..., window_s=)` 로 시간 윈도 확장.
 - **리포트 키** — `scripts/readme_numbers.py::KEYS` (335개; `eval.adoption.*` 68개는 `docs/eval/adoption.json` — 채택 판정, `chartwire eval adopt`, 규칙은 `eval/adoption_eval.py`). 부하 리포트 모양은 [`loadtest/results.md`](loadtest/results.md) 와 `loadtest/report.py` 도크스트링; 성능 요약은 `docs/perf/summary.json`(Phase 0 의 `study.json` 에서 이름 변경).
+- **README 마커 배치** — Markdown 표에서는 `| <!-- row:key --> … <!-- /row --> |`처럼 첫·마지막 셀 안에 행 마커를 둡니다. 줄 첫머리 HTML 주석이 표를 끊는 문제를 피하며, `MD_ROW_RE`가 미측정 행의 구분자까지 함께 삭제합니다. 기존 HTML·문단 블록 형식도 유지합니다.
 - **CLI** — `simulate` 와 `loadtest` 는 별개 모듈(WP-A 요청); `serve all` 은 항상 embedded; `chartwire loadtest H` 는 `outbox bench` 위임.
 
 ## 4. 병합 전 게이트

@@ -97,3 +97,19 @@ def test_typer_wrapper_requires_exactly_one_mode(repo: Path) -> None:
     assert runner.invoke(root, ["readme-numbers", "--root", str(repo)]).exit_code != 0
     assert runner.invoke(root, ["readme-numbers", "--write", "--root", str(repo)]).exit_code == 0
     assert runner.invoke(root, ["readme-numbers", "--check", "--root", str(repo)]).exit_code == 0
+
+
+def test_markdown_cell_markers_delete_whole_unmeasured_row(repo: Path) -> None:
+    readme = repo / "README.md"
+    readme.write_text(
+        "| scenario | p95 |\n|---|---|\n"
+        "| <!-- row:load.A.n50 -->N=50 | <!-- num:load.A.n50.ack_p95_ms -->—<!-- /num --> ms <!-- /row --> |\n"
+        "| <!-- row:load.A.n200 -->N=200 | <!-- num:load.A.n200.ack_p95_ms -->—<!-- /num --> ms <!-- /row --> |\n",
+        encoding="utf-8",
+    )
+    assert rn.main(["--write", "--root", str(repo)]) == 0
+    written = readme.read_text(encoding="utf-8")
+    assert len(written.splitlines()) == 3
+    assert "N=50" in written and "N=200" not in written
+    assert "-->41<!-- /num -->" in written
+    assert rn.main(["--check", "--root", str(repo)]) == 0

@@ -408,6 +408,13 @@ def load_values(root: Path, keys: dict[str, Key] = KEYS) -> dict[str, str | None
 # ------------------------------------------------------------------ README rendering
 NUM_RE = re.compile(r"<!-- num:(?P<key>[A-Za-z0-9_.]+) -->(?P<body>.*?)<!-- /num -->", re.DOTALL)
 ROW_RE = re.compile(r"<!-- row:(?P<key>[A-Za-z0-9_.]+) -->(?P<body>.*?)<!-- /row -->\n?", re.DOTALL)
+# A marker at the start of a Markdown line becomes an HTML block and breaks the table.
+# Keep table markers inside the first/last cells, but delete the entire line if unmeasured.
+MD_ROW_RE = re.compile(
+    r"^\|[ \t]*<!-- row:(?P<key>[A-Za-z0-9_.]+) -->(?P<body>[^\n]*?)"
+    r"<!-- /row -->[ \t]*\|[ \t]*(?:\n|$)",
+    re.MULTILINE,
+)
 
 
 @dataclass
@@ -443,7 +450,8 @@ def render(readme: str, values: dict[str, str | None], keys: dict[str, Key] = KE
             return ""
         return m.group(0)
 
-    text = ROW_RE.sub(drop_row, readme)
+    text = MD_ROW_RE.sub(drop_row, readme)
+    text = ROW_RE.sub(drop_row, text)
 
     def fill(m: re.Match[str]) -> str:
         key = m.group("key")
