@@ -128,11 +128,19 @@ a{ color:var(--accent); }
 .scroll-x > table{ min-width:560px; border-collapse:collapse; }
 
 /* ── 상단 합성 고지 + 고정 헤더 ──────────────────────────────────────────── */
+/* 이 띠는 경보가 아니라 이 문서의 영구 사실이다. 세 뷰 어디서도 한 번도 변하지 않는 문구를
+   채도 높은 빨강으로 상시 띄우면 "이 색은 무시해도 된다"를 매 세션 가르치게 되고, 하필 그 빨강이
+   --bad-fill == --sev3 == #c0392b — 자살사고 경보(889행)와 **글자 그대로 같은 값**이었다.
+   그래서 팔레트 안의 모래 면(--sand-2, 히어로·CTA 와 같은 재질) 위 --ink 로 내린다: 문구·위치·고정·굵기는
+   그대로고 대비는 5.4:1 → 10.7:1(다크 10.4:1)로 오르며, 빨강 채움은 '상태가 바뀐 순간'에만 남는다. */
 #banner{ position:fixed; top:0; left:0; right:0; height:var(--banner-h); z-index:50;
-  background:var(--bad-fill); color:#fff; font-weight:700; font-size:13px; line-height:1.2;
+  background:var(--sand-2); color:var(--ink); font-weight:700; font-size:13px; line-height:1.2;
   display:flex; align-items:center; justify-content:center; gap:12px; padding:0 12px;
-  text-align:center; }
-#banner a{ color:#fff; }
+  text-align:center;
+  /* 헤더와 맞닿는 경계 한 줄. box-shadow 가 아니라 border 인 이유는 고대비 모드다 —
+     forced-colors 는 box-shadow 를 none 으로 강제하고 border 만 시스템 색으로 살린다.
+     *{box-sizing:border-box}(67행) 라 이 1px 은 --banner-h 안쪽으로 들어가 레이아웃을 바꾸지 않는다. */
+  border-bottom:1px solid var(--line-strong); }
 .site-header{
   position:fixed;           /* sticky 아님: Firefox 의 sticky + backdrop-filter 버그 */
   top:var(--banner-h); left:0; right:0; z-index:40;
@@ -142,12 +150,11 @@ a{ color:var(--accent); }
   border-bottom:1px solid var(--line);
 }
 @supports (backdrop-filter: blur(12px)){ .site-header{ backdrop-filter:blur(12px); } }
-/* 모바일: 고지 띠 뒤의 텍스트 링크를 숨기고 문구만 두 줄로 — 높이 토큰을 함께 올려
-   body padding-top 이 따라오게 한다(고지 문구 자체는 줄이지 않는다). */
+/* 모바일: 문구를 두 줄로 흘리되 글자를 줄이지 않는다 — 높이 토큰을 함께 올려 body padding-top 이
+   따라오게 한다. (#banner 안에는 링크가 없다: 3654행이 textContent 로 문구만 넣는다.) */
 @media (max-width:720px){
   :root{ --banner-h:48px; }
   #banner{ font-size:11px; line-height:1.35; padding:0 10px; }
-  #banner a{ display:none; }
 }
 @supports not (background: color-mix(in srgb, red, blue)){ .site-header{ background:var(--panel); } }
 
@@ -178,7 +185,8 @@ a{ color:var(--accent); }
   transition:background-color 160ms ease, color 160ms ease, border-color 160ms ease; }
 .btn.secondary{ background:transparent; color:var(--accent); }
 .btn.secondary:hover{ background:var(--accent-tint); }
-/* danger 는 아웃라인이다 — 빨강 채움은 상단 고지 띠와 실제 위험 경보 배너에만 남긴다. */
+/* danger 는 아웃라인이다 — 빨강 채움은 '상태가 바뀐 순간'에만 쓴다: 위험 경보(#workspace .risk.sev3)와
+   실패 토스트(.toast.bad). 상시 표시인 상단 합성 고지 띠는 경보가 아니라서 --sand-2 면을 쓴다(131행). */
 .btn.danger{ background:transparent; border-color:var(--bad); color:var(--bad); }
 .btn.danger:hover{ background:var(--bad-tint); }
 /* 꺼진 버튼은 '흐린 파랑'이 아니라 명시적 회색(대비 4.5:1 이상) + not-allowed */
@@ -1244,7 +1252,7 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
         <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>/console — 라이브 전사 · 위험 경보</span></div>
         <img id="heroShot" src="/console/media/02_live_alert.png" data-media="02_live_alert.png"
              width="1440" height="900" decoding="async"
-             alt="데모 콘솔의 라이브 전사 화면. 왼쪽에 임상의와 환자의 발화가 시간순으로 쌓여 있고, 그 위에 SEV3 위험 경보 배너와 SLA 카운트다운, 확인(ACK) 버튼이 떠 있다. 화면 맨 위에는 빨간 SYNTHETIC 고지 띠가 그대로 있다.">
+             alt="데모 콘솔의 라이브 전사 화면. 왼쪽에 임상의와 환자의 발화가 시간순으로 쌓여 있고, 그 위에 SEV3 위험 경보 배너와 SLA 카운트다운, 확인(ACK) 버튼이 떠 있다. 화면 맨 위에는 SYNTHETIC 고지 띠가 그대로 있다.">
       </figure>
       <p class="shot-caption">
         연출이 아니라 Playwright 가 실제로 띄운 서버를 몰아서 찍은 화면입니다. 화면 위 SYNTHETIC 배너는 모든 장면에 그대로 있습니다.

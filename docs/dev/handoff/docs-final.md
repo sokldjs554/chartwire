@@ -67,7 +67,7 @@ python scripts/console_screenshots.py --chromium /opt/pw-browsers/chromium \
 ```
 
 - `docs/images/01_recorder.png` · `02_live_alert.png` · `03_soap_draft.png` **갱신**, `04_purge_receipt.png` · `05_ops.png` **신규**, `demo.gif` **신규**.
-  다섯 장 모두 상단의 빨간 **SYNTHETIC** 배너가 보이고, GIF 도 전 구간에서 보인다.
+  다섯 장 모두 상단의 **SYNTHETIC** 고지 띠가 보이고, GIF 도 전 구간에서 보인다. (이 기록을 쓸 당시 띠는 빨강이었다 — 지금은 모래 면이고, 빨강 채움은 실제 위험 경보에만 남는다: `console/index.html` 131행.)
 - 02 는 `harm_to_others severity 2` 배너 + SLA 카운트다운 + ACK + 발화별 e2e ms + `risk.alert … commit→view 4.0 ms`,
   04 는 `state=verified` 영수증 · `receipt_hash` · `unwrap=failed:dek_destroyed / decrypt_sample=failed:invalid_tag` 토스트,
   05 는 Ops 패널(메트릭 폴링 + DLQ 목록, admin).

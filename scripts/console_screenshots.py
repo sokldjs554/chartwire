@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import TypeVar
 
 from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 T = TypeVar("T")
 
@@ -165,19 +166,20 @@ def run(
         shot(SHOTS[2])
         page.click("#riskAck")
 
-        # wait for the recorder to end and the stt-worker to finish; the draft arrives as a
-        # ``note.status`` toast (§6.3) — poll ``notes/latest`` from the SOAP tab until it exists
+        # Wait for the recorder to end and the stt-worker to finish. The draft then arrives on its own:
+        # the worker publishes ``note.status`` (§6.3) and the console loads it without a click. So *wait*
+        # rather than poll — clicking ``#loadNote`` on a loop races the worker and asks for a draft that
+        # does not exist yet, and every miss is a ``notes/latest`` 404 in the browser console, which this
+        # driver counts as an error (exit 1). The click stays as a fallback for a missed event, by which
+        # time the draft is certainly there.
         wait_text(page, "#recLog", "종료: ended", duration_s / speed + 60)
         wait_text(page, "#liveState", "transcribed", 90)
         page.click("button[data-tab='soap']")
-        deadline = time.monotonic() + 90
-        while True:
-            page.click("#loadNote")
-            page.wait_for_timeout(1_500)
-            if page.locator("#statements .stmt").count() > 0:
-                break
-            if time.monotonic() > deadline:
-                raise TimeoutError("note draft never appeared in the SOAP tab")
+        try:
+            page.wait_for_selector("#statements .stmt", timeout=90_000)
+        except PlaywrightTimeout:
+            page.click("#loadNote")  # note.status never arrived — ask once, now that the draft must exist
+            page.wait_for_selector("#statements .stmt", timeout=30_000)
         page.click("#statements .stmt >> nth=0")
         page.wait_for_timeout(400)
         shot(SHOTS[3])
