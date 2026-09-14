@@ -1,6 +1,6 @@
 # chartwire
 
-**실시간 상담 기록 → 근거 연결 초안 → 사람 검토 → 데이터 파기 증적까지 한 흐름으로 연결합니다.**
+**상담에 집중하세요. ChartWire는 실시간 기록부터 근거 연결 초안, 사람 검토, 데이터 파기 증적까지 한 흐름으로 연결합니다.**
 
 > **모든 데이터는 합성(SYNTHETIC)입니다 — 실제 환자 정보 없음.** API 키 없이 실행됩니다(STT 시뮬레이터 + 추출형 초안).
 > 임상 사용 불가 — 연구/포트폴리오 구현입니다. STT 품질과 진료 노트 품질은 **평가하지 않았습니다**(합성 데이터, 시뮬레이터).
@@ -14,7 +14,7 @@
 
 ![ChartWire 서비스 데모](docs/images/demo.gif)
 
-## 빠른 확인 경로
+## 제품 흐름
 
 공개 데모: <https://chartwire.onrender.com>
 
@@ -35,7 +35,7 @@
 > 여기서 잰 지연은 아래 표 ①·② 와 비교할 수 없습니다. 이유와 대가는 [`docs/limitations.md`](docs/limitations.md) §8.
 > 즉시 보여줘야 한다면 `docker compose up --build` 가 낫습니다(§10).
 
-정신과 진료실 실시간 음성차팅의 밑바닥 — 무손실 WebSocket 스트리밍 프로토콜, 테넌시 격리, 파기 영수증, 실측된 운영 수치.
+실시간 음성 차팅을 안정적으로 운영하기 위한 백엔드 — 무손실 WebSocket 스트리밍, 테넌시 격리, 파기 영수증, 실측 운영 수치를 함께 검증합니다.
 *The measured reliability & compliance layer under SOAPY-class psychiatric voice-charting products.*
 
 ## 1. SOAPY-class 제품이 30 → 300 의원으로 갈 때 백엔드가 감당해야 하는 8가지

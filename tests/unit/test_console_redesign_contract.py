@@ -68,10 +68,10 @@ def test_evaluator_guidance_lives_in_readme_not_product_ui() -> None:
         assert needle in html, needle
 
     for needle in (
-        "실시간 상담 기록 → 근거 연결 초안 → 사람 검토 → 데이터 파기 증적까지 한 흐름으로 연결합니다.",
+        "상담에 집중하세요. ChartWire는 실시간 기록부터 근거 연결 초안, 사람 검토, 데이터 파기 증적까지 한 흐름으로 연결합니다.",
         "## 서비스 데모",
         "docs/images/demo.gif",
-        "## 빠른 확인 경로",
+        "## 제품 흐름",
         "새 상담 → 실시간 기록 → 초안·근거 → 사람 검토 → 파기 → 파기 영수증",
     ):
         assert needle in readme, needle
@@ -93,8 +93,17 @@ def test_product_first_landing_stays_service_like() -> None:
         "새 합성 상담 시작",
         "60초 데모 시작",
         "면접관에게",
+        "Realtime clinical documentation backend",
+        ">시스템 구조 보기</button>",
     ):
         assert forbidden not in html, forbidden
+
+    for needle in (
+        "실시간 상담 기록 · 근거 연결 · 사람 검토",
+        ">상담 기록 보기</button>",
+        "합성 데이터로 기록 → 근거 확인 → 사람 검토 → 파기까지 전체 흐름을 안전하게 체험할 수 있습니다.",
+    ):
+        assert needle in html, needle
 
 
 def test_deep_demo_features_are_restored_inside_product_ui() -> None:
