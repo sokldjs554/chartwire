@@ -1,0 +1,66 @@
+
+            <div class="btns"><button class="btn primary" id="startDemo">새 합성 상담 시작</button><button class="btn secondary" data-go="engineering">시스템 구조 보기</button></div>
+            <p id="homeMode" style="font-size:11px;margin-top:10px;color:var(--muted)">배포 시 같은 origin의 ChartWire API와 WebSocket을 사용합니다.</p>
+          </div>
+          <div class="hero-visual">
+            <div class="mini-row"><div class="mini-icon">1</div><div class="mini-copy"><b>실시간 기록</b><small>WebSocket으로 상담 발화 수집</small></div><span class="arrow">→</span></div>
+            <div class="mini-row"><div class="mini-icon">2</div><div class="mini-copy"><b>근거 연결 초안</b><small>문장마다 transcript source 연결</small></div><span class="arrow">→</span></div>
+            <div class="mini-row"><div class="mini-icon">3</div><div class="mini-copy"><b>사람 검토</b><small>자동 확정 대신 필요한 경우 review</small></div><span class="arrow">→</span></div>
+            <div class="mini-row" style="margin-bottom:0"><div class="mini-icon">4</div><div class="mini-copy"><b>데이터 수명주기</b><small>삭제와 보존을 분리해 기록</small></div><span class="arrow">✓</span></div>
+          </div>
+        </div>
+        <div class="section-head"><div><h2>핵심 기능</h2><p>처음 보는 사람도 네 가지 흐름만 이해하면 됩니다.</p></div></div>
+        <div class="grid4">
+          <div class="card feature"><div class="feature-icon">↻</div><h3>끊겨도 이어지는 기록</h3><p>연결이 끊겨도 저장된 위치를 기준으로 다시 이어서 처리합니다.</p></div>
+          <div class="card feature"><div class="feature-icon">⌁</div><h3>근거가 보이는 초안</h3><p>초안 문장을 누르면 어떤 발화에서 나온 내용인지 바로 확인합니다.</p></div>
+          <div class="card feature"><div class="feature-icon">▦</div><h3>기관별 데이터 격리</h3><p>테넌트 경계를 백엔드와 데이터베이스 양쪽에서 유지합니다.</p></div>
+          <div class="card feature"><div class="feature-icon">⌫</div><h3>삭제와 보존의 분리</h3><p>삭제해야 할 원문과 보존해야 할 서명 기록을 서로 다른 수명주기로 관리합니다.</p></div>
+        </div>
+        <div class="section-head"><div><h2>현재 검증된 범위</h2><p>대표 숫자만 먼저 보여주고, 자세한 내용은 시스템 상세에서 확인합니다.</p></div><button class="link-btn" data-go="engineering">전체 검증 보기 →</button></div>
+        <div class="stats">
+          <div class="card stat"><small>N=100 실측 처리량</small><b>500 chunk/s</b></div>
+          <div class="card stat"><small>시나리오 A–D</small><b class="ok">0 loss / 0 dup</b></div>
+          <div class="card stat"><small>Chaos resume</small><b class="ok">100%</b></div>
+        </div>
+        <div class="section-head"><div><h2>최근 상담</h2><p>실제 공개 데모의 합성 세션을 불러옵니다.</p></div><button class="link-btn" data-go="records">전체 보기 →</button></div>
+        <div class="card table-card"><div class="table-head"><h3>최근 기록</h3><span class="chip">synthetic only</span></div><div class="rows" id="homeRows"><div class="row"><div><span class="primary-text">연결 후 표시</span><span class="sub">데모 계정으로 자동 로그인합니다.</span></div><div>–</div><div><span class="status closed">대기</span></div><div>–</div></div></div></div>
+      </section>
+
+      <section class="page" id="page-session">
+        <div class="page-title"><div><h1>상담 기록</h1><p>실시간 발화와 근거가 연결된 초안만 보여줍니다. 기술 상태는 필요할 때만 확인할 수 있습니다.</p></div><div class="session-info"><span class="soft-chip" id="sessionChip">세션 없음</span><span class="soft-chip">합성 데이터</span><span class="status closed" id="sessionStatus">대기</span></div></div>
+        <div class="risk-banner" id="riskBanner"><div class="risk-ico">!</div><div><b id="riskTitle">검토가 필요한 표현이 감지되었습니다.</b><p id="riskMeta">자동 진단이 아니라, 사람이 확인해야 할 신호만 표시합니다.</p></div><div class="risk-actions"><button class="btn secondary" id="riskAck">확인 처리</button></div></div>
+        <div class="workspace">
+          <div class="panel">
+            <div class="panel-head"><h3>실시간 상담 기록</h3><div style="display:flex;gap:8px"><button class="btn primary" id="runRealtime">합성 상담 실행</button><button class="btn ghost" id="stopRealtime" disabled>종료</button></div></div>
+            <div class="panel-body transcript" id="transcript"><div style="color:var(--muted);font-size:13px">합성 상담을 실행하면 실제 WebSocket transcript.final 이벤트가 여기에 표시됩니다.</div></div>
+            <div class="livebar"><span class="live-dot"></span><span id="liveLabel">연결 전</span><span style="margin-left:auto;font-size:10px;color:var(--muted)">실시간 연결</span></div><div style="padding:0 18px 14px"><details class="quiet-details"><summary>연결 상세 보기</summary><div class="wire-detail"><code id="wireGauge">ack – · credit –</code><code>durable ACK</code><code>resume capable</code></div></details></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>기록 초안</h3><div style="display:flex;gap:8px"><span class="chip" id="noteStatus">초안 없음</span><button class="btn ghost" id="loadNote">불러오기</button></div></div>
+            <div class="panel-body" id="notePane">
+              <div class="signal"><div class="ico">i</div><div><b>초안은 자동 진단이 아닙니다.</b><p>원문 근거와 검토 상태만 보여주고, Assessment는 자동 생성하지 않습니다.</p></div></div>
+              <div class="actions"><button class="btn primary" id="requestDraft">초안 요청</button><button class="btn secondary" data-go="review">검토 화면 보기</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-records">
+        <div class="page-title"><div><h1>상담 기록</h1><p>기술 로그 대신 사용자가 이해하는 세션 상태만 보여줍니다.</p></div><button class="btn primary" id="newFromRecords">새 상담</button></div>
+        <div class="summary-strip"><div class="item"><small>전체 세션</small><b id="countAll">–</b></div><div class="item"><small>진행/검토</small><b id="countReview">–</b></div><div class="item"><small>서명/종료</small><b id="countDone">–</b></div></div>
+        <div class="card table-card"><div class="table-head"><h3>상담 목록</h3><button class="link-btn" id="refreshRecords">새로고침</button></div><div class="rows" id="recordRows"></div></div>
+      </section>
+
+      <section class="page" id="page-review">
+        <div class="page-title"><div><h1>검토 대기</h1><p>근거가 부족하거나 아직 서명되지 않은 초안만 이 화면에서 확인합니다.</p></div><button class="btn secondary" id="refreshReview">대기 목록 새로고침</button></div>
+        <div class="review-layout">
+          <div class="panel"><div class="panel-head"><h3 id="reviewCount">대기 목록</h3></div><div class="panel-body queue" id="reviewQueue"><div style="color:var(--muted);font-size:12px">불러오는 중이 아닙니다.</div></div></div>
+          <div class="panel"><div class="panel-head"><h3>검토 상세</h3><span class="status review" id="reviewBadge">선택 없음</span></div><div class="panel-body" id="reviewDetail"><div style="color:var(--muted);font-size:13px">왼쪽에서 초안을 선택하면 문장별 근거와 검토 상태를 표시합니다.</div></div><div class="panel-body" style="padding-top:0"><div class="review-footer"><div style="flex:1"><label for="assessmentInput">Assessment · 사람이 작성</label><textarea id="assessmentInput" placeholder="검토자가 직접 작성하는 영역입니다."></textarea></div><button class="btn primary" id="signCurrent" disabled>검토 후 서명</button></div></div></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-data">
+        <div class="page-title"><div><h1>데이터 관리</h1><p>삭제·보존 흐름은 상담 화면에서 분리했습니다.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn secondary" id="loadConsent">동의 상태</button><button class="btn primary" id="revokeConsent">동의 철회</button><button class="btn secondary" id="trackReceipt">영수증 확인</button><button class="btn secondary" id="verifyDecrypt" disabled>복호화 검증</button></div></div>
+        <div class="card" style="padding:18px"><div class="section-head" style="margin:0 0 16px"><div><h2 style="font-size:16px" id="lifeTitle">현재 세션 수명주기</h2><p id="consentText">세션을 선택하면 실제 동의/파기 상태를 불러올 수 있습니다.</p></div><span class="status closed" id="purgeStatus">대기</span></div>
+          <div class="lifecycle"><div class="life"><b>Captured</b><small>상담 원문 수집</small></div><div class="life"><b>Drafted</b><small>근거 연결 초안</small></div><div class="life"><b>Signed</b><small>서명 기록 보존</small></div><div class="life"><b>Purged</b><small>원문 삭제</small></div><div class="life"><b>Receipt</b><small>삭제 증적 생성</small></div></div>
+          <div class="receipt" id="receiptBox"><div class="receipt-grid"><div><small>purge_id</small><b class="mono">–</b></div><div><small>raw transcript</small><b>–</b></div><div><small>signed note</small><b>retention boundary</b></div></div><div style="margin-top:14px;font-size:11px;color:#a8c2b9">실제 영수증은 admin/audit
