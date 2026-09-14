@@ -37,7 +37,9 @@ def test_console_media_rejects_outside_whitelist(name: str) -> None:
     assert name not in CONSOLE_MEDIA
 
 
-def test_console_media_resolves_from_container_layout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_console_media_resolves_from_container_layout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from chartwire.api import app as app_module
 
     monkeypatch.setattr(
