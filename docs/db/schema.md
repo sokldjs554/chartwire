@@ -149,14 +149,15 @@ erDiagram
 | 0005 | `outbox_events`, `processed_events`, `dead_letters` | 트랜잭션 outbox, 멱등 원장, DLQ | SIUD | |
 | 0005 | `audit_events` | **append-only** 감사 로그(트리거 + INSERT/SELECT 권한만) | **S, I** | `detail` 은 id/개수/해시만 |
 | 0005 | `purge_jobs` | 파기 작업 + 단계/개수/DEK 지문/영수증 해시 | SIUD | `sample_ciphertext` 는 복호 실패 시연용 |
-| 0008 | `consultation_requests` | 데모 홈페이지 "서비스 상담신청" 접수함 (플랫폼 레벨 리드) | **S, I** | `tenant_id` 없음, RLS 없음; IP·User-Agent 컬럼 없음 |
+| 0008 | `consultation_requests` | 상담 접수함 (플랫폼 레벨 리드) | **S, I** | `tenant_id` 없음, RLS 없음; IP·User-Agent 컬럼 없음 |
 
 시퀀스: `transcript_segments_id_seq`(USAGE, SELECT — 파티션 부모는 identity 불가), `audit_events_id_seq`(USAGE, SELECT — 아래 §5 참조).
 함수: `ensure_segment_partition(date)`, `search_segments(text, text, uuid, int)` 에 EXECUTE.
 
 ### 3.1 `consultation_requests` (0008)
 
-데모 콘솔 홈페이지의 "서비스 상담신청하기" 폼(`POST /v1/consultations`, 인증 없음)이 쓰는 접수함이다. 신청자는 아직 어느 의원(테넌트)에도
+`POST /v1/consultations`(인증 없음)이 쓰는 접수함이다. 라우트와 이 표는 그대로이지만, 현재 콘솔에는 이것을 부르는 폼이 없다
+(v4.1 재작성에서 빠졌다 — `tests/integration/test_api_consultations.py` 가 라우트를 계속 붙잡는다). 신청자는 아직 어느 의원(테넌트)에도
 속하지 않으므로 `tenant_id` 가 없고 `tenants` 처럼 RLS 밖이며, 같은 이유로 **조회 REST 를 두지 않는다** — 어느 테넌트의 admin 이 읽어도
 자기 테넌트 밖 개인정보를 보게 되기 때문에 운영자가 DB 로만 본다(`chartwire_app` 은 INSERT/SELECT 뿐, UPDATE/DELETE 없음). 컬럼은
 `id uuid`, `clinic_name`, `contact_name`, `phone`, `email`, `role`(`director|manager|staff|other`, NULL 허용), `message`, `source`(기본

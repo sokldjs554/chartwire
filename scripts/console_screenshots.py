@@ -3,13 +3,17 @@
     chartwire serve all --embedded --port 8000 &          # seeded demo (make demo)
     python scripts/console_screenshots.py [--base http://127.0.0.1:8000] [--out docs/images] [--speed 4]
 
-Flow (spec §13.3): login as the demo clinician → create a session (가상환자-NNNN; ``--script auto`` picks the
-first demo script whose catalog entry expects an alert, and the recorder length follows that script's
-``total_ms``) → open the viewer → start the JS recorder → risk banner → session end → SOAP draft →
-consent revoke → **re-login as the demo admin** → purge receipt → "복호화 시도" → Ops. The role switch is not cosmetic: ``rbac.MATRIX``
-lets a clinician revoke a consent but only ``admin``/``auditor`` may read ``GET /v1/purge-jobs/{id}`` and
-call ``verify-decrypt``, and the Ops panel needs ``admin`` for the DLQ list. The console knows this and
-does not poll the receipt as a clinician, so a clean run ends with **zero** browser errors.
+Flow: the console auto-logs-in as the demo clinician → 새 상담 (creates 가상환자-NNNN, consent and a
+session; ``--script auto`` picks the first demo script whose catalog entry expects an alert, and the
+recorder length follows that script's ``total_ms``) → live transcript → risk banner → 초안·근거 →
+데이터 관리 (consent revoke → purge → receipt → "복호화 시도") → 시스템 상세 (Ops).
+
+The driver asserts the console did **not** fall back to preview mode: ``/console`` probes ``/v1/release``
+at boot and only mocks the API when the backend does not answer, so a screenshot taken in preview would
+show invented data. Role switching is the console's job, not the driver's — ``rbac.MATRIX`` lets a
+clinician revoke a consent but only ``admin``/``auditor`` may read ``GET /v1/purge-jobs/{id}`` and call
+``verify-decrypt``, and the console re-logs-in for those two calls. A clean run ends with **zero**
+browser errors.
 
 ``--video-dir`` records the whole run as WebM (Playwright ``record_video_dir``); ``docs/images/demo.gif``
 is produced from it with a **full** ffmpeg build (``imageio-ffmpeg``) — the Playwright-bundled binary
@@ -120,115 +124,79 @@ def run(
             "console",
             lambda msg: errors.append(f"console.{msg.type}: {msg.text}") if msg.type == "error" else None,
         )
-        page.goto(f"{base}/console", wait_until="load")
-        page.wait_for_selector("#banner")
-        page.wait_for_timeout(500)
-        shot(SHOTS[0])  # 로그인 전 홈(마케팅) 화면 — 히어로 · 증거 · 5분 투어
+        page.goto(f"{base}/console", wait_until="domcontentloaded")
+        page.wait_for_selector("#safetyBar")
+        # 콘솔은 부팅 때 /v1/release 로 백엔드를 확인하고 데모 clinician 으로 스스로 로그인한다.
+        # 그 두 가지가 끝나야 아래가 실제 API 를 탄다 — 미리보기로 떨어진 채로 찍으면 가짜 화면이 남는다.
+        wait_text(page, "#connLabel", "API 연결됨", 60)
+        wait_text(page, "#authChip", "clinician", 20)
+        preview = page.evaluate("() => document.body.classList.contains('is-preview')")
+        assert not preview, "console fell back to preview mode — the backend did not answer /v1/release"
+        page.wait_for_timeout(600)
+        shot(SHOTS[0])  # 홈 — 히어로 · 업무 흐름 · 검증된 범위
 
-        # 새 UI 는 홈이 먼저다: 헤더의 "콘솔 로그인" 이 작업 화면(#/console)을 연다.
-        # 예전 UI 는 /console 이 곧 작업 화면이라 이 단계가 없었다 (로그인 폼이 첫 화면에 있었다).
-        page.click("#headerConsole")
-        # login (clinician@demo.clinic / demo1234! are the console defaults)
-        page.click("#loginBtn")
-        wait_text(page, "#who", "clinician", 10)
+        # 새 상담: 대본을 고르고 실행하면 환자·동의·세션을 만들고 WebSocket 기록을 시작한다
+        page.click('.nav button[data-page="session"]')
+        page.select_option("#scriptSelect", script)
+        page.click("#runRealtime")
+        page.wait_for_selector("#transcript .utterance", timeout=60_000)
+        page.wait_for_timeout(4_000)
+        shot(SHOTS[1])  # 실시간 기록이 쌓이는 중
 
-        # a fresh session for the run: patient by exact blind-index name, the chosen script
-        page.click("#createDetails > summary")  # 새 UI 에는 details 가 여럿(헤더 계정 · FAQ) — id 로 집는다
-        page.fill("#patientName", patient)
-        page.click("#findPatient")
-        wait_text(page, "#patientInfo", "consent=", 10)
-        page.select_option("#scriptSel", script)
-        page.click("#createSession")
-        session_id = wait_until(lambda: page.input_value("#sessionSel") or None, 10)
-
-        # viewer first, so the live tab shows partial → final as they happen
-        page.click("button[data-tab='live']")
-        page.click("#watchBtn")
-        wait_text(page, "#liveLog", "welcome", 10)
-
-        # recorder: speed slider + duration, then start
-        page.click("button[data-tab='rec']")
-        page.evaluate(
-            "([s, d]) => { const r = document.getElementById('speed'); r.value = s; r.dispatchEvent(new Event('input'));"
-            " document.getElementById('durationS').value = d; }",
-            [speed, duration_s],
-        )
-        page.click("#startBtn")
-        wait_text(page, "#recLog", "welcome", 10)
-        page.wait_for_timeout(6_000)
-        shot(SHOTS[1])
-
-        # live chart: transcript lines and the risk banner (the chosen script expects at least one alert)
-        page.click("button[data-tab='live']")
-        page.wait_for_selector("#liveTranscript .seg", timeout=30_000)
-        page.wait_for_selector("#risk.show", timeout=int((duration_s / speed + 30) * 1000))
-        page.wait_for_timeout(500)
+        # 위험 발화 경보 — 고른 대본은 최소 1건을 기대한다
+        page.wait_for_selector("#riskBanner.show", timeout=int((duration_s / speed + 60) * 1000))
+        page.wait_for_timeout(600)
         shot(SHOTS[2])
         page.click("#riskAck")
 
-        # Wait for the recorder to end and the stt-worker to finish. The draft then arrives on its own:
-        # the worker publishes ``note.status`` (§6.3) and the console loads it without a click. So *wait*
-        # rather than poll — clicking ``#loadNote`` on a loop races the worker and asks for a draft that
-        # does not exist yet, and every miss is a ``notes/latest`` 404 in the browser console, which this
-        # driver counts as an error (exit 1). The click stays as a fallback for a missed event, by which
-        # time the draft is certainly there.
-        wait_text(page, "#recLog", "종료: ended", duration_s / speed + 60)
-        wait_text(page, "#liveState", "transcribed", 90)
-        page.click("button[data-tab='soap']")
+        # 기록이 끝나면 워커가 초안을 만든다. 조르지 않고 기다렸다가, 못 받았을 때만 한 번 요청한다.
+        page.click("#stopRealtime")
+        # 기록을 끝내면 stt-worker 가 전사를 마치고 초안을 만든다. 초안이 준비되면 콘솔이 ``note.status``
+        # 를 받아 스스로 불러오므로 *기다린다*. 1.5 s 마다 조르면 아직 없는 초안을 부르게 되고, 그 404 가
+        # 브라우저 콘솔 오류로 잡혀 "오류 0" 게이트를 간헐적으로 빨갛게 만든다. 클릭은 이벤트를 놓쳤을
+        # 때의 대비책으로만 남긴다 — 그때쯤이면 초안은 확실히 있다.
         try:
-            page.wait_for_selector("#statements .stmt", timeout=90_000)
+            page.wait_for_selector("#notePane .note-box", timeout=180_000)
         except PlaywrightTimeout:
-            page.click("#loadNote")  # note.status never arrived — ask once, now that the draft must exist
-            page.wait_for_selector("#statements .stmt", timeout=30_000)
-        page.click("#statements .stmt >> nth=0")
-        page.wait_for_timeout(400)
+            page.click("#requestDraft")
+            page.wait_for_timeout(3_000)
+            page.click("#loadNote")
+            page.wait_for_selector("#notePane .note-box", timeout=60_000)
+        page.click("#notePane .note-box >> nth=0")  # 문장을 누르면 그 문장이 인용한 원문이 펼쳐진다
+        page.wait_for_timeout(500)
         shot(SHOTS[3])
 
-        # side panel: revoke as the clinician (rbac: clinician|staff|admin) …
-        page.click("#loadConsents")
-        wait_text(page, "#consentSummary", "v", 10)
-        page.click("#revokeBtn")
-        job_id = wait_until(lambda: page.input_value("#purgeJobId") or None, 20)
-
-        # … then re-login as the admin: GET /v1/purge-jobs/{id} and verify-decrypt are {admin, auditor}
-        # 로그인 컨트롤은 헤더 드롭다운(#acctDetails) 안에 있고 로그인 성공 시 접힌다 — 다시 펼친다
-        page.evaluate("() => { const d = document.getElementById('acctDetails'); if (d) d.open = true; }")
-        page.fill("#email", admin_email)
-        page.click("#loginBtn")
-        wait_text(page, "#who", "admin", 10)
-        page.click("#trackPurge")
-        wait_until(lambda: page.locator("#verifyDecrypt").is_enabled() or None, 60)
+        # 데이터 관리: 동의 철회 → 파기 → 영수증 → 복호화 시도.
+        # 영수증 조회와 verify-decrypt 는 admin·auditor 전용이라 콘솔이 스스로 역할을 바꿔 다시 로그인한다.
+        page.click('.nav button[data-page="data"]')
+        session_id = page.evaluate("() => state.sessionId") or ""
+        page.click("#revokeConsent")
+        wait_text(page, "#purgeStatus", "verified", 120)
+        wait_until(lambda: page.locator("#verifyDecrypt").is_enabled() or None, 30)
         page.click("#verifyDecrypt")
-        wait_text(page, "#verifyOut", "failed", 15)
+        wait_text(page, "#decryptResult", "복호화 실패", 30)
         page.wait_for_timeout(400)
-        # 영수증을 좁은 폭으로 찍는 이 구간은 **녹화 중에는 건너뛴다**. 녹화 프레임은 1440×1000 으로 고정이라
-        # 뷰포트를 900 px 로 줄이면 영상에 회색 반쪽 화면이 몇 초 남는다 — 데모 영상 끝에 실제로 그렇게 찍혀 있었다.
-        # 04_purge_receipt.png 는 녹화하지 않는 1회차가 이미 좁은 폭으로 찍어 두므로 잃는 것이 없다.
+        # 영수증은 문서다 — 정적 캡처는 좁은 폭에서 전체를 담는다. 녹화 중에는 프레임이 1440×1000 으로
+        # 고정이라 뷰포트를 줄이면 영상 끝에 회색 반쪽 화면이 남으므로 건너뛴다.
         if shots and video_dir is None:
-            # 토스트는 5 s 뒤 사라지는 순간적인 안내라 정적 캡처에서는 걷어내고, 영수증과 판정이 화면에 들어오게 스크롤한다
-            page.evaluate("() => { document.getElementById('toasts').innerHTML = ''; }")
-            # 영수증은 문서다: 960 px 아래의 1열 레이아웃에서 전체 폭으로 찍어야 표가 읽힌다 (사이드 패널 360 px 는 좁다).
-            page.set_viewport_size(
-                {"width": 900, "height": 1400}
-            )  # 합계 · 검증 · 해시 · 판정까지 한 장에 (단계는 접혀 있다)
-            page.locator("#verifyOut").scroll_into_view_if_needed()
-            page.evaluate(
-                "() => { const h = document.querySelector('.site-header'); const s = document.getElementById('steps');"
-                " const off = (h ? h.getBoundingClientRect().bottom : 44) + (s ? s.getBoundingClientRect().height : 0) + 8;"
-                " window.scrollTo(0, window.scrollY + document.getElementById('receipt').getBoundingClientRect().top - off); }"
-            )  # 고정 고지 띠 + 사이트 헤더 + sticky 단계 칩 높이만큼 — 영수증 제목이 그 밑에 숨지 않게
-            page.wait_for_timeout(300)
-            shot(SHOTS[4], keep_scroll=True)  # 영수증 위치를 그대로 찍는다
+            # 토스트는 몇 초 뒤 사라지는 순간적인 안내다 — 정적 캡처에서는 걷어낸다.
+            page.evaluate("() => document.getElementById('toast').classList.remove('show')")
+            page.set_viewport_size({"width": 900, "height": 1500})
+            page.locator("#receiptBox").scroll_into_view_if_needed()
+            page.wait_for_timeout(400)
+            shot(SHOTS[4], keep_scroll=True)
             page.set_viewport_size({"width": 1440, "height": 1000})
             page.evaluate("() => window.scrollTo(0, 0)")
         else:
-            page.locator("#verifyOut").scroll_into_view_if_needed()  # 영상에는 판정표가 보이게만 한다
+            page.locator("#decryptResult").scroll_into_view_if_needed()
             page.wait_for_timeout(1_500)
 
-        page.click("button[data-tab='ops']")
-        page.check("#opsPoll")
-        wait_text(page, "#opsInfo", "samples", 10)
-        page.wait_for_timeout(500)
+        # 시스템 상세: /metrics 를 읽어 현재 운영 지표를 채운다
+        job_id = page.input_value("#purgeJobInput") or ""
+
+        page.click('.nav button[data-page="engineering"]')
+        page.click("#refreshOps")
+        page.wait_for_timeout(1_500)
         shot(SHOTS[5])
         page.wait_for_timeout(1_500)
         video = page.video

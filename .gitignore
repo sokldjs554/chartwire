@@ -21,3 +21,6 @@ docs/perf/plans/*.tmp
 
 # redis-server 를 저장소 디렉터리에서 띄우면 여기에 스냅샷을 떨군다 (개발 편의용 기동 — 산출물 아님)
 dump.rdb
+
+# 업로드·스테이징 찌꺼기 (v4.1 재작성 때 커밋됐던 것들)
+.chartwire-upload-*
