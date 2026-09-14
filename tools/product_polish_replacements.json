@@ -1,0 +1,14 @@
+{
+  "console/index.html": [
+    ["<div class=\"section-head\"><div><h2>핵심 기능</h2><p>상담 흐름에 필요한 핵심 동작만 먼저 보여줍니다.</p></div></div>", "<div class=\"section-head\" style=\"margin-top:22px\"><div><h2>상담 업무 흐름</h2><p>기록부터 검토와 데이터 수명주기까지 한 제품 안에서 이어집니다.</p></div></div><div class=\"grid4\" style=\"margin-bottom:6px\"><div class=\"card feature\"><div class=\"feature-icon\">01</div><h3>상담 시작</h3><p>합성 대본으로 안전하게 세션을 시작합니다.</p></div><div class=\"card feature\"><div class=\"feature-icon\">02</div><h3>기록 · 근거</h3><p>실시간 기록과 초안 문장을 원문 발화에 연결합니다.</p></div><div class=\"card feature\"><div class=\"feature-icon\">03</div><h3>사람 검토</h3><p>의료진이 수정·판단한 뒤 서명합니다.</p></div><div class=\"card feature\"><div class=\"feature-icon\">04</div><h3>보존 · 파기</h3><p>보존 경계와 파기 증적을 같은 수명주기에서 관리합니다.</p></div></div><div class=\"section-head\"><div><h2>핵심 기능</h2><p>상담 흐름에 필요한 핵심 동작만 먼저 보여줍니다.</p></div></div>"],
+    ["<h3>Realtime delivery</h3>", "<h3>네트워크가 끊겨도 기록은 이어집니다</h3>"],
+    ["<h3>Tenant isolation</h3>", "<h3>기관이 달라지면 데이터도 분리됩니다</h3>"],
+    ["<h3>Outbox & recovery</h3>", "<h3>비동기 작업이 실패해도 추적할 수 있습니다</h3>"],
+    ["<h3>Consent & purge</h3>", "<h3>삭제 요청 뒤에는 복호화까지 막습니다</h3>"],
+    ["<b>500 chunk/s</b>N=100", "<b>500 chunk/s</b>same-host N=100"],
+    ["<b>413 ev/s</b>100K outbox", "<b>413 ev/s</b>same-host 100K outbox"]
+  ],
+  "README.md": [
+    ["![ChartWire 서비스 데모](docs/images/demo.gif)\n", "![ChartWire 서비스 데모](docs/images/demo.gif)\n\n**먼저 볼 장면 3개** — `상담 시작·실시간 기록` → `초안 문장의 원문 근거` → `검토·파기 영수증`.\n"]
+  ]
+}
