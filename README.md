@@ -61,6 +61,7 @@ docker compose up --build
 - [Performance](docs/perf/README.md)
 - [Operations runbook](docs/ops/runbook.md)
 - [Limitations](docs/limitations.md)
+- [이 저장소가 만들어진 방식](docs/how-this-was-built.md)
 
 ## 범위
 
