@@ -532,19 +532,6 @@ async function saveAssessmentAndSign(){
     await loadReviewQueue();
   }catch(e){toast(`서명 실패 · ${e.message}`,true)}
 }
-async function trackReceipt(){
-  if(!state.purgeJobId)return toast('먼저 파기 작업이 생성되어야 합니다.',true);
-  if(state.role!=='admin'&&state.role!=='auditor'){state.token=null;await login('admin')}
-  try{
-    const job=await api('GET',`/v1/purge-jobs/${state.purgeJobId}`);
-    const status=job.state||job.status||'processing';
-    $('purgeStatus').textContent=status;$('purgeStatus').className=`status ${status==='verified'?'ready':'review'}`;
-    const counts=job.counts||{};
-    const deleted=Object.values(counts).reduce((a,b)=>a+(Number(b)||0),0);
-    $('receiptBox').classList.add('simple');
-    $('receiptBox').innerHTML=`<div class="receipt-grid"><div><small>purge_id</small><b class="mono">${esc(String(job.id||state.purgeJobId).slice(0,18))}…</b></div><div><small>상태</small><b>${esc(status)}</b></div><div><small>삭제 집계</small><b>${deleted}</b></div></div><div style="margin-top:14px;font-size:11px;color:#a8c2b9">receipt hash ${esc(String(job.receipt_hash||'생성 대기').slice(0,24))}${job.receipt_hash?'…':''}</div>`;if($('verifyDecrypt'))$('verifyDecrypt').disabled=status!=='verified';
-  }catch(e){toast(`영수증 조회 실패 · ${e.message}`,true)}
-}
 function bindDynamic(){document.querySelectorAll('[data-go]').forEach(b=>{if(b.dataset.bound)return;b.dataset.bound='1';b.addEventListener('click',()=>showPage(b.dataset.go))});$('requestDraftInner')?.addEventListener('click',requestDraft);$('reloadNote2')?.addEventListener('click',()=>loadNote())}
 document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>b.dataset.page==='session'?prepareNewSession():showPage(b.dataset.page)));bindDynamic();
 
