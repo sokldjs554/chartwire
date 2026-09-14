@@ -1,4 +1,5 @@
 """Behavioural protocol checks for the redesigned product console."""
+
 from __future__ import annotations
 
 import json
@@ -62,6 +63,7 @@ def test_recorder_resume_credit_and_final_chunk(node: str, tmp_path: Path) -> No
 
 def test_console_media_whitelist_matches_committed_images() -> None:
     from chartwire.api.app import CONSOLE_MEDIA
+
     for name, (source, mime) in CONSOLE_MEDIA.items():
         assert (ROOT / "docs" / "images" / source).is_file(), name
         assert mime in ("image/png", "image/gif")
