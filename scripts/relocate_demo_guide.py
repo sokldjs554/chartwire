@@ -23,7 +23,7 @@ assert n == 1, "demo journey section not found"
 
 # Remove the click wiring that existed only for the live guided-tour block.
 html, n = re.subn(
-    r"\ndocument\.querySelectorAll\(['\"]\.journey-step['\"]\).*?\$\(['\"]guidedDemoStart['\"]\)\.addEventListener\('click',\(\)=>\{.*?\n\}\);",
+    r"\ndocument\.querySelectorAll\('\[data-tour-page\]'\).*?\$\('guidedDemoStart'\)\.addEventListener\('click',\(\)=>\{.*?\n\}\);",
     "",
     html,
     count=1,
@@ -52,6 +52,7 @@ for forbidden in (
     "면접관에게는 이 흐름만 보여주세요",
     'id="guidedDemoStart"',
     'class="demo-journey"',
+    "data-tour-page",
 ):
     assert forbidden not in html, forbidden
 
