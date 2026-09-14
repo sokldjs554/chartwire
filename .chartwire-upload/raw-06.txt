@@ -1,0 +1,116 @@
+BASE}/ws/v1/watch`);state.watch=ws;ws.onopen=()=>ws.send(JSON.stringify({t:'hello',ticket}));ws.onmessage=ev=>{if(typeof ev.data!=='string')return;const m=JSON.parse(ev.data);if(m.t==='transcript.final')renderSegment(m);if(m.t==='risk.alert'){state.riskAlert=m;toast('검토가 필요한 표현이 감지되었습니다.',true);$('sessionStatus').textContent='검토 필요';$('sessionStatus').className='status review';$('riskBanner').classList.add('show');$('riskTitle').textContent='검토가 필요한 표현이 감지되었습니다.';$('riskMeta').textContent=`${m.category||'risk signal'} · transcript #${m.segment_seq??'–'} · 사람 확인이 필요합니다.`}if(m.t==='risk.ack'){if(state.riskAlert&&state.riskAlert.risk_event_id===m.risk_event_id){state.riskAlert=null;$('riskBanner').classList.remove('show')}}if(m.t==='note.status'){loadNote(true)}if(m.t==='session.state'){$('sessionStatus').textContent=statusKo(m.state);$('sessionStatus').className=`status ${statusClass(m.state)}`}};ws.onclose=()=>{if($('liveLabel'))$('liveLabel').textContent='전사 연결 종료'};}
+function renderSegment(m){state.segments.set(Number(m.seq),m.text);const box=$('transcript');if(box.children.length===1&&box.firstElementChild?.style?.color)box.innerHTML='';const d=document.createElement('div');const patient=String(m.speaker||'').toLowerCase().includes('patient');d.className='utterance '+(patient?'patient':'clinician');d.dataset.seq=m.seq;d.innerHTML=`<div class="meta">${esc(patient?'가상 환자':'의료진')} · #${esc(m.seq)}</div>${esc(m.text)}`;box.appendChild(d);box.scrollTop=box.scrollHeight}
+async function loadSegments(){if(!state.sessionId)return;try{const segs=await api('GET',`/v1/sessions/${state.sessionId}/segments?limit=500`);state.segments.clear();$('transcript').innerHTML='';for(const s of Array.isArray(segs)?segs:[]){renderSegment(s)}if(!state.segments.size)$('transcript').innerHTML='<div style="color:var(--muted);font-size:13px">아직 전사된 발화가 없습니다.</div>'}catch(e){toast(`전사 조회 실패 · ${e.message}`,true)}}
+class Recorder{
+  constructor(total){
+    this.total=total;this.nextSeq=1;this.lastSent=0;this.ack=0;this.credit=0;this.epoch=0;
+    this.ws=null;this.timer=null;this.seed=Math.floor(Math.random()*1e9);this.ending=false;this.done=false;
+    this.everConnected=false;this.reconnects=0;this.ring=new Map();this.resend=[];this.pendingAck=new Map();
+    this.zombies=[];
+  }
+  log(msg){opsLog(msg);this.gauge()}
+  gauge(){
+    const outstanding=Math.max(0,this.lastSent-this.ack);
+    if($('wireGauge'))$('wireGauge').textContent=`ack ${this.ack} · credit ${this.credit} · epoch ${this.epoch||'–'} · reconnect ${this.reconnects}`;
+    if($('opsLog')&&state.rec===this)$('opsLog').dataset.wire=`seq=${this.lastSent} ack=${this.ack} credit=${this.credit} epoch=${this.epoch||'-'} reconnect=${this.reconnects} outstanding=${outstanding}`;
+  }
+  async start(){await startWatch();await this.connect()}
+  async connect(){
+    if(this.done)return;
+    const ticket=await wsTicket('ingest');
+    const resume=this.everConnected;
+    const ws=new WebSocket(`${WS_BASE}/ws/v1/ingest`);this.ws=ws;ws.binaryType='arraybuffer';
+    ws.onopen=()=>{
+      const hello={t:'hello',ticket,proto:1,codec:'pcm16le',sample_rate:16000,chunk_ms:WIRE.CHUNK_MS,resume};
+      if(resume)hello.last_sent_seq=this.lastSent;
+      ws.send(JSON.stringify(hello));
+      this.log(`hello · resume=${resume}${resume?` · last_sent=${this.lastSent}`:''}`);
+    };
+    ws.onmessage=e=>{
+      if(this.ws!==ws||typeof e.data!=='string')return;
+      const m=JSON.parse(e.data);
+      if(m.t==='welcome'){
+        this.epoch=m.epoch||0;this.credit=m.credit||0;this.advanceAck(m.ack_seq||0);
+        this.queueMissing(m.missing||[]);this.everConnected=true;
+        $('liveLabel').textContent=resume?'재연결 완료 · 기록 계속':'실시간 기록 중';
+        this.log(`welcome · epoch=${this.epoch} · ack=${this.ack} · credit=${this.credit}`);
+        this.tick();
+      }else if(m.t==='ack'){
+        this.credit=m.credit??this.credit;this.advanceAck(m.ack_seq||0);this.tick();
+      }else if(m.t==='nack'){
+        this.queueMissing(m.missing||[]);this.log(`nack · missing=${JSON.stringify(m.missing||[])}`);this.tick();
+      }else if(m.t==='credit'){
+        this.credit=m.credit||0;this.tick();
+      }else if(m.t==='pause'){
+        clearTimeout(this.timer);this.timer=setTimeout(()=>this.tick(),m.retry_ms||1000);
+      }else if(m.t==='session.state'){
+        $('sessionStatus').textContent=statusKo(m.state);$('sessionStatus').className=`status ${statusClass(m.state)}`;
+      }else if(m.t==='bye'){
+        if(m.ack_seq!=null)this.advanceAck(m.ack_seq);
+        if(m.reason==='ended'){this.finish('ended');$('liveLabel').textContent='기록 종료 · 초안 생성 대기';setTimeout(()=>loadNote(true),1600)}
+        else if(m.reason==='superseded'||m.reason==='consent_revoked')this.finish(m.reason);
+      }
+      this.gauge();
+    };
+    ws.onclose=ev=>{
+      if(this.ws!==ws)return;
+      this.ws=null;clearTimeout(this.timer);
+      if(this.done)return;
+      const resumable=[1006,1012,4000,4503].includes(ev.code);
+      if(resumable){
+        this.reconnects++;$('liveLabel').textContent='재접속 중…';this.log(`close ${ev.code} · resume 예정`);
+        setTimeout(()=>this.connect().catch(e=>this.log(`reconnect 실패 · ${e.message}`)),350);
+      }else{
+        $('liveLabel').textContent=`연결 종료 · ${ev.code}`;this.log(`close ${ev.code}`);
+      }
+    };
+  }
+  advanceAck(v){if(v>this.ack){this.ack=v;for(const k of [...this.pendingAck.keys()])if(k<=v)this.pendingAck.delete(k)}}
+  expandMissing(ranges){
+    const out=[];for(const r of ranges||[]){
+      const lo=Array.isArray(r)?r[0]:r?.from,hi=Array.isArray(r)?r[1]:r?.to;
+      if(Number.isFinite(lo)&&Number.isFinite(hi))for(let i=lo;i<=hi;i++)out.push(i);
+    }return out;
+  }
+  queueMissing(ranges){
+    const have=new Set(this.resend);
+    for(const seq of this.expandMissing(ranges)){
+      if(seq<=this.ack||have.has(seq))continue;
+      if(this.ring.has(seq)){this.resend.push(seq);have.add(seq)}
+      else this.log(`resume 불가 · seq ${seq} ring buffer 밖`);
+    }
+    this.resend.sort((a,b)=>a-b);
+  }
+  tick(){
+    clearTimeout(this.timer);
+    if(this.done||!this.ws||this.ws.readyState!==1)return;
+    if(this.resend.length){
+      const seq=this.resend[0];if(seq-this.ack>this.credit)return;
+      this.resend.shift();this.ws.send(this.ring.get(seq));this.pendingAck.set(seq,performance.now());this.log(`resend seq=${seq}`);this.timer=setTimeout(()=>this.tick(),0);return;
+    }
+    if(this.nextSeq>this.total||this.ending){
+      if(!this.ending){this.ending=true;this.ws.send(JSON.stringify({t:'end',final_seq:this.lastSent}));$('liveLabel').textContent='상담 종료 처리 중…';this.log(`end · final_seq=${this.lastSent}`)}
+      return;
+    }
+    if(this.nextSeq-this.ack>this.credit){this.gauge();return}
+    const seq=this.nextSeq,last=seq===this.total;
+    const frame=buildFrame(seq,(seq-1)*WIRE.CHUNK_MS,chunkPayload(this.seed,seq,WIRE.CHUNK_BYTES),last);
+    this.ring.set(seq,frame);while(this.ring.size>150)this.ring.delete(this.ring.keys().next().value);
+    this.ws.send(frame);this.pendingAck.set(seq,performance.now());this.lastSent=seq;this.nextSeq++;this.gauge();
+    this.timer=setTimeout(()=>this.tick(),35);
+  }
+  dropNetwork(ms=5000){
+    if(PREVIEW_MODE){opsLog('미리보기 · 5초 연결 단절 → resume 완료를 시뮬레이션합니다.');setTimeout(()=>opsLog('미리보기 · resume hello / missing 재전송 완료'),650);return}
+    if(!this.ws||this.done){opsLog('실시간 상담이 실행 중일 때 사용할 수 있습니다.');return}
+    const zombie=this.ws;zombie.onmessage=()=>{};zombie.onclose=ev=>opsLog(`기존 연결 종료 · code ${ev.code}`);
+    this.zombies.push(zombie);this.ws=null;clearTimeout(this.timer);this.reconnects++;$('liveLabel').textContent='네트워크 단절 · 재접속 대기';this.log(`네트워크 단절 ${ms}ms · close frame 없이 연결 참조 분리`);
+    setTimeout(()=>this.connect().catch(e=>this.log(`resume 실패 · ${e.message}`)),ms);
+  }
+  end(){this.total=Math.min(this.total,Math.max(0,this.nextSeq-1));this.ending=false;this.tick()}
+  finish(reason){if(this.done)return;this.done=true;clearTimeout(this.timer);$('runRealtime').disabled=false;$('stopRealtime').disabled=true;this.log(`종료 · ${reason}`);state.rec=null}
+}
+
+async function runPreviewRealtime(){
+  $('runRealtime').disabled=true;$('stopRealtime').disabled=false;
+  $('liveLabel').textContent='미리보기 기록 중';
+  
