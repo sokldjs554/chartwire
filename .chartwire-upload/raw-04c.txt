@@ -1,4 +1,4 @@
-d=bad?'#8d2f2f':'#172033';clearTimeout(window.__tt);window.__tt=setTimeout(()=>t.classList.remove('show'),2600)}
+t.style.background=bad?'#8d2f2f':'#172033';clearTimeout(window.__tt);window.__tt=setTimeout(()=>t.classList.remove('show'),2600)}
 function showPage(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));$('crumb').textContent=labels[name];window.scrollTo({top:0,behavior:'smooth'});if(name==='records')loadSessions();if(name==='review')loadReviewQueue();if(name==='data')loadConsent();if(name==='engineering')refreshOps();}
 function setConn(ok,text){$('connLabel').textContent=text;$('connDot').style.background=ok?'#61d394':'#e3a64c';}
 
@@ -33,6 +33,4 @@ async function previewApi(method,path,body){
   m=path.match(/^\/v1\/notes\/([^/]+)\/statements\/([^/]+)\/decision$/);
   if(m&&method==='POST'){
     for(const n of preview.notes.values()){const st=(n.statements||[]).find(x=>x.id===m[2]);if(st){st.decision=body?.decision;return st;}}
-    return {ok:true};
-  }
-  
+    return 
