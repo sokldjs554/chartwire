@@ -66,6 +66,17 @@ def test_deep_demo_features_are_restored_inside_product_ui() -> None:
         assert needle in html, needle
 
 
+def test_receipt_keeps_receipt_like_paper_presentation() -> None:
+    html = CONSOLE.read_text(encoding="utf-8")
+    for needle in (
+        "receipt-paper-v2",
+        "#receiptBox.receipt.paper",
+        "VERIFIED AUDIT EVIDENCE · SYNTHETIC DEMO",
+        "CHARTWIRE",
+    ):
+        assert needle in html, needle
+
+
 def test_backend_contract_is_still_reachable() -> None:
     text = CONSOLE.read_text(encoding="utf-8")
     for needle in (
