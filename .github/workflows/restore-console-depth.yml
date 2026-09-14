@@ -1,0 +1,230 @@
+name: Restore ChartWire deep demo features
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/restore-console-depth.yml
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Restore detailed demo features inside product UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('console/index.html')
+          text = p.read_text(encoding='utf-8')
+          if 'data-depth-restored="v5"' in text:
+              print('depth restoration already applied')
+              raise SystemExit(0)
+
+          def replace_once(old: str, new: str, label: str) -> None:
+              global text
+              if old not in text:
+                  raise SystemExit(f'missing patch anchor: {label}')
+              text = text.replace(old, new, 1)
+
+          css = r'''
+          .script-picker{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
+          .script-picker select{max-width:230px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:8px 10px;font-size:11px}
+          .risk-sla{white-space:nowrap;align-self:center;background:#fff;border:1px solid #f0cbc5;color:#8c443a;border-radius:999px;padding:6px 9px;font:700 10px ui-monospace,SFMono-Regular,Menlo,monospace}
+          .demo-guide{margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow)}
+          .demo-guide summary{cursor:pointer;font-size:12px;font-weight:800}.demo-guide ol{margin:12px 0 0;padding-left:20px;color:var(--muted);font-size:12px;line-height:1.7}.demo-guide b{color:var(--ink)}
+          .data-grid{display:grid;grid-template-columns:minmax(280px,.7fr) minmax(0,1.3fr);gap:14px;margin-top:16px}
+          .purge-box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px}
+          .purge-box h3{font-size:13px;margin:0 0 10px}.purge-box p{font-size:11px;color:var(--muted);line-height:1.55}
+          .purge-steps{display:grid;gap:7px;margin:0;padding:0;list-style:none}.purge-step{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-size:11px}.purge-step b{font-size:11px}.purge-step span{color:var(--muted)}.purge-step[data-state="doing"]{background:var(--warn-soft);border-color:#ead8a7}.purge-step[data-state="done"]{background:var(--success-soft);border-color:#ccebd8}.purge-step[data-state="bad"]{background:var(--danger-soft);border-color:#f0cbc5}
+          .purge-job-row{display:flex;gap:8px;margin-top:10px}.purge-job-row input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:9px 10px;font:11px ui-monospace,SFMono-Regular,Menlo,monospace}
+          .purge-log{background:#151c2d;color:#cfd8e8;border-radius:10px;padding:10px;min-height:125px;max-height:210px;overflow:auto;font:11px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}
+          .consent-history{margin-top:10px;font-size:11px;color:var(--muted);line-height:1.65}
+          .receipt.paper{background:#fff;color:var(--ink);border:1px dashed #b8c9c2;box-shadow:0 12px 28px rgba(31,65,55,.07);padding:0;overflow:hidden}
+          .receipt-head{display:flex;gap:9px;align-items:center;flex-wrap:wrap;padding:16px 18px;background:#f1f8f5;border-bottom:1px solid var(--line)}.receipt-head strong{font-size:16px}.receipt-head .rid{margin-left:auto;color:var(--muted);font-size:10px}
+          .receipt-section{padding:14px 18px;border-bottom:1px solid var(--line)}.receipt-section:last-child{border-bottom:0}.receipt-section h4{margin:0 0 9px;font-size:12px}.receipt-meta,.receipt-table{width:100%;border-collapse:collapse;font-size:11px}.receipt-meta td,.receipt-table td,.receipt-table th{padding:6px 5px;border-bottom:1px solid #eef2f0;text-align:left;vertical-align:top}.receipt-meta td:first-child,.receipt-table th{color:var(--muted);font-weight:700}.receipt-table th{font-size:10px}.receipt-hash{word-break:break-all;background:#f7f9f8;border-radius:9px;padding:9px;font:10px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}.receipt-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.receipt-check{border:1px solid var(--line);border-radius:9px;padding:8px;font-size:10px}.receipt-check.ok{background:var(--success-soft);border-color:#ccebd8}.receipt-check.bad{background:var(--danger-soft);border-color:#f0cbc5}.receipt details{margin-top:8px}.receipt details summary{cursor:pointer;color:var(--muted);font-size:10px}.receipt pre{max-height:260px;overflow:auto;background:#151c2d;color:#d8e1f1;border-radius:10px;padding:10px;font-size:10px}
+          .ops-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.ops-auto{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}.docs-link{text-decoration:none}
+          @media(max-width:900px){.data-grid{grid-template-columns:1fr}.receipt-checks{grid-template-columns:1fr}.script-picker span{display:none}}
+          '''
+          replace_once('\n</style>', '\n' + css + '\n</style>', 'style end')
+
+          replace_once(
+              '<option value="clinician">clinician</option><option value="admin">admin</option><option value="auditor">auditor</option>',
+              '<option value="clinician">clinician</option><option value="staff">staff</option><option value="admin">admin</option><option value="auditor">auditor</option>',
+              'role selector',
+          )
+
+          replace_once(
+              '<div class="risk-banner" id="riskBanner"><div class="risk-ico">!</div><div><b id="riskTitle">검토가 필요한 표현이 감지되었습니다.</b><p id="riskMeta">자동 진단이 아니라, 사람이 확인해야 할 신호만 표시합니다.</p></div><div class="risk-actions"><button class="btn secondary" id="riskAck">확인 처리</button></div></div>',
+              '<div class="risk-banner" id="riskBanner"><div class="risk-ico">!</div><div><b id="riskTitle">검토가 필요한 표현이 감지되었습니다.</b><p id="riskMeta">자동 진단이 아니라, 사람이 확인해야 할 신호만 표시합니다.</p></div><span class="risk-sla" id="riskSla">SLA –</span><div class="risk-actions"><button class="btn secondary" id="riskAck">확인 처리</button></div></div>',
+              'risk banner',
+          )
+
+          replace_once(
+              '<div class="panel-head"><h3>실시간 상담 기록</h3><div style="display:flex;gap:8px"><button class="btn primary" id="runRealtime">합성 상담 실행</button><button class="btn ghost" id="stopRealtime" disabled>종료</button></div></div>',
+              '<div class="panel-head"><h3>실시간 상담 기록</h3><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label class="script-picker"><span>합성 대본</span><select id="scriptSelect" aria-label="합성 대본 선택"><option value="s01">s01 · 불러오는 중</option></select></label><button class="btn secondary" id="prepareSession">새 세션</button><button class="btn primary" id="runRealtime">합성 상담 실행</button><button class="btn ghost" id="stopRealtime" disabled>종료</button></div></div>',
+              'session toolbar',
+          )
+
+          guide_anchor = '        </div>\n        <div class="section-head"><div><h2>핵심 기능</h2>'
+          guide = '''        </div>\n        <details class="demo-guide"><summary>5단계 데모 가이드 보기</summary><ol><li><b>대본 선택 · 상담 실행</b> — 20개 합성 대본 중 하나를 고릅니다.</li><li><b>라이브 전사 · 위험 경보</b> — 위험 신호가 생기면 SLA 카운트다운과 확인 버튼이 표시됩니다.</li><li><b>초안 · 근거 · 사람 검토</b> — 문장을 누르면 원문 근거를 확인하고 Assessment는 사람이 작성합니다.</li><li><b>동의 철회 · 파기</b> — Outbox를 거쳐 파기 단계와 로그가 진행됩니다.</li><li><b>상세 영수증 · 복호화 검증</b> — 삭제 건수, 단계, 검증, 해시와 원본 JSON까지 확인합니다.</li></ol></details>\n        <div class="section-head"><div><h2>핵심 기능</h2>'''
+          replace_once(guide_anchor, guide, 'demo guide')
+
+          data_re = re.compile(r'      <section class="page" id="page-data">.*?      </section>\n\n      <section class="page" id="page-engineering">', re.S)
+          data_new = r'''      <section class="page" id="page-data" data-depth-restored="v5">
+        <div class="page-title"><div><h1>데이터 관리</h1><p>깔끔한 수명주기 화면 안에서 예전 ChartWire의 상세 파기 증적까지 다시 확인할 수 있습니다.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn secondary" id="loadConsent">동의 이력</button><button class="btn primary" id="revokeConsent">동의 철회</button><button class="btn secondary" id="createPurge">파기 작업 생성</button><button class="btn secondary" id="trackReceipt">영수증 확인</button><button class="btn secondary" id="verifyDecrypt" disabled>복호화 검증</button></div></div>
+        <div class="card" style="padding:18px"><div class="section-head" style="margin:0 0 16px"><div><h2 style="font-size:16px" id="lifeTitle">현재 세션 수명주기</h2><p id="consentText">세션을 선택하면 실제 동의/파기 상태를 불러올 수 있습니다.</p><div class="consent-history" id="consentHistory"></div></div><span class="status closed" id="purgeStatus">대기</span></div>
+          <div class="lifecycle"><div class="life"><b>Captured</b><small>상담 원문 수집</small></div><div class="life"><b>Drafted</b><small>근거 연결 초안</small></div><div class="life"><b>Signed</b><small>서명 기록 보존</small></div><div class="life"><b>Purged</b><small>원문 삭제</small></div><div class="life"><b>Receipt</b><small>삭제 증적 생성</small></div></div>
+          <div class="data-grid">
+            <div class="purge-box"><h3>철회 → 파기 → 검증 진행</h3><ul class="purge-steps" id="purgeSteps"><li class="purge-step" id="purgeStepRevoke" data-state="wait"><b>1. 철회 기록</b><span>대기</span></li><li class="purge-step" id="purgeStepOutbox" data-state="wait"><b>2. Outbox 전달</b><span>대기</span></li><li class="purge-step" id="purgeStepPurge" data-state="wait"><b>3. 파기 작업</b><span>대기</span></li><li class="purge-step" id="purgeStepVerify" data-state="wait"><b>4. 잔존/키 검증</b><span>대기</span></li><li class="purge-step" id="purgeStepReceipt" data-state="wait"><b>5. 영수증</b><span>대기</span></li></ul><div class="purge-job-row"><input id="purgeJobInput" placeholder="purge job id 직접 입력/추적"><button class="btn secondary" id="trackJob">추적</button></div></div>
+            <div class="purge-box"><h3>파기 로그</h3><div class="purge-log" id="purgeLog">파기 작업이 시작되면 단계별 처리 결과를 표시합니다.</div></div>
+          </div>
+          <div class="receipt paper" id="receiptBox"><div class="receipt-head"><strong>파기 영수증</strong><span class="status closed">대기</span></div><div class="receipt-section" style="font-size:12px;color:var(--muted)">동의를 철회하거나 purge job ID를 추적하면 실제 영수증이 여기에 표시됩니다. admin/auditor 권한으로 조회합니다.</div></div>
+          <div class="decrypt-result" id="decryptResult">파기 영수증이 verified 상태가 되면 암호문 표본의 복호화 실패 여부를 검증할 수 있습니다.</div>
+        </div>
+      </section>
+
+      <section class="page" id="page-engineering">'''
+          text, n = data_re.subn(data_new, text, count=1)
+          if n != 1:
+              raise SystemExit('missing patch anchor: data page')
+
+          replace_once(
+              '<div class="section-head" style="margin-top:24px"><div><h2>운영 상태</h2><p>평소 제품 화면에서는 숨기고, 필요할 때만 현재 시스템 신호를 확인합니다.</p></div><button class="btn secondary" id="refreshOps">운영 지표 새로고침</button></div>',
+              '<div class="section-head" style="margin-top:24px"><div><h2>운영 상태</h2><p>평소 제품 화면에서는 숨기고, 필요할 때만 현재 시스템 신호를 확인합니다.</p></div><div class="ops-head-actions"><label class="ops-auto"><input type="checkbox" id="opsAuto"> 2초 자동 새로고침</label><a class="btn secondary docs-link" href="/docs" target="_blank" rel="noopener">OpenAPI</a><button class="btn secondary" id="refreshOps">운영 지표 새로고침</button></div></div>',
+              'ops header',
+          )
+
+          replace_once(
+              'const state={token:null,role:null,userId:null,sessionId:null,patientId:null,session:null,note:null,segments:new Map(),watch:null,rec:null,catalog:new Map(),purgeJobId:null,riskAlert:null};',
+              'const state={token:null,role:null,userId:null,sessionId:null,patientId:null,session:null,note:null,segments:new Map(),watch:null,rec:null,catalog:new Map(),purgeJobId:null,riskAlert:null,riskTimer:null,purgeTimer:null,purgeSeen:0,opsTimer:null};',
+              'state',
+          )
+
+          old_preview_job = "const job={id:preview.id('purge'),state:'verified',counts:{transcript_segments:4,audio_chunks:60},receipt_hash:'preview-sha256-receipt'};"
+          new_preview_job = "const now=new Date().toISOString();const job={id:preview.id('purge'),subject_type:'patient',subject_id:patientId,reason:'consent_revoked',state:'verified',requested_at:now,completed_at:now,verified_at:now,counts:{audio_chunks:60,transcript_segments:4,segment_search:4,redis_keys:3,objects:60,session_dek_destroyed:1},steps:[{step:'capture',count:60,at:now},{step:'redis',count:3,at:now},{step:'objectstore',count:60,at:now},{step:'rows',count:8,at:now},{step:'crypto_shred',count:1,at:now}],checks:{rows:true,redis:true,objectstore:true,dek_null:true,unwrap:true,decrypt_sample:true},receipt_hash:'preview-sha256-receipt-verified',receipt_hash_valid:true,dek_fingerprints:['preview-dek-fingerprint']};"
+          replace_once(old_preview_job, new_preview_job, 'preview receipt')
+
+          preview_purge_anchor = "  m=path.match(/^\\/v1\\/purge-jobs\\/([^/]+)\\/verify-decrypt$/);"
+          preview_purge_add = "  if(method==='POST'&&path==='/v1/purge-jobs'){const now=new Date().toISOString();const job={id:preview.id('purge'),subject_type:body?.subject_type||'session',subject_id:body?.subject_id||state.sessionId,reason:'manual_demo',state:'verified',requested_at:now,completed_at:now,verified_at:now,counts:{audio_chunks:60,transcript_segments:4,redis_keys:3,objects:60,session_dek_destroyed:1},steps:[{step:'capture',count:60,at:now},{step:'redis',count:3,at:now},{step:'objectstore',count:60,at:now},{step:'rows',count:8,at:now},{step:'crypto_shred',count:1,at:now}],checks:{rows:true,redis:true,objectstore:true,dek_null:true,unwrap:true,decrypt_sample:true},receipt_hash:'preview-sha256-receipt-manual',receipt_hash_valid:true,dek_fingerprints:['preview-dek-fingerprint']};preview.purge.set(job.id,job);return job;}\n" + preview_purge_anchor
+          replace_once(preview_purge_anchor, preview_purge_add, 'preview manual purge')
+
+          load_catalog_re = re.compile(r"async function loadCatalog\(\)\{.*?\}\nfunction statusClass", re.S)
+          load_catalog_new = r'''function renderScriptPicker(){const sel=$('scriptSelect');if(!sel)return;const current=sel.value;const rows=[...state.catalog.values()].sort((a,b)=>String(a.script_ref).localeCompare(String(b.script_ref)));sel.innerHTML='';for(const s of rows){const o=document.createElement('option');o.value=s.script_ref;o.textContent=`${s.script_ref} · ${s.template||'합성 상담'} · ${s.n_utterances||'?'}발화${s.n_expected_alerts?` · 경보 ${s.n_expected_alerts}`:''}`;sel.appendChild(o)}if(current&&state.catalog.has(current))sel.value=current;else if(rows.length)sel.value=rows[0].script_ref}
+          function selectedScriptRef(){return $('scriptSelect')?.value||state.session?.script_ref||'s01'}
+          async function loadCatalog(){state.catalog.clear();if(PREVIEW_MODE){for(const s of [{script_ref:'s01',template:'불면',n_utterances:4,n_expected_alerts:0,total_ms:12000},{script_ref:'s02',template:'불안/공황',n_utterances:6,n_expected_alerts:0,total_ms:16000},{script_ref:'s03',template:'초진 우울',n_utterances:7,n_expected_alerts:1,total_ms:18000},{script_ref:'s04',template:'재진 약물조정',n_utterances:6,n_expected_alerts:0,total_ms:16000}])state.catalog.set(s.script_ref,s);renderScriptPicker();return;}try{const r=await fetch(API_BASE+'/console/scripts.json',{headers:{Accept:'application/json'}});if(r.ok){const d=await r.json();for(const s of d.scripts||[])state.catalog.set(s.script_ref,s)}}catch{}renderScriptPicker()}
+          function statusClass'''
+          text, n = load_catalog_re.subn(load_catalog_new, text, count=1)
+          if n != 1:
+              raise SystemExit('missing patch anchor: loadCatalog')
+
+          replace_once("const s=await api('POST','/v1/sessions',{patient_id:p.id,script_ref:'s01'},{idempotent:true});", "const s=await api('POST','/v1/sessions',{patient_id:p.id,script_ref:selectedScriptRef()},{idempotent:true});", 'selected script session')
+
+          create_anchor = "async function wsTicket(kind){"
+          prepare_fn = "function prepareNewSession(){clearRiskSla();state.session=null;state.sessionId=null;state.patientId=null;state.note=null;state.purgeJobId=null;state.segments.clear();$('sessionChip').textContent='세션 없음';$('sessionStatus').textContent='대기';$('sessionStatus').className='status closed';$('transcript').innerHTML='<div style=\"color:var(--muted);font-size:13px\">대본을 고르고 「합성 상담 실행」을 누르면 새 가상환자와 세션을 만듭니다.</div>';$('noteStatus').textContent='초안 없음';$('notePane').innerHTML='<div class=\"signal\"><div class=\"ico\">i</div><div><b>새 상담 준비</b><p>대본을 선택한 뒤 상담을 실행하세요.</p></div></div>';showPage('session')}\nasync function wsTicket(kind){"
+          replace_once(create_anchor, prepare_fn, 'prepare new session')
+
+          risk_helpers_anchor = "async function startWatch(){"
+          risk_helpers = r'''function clearRiskSla(){if(state.riskTimer){clearInterval(state.riskTimer);state.riskTimer=null}if($('riskSla'))$('riskSla').textContent='SLA –'}
+          function startRiskSla(m){clearRiskSla();const deadline=m?.sla_deadline_at?Date.parse(m.sla_deadline_at):NaN;if(!Number.isFinite(deadline))return;const tick=()=>{const left=Math.round((deadline-Date.now())/1000);$('riskSla').textContent=left>=0?`SLA ${left}s 남음`:`SLA ${Math.abs(left)}s 초과`;if(left<0)$('riskSla').style.background='#fff1ef';};tick();state.riskTimer=setInterval(tick,1000)}
+          async function startWatch(){'''
+          replace_once(risk_helpers_anchor, risk_helpers, 'risk SLA helpers')
+          replace_once(
+              "$('riskMeta').textContent=`${m.category||'risk signal'} · transcript #${m.segment_seq??'–'} · 사람 확인이 필요합니다.`\n    }",
+              "$('riskMeta').textContent=`${m.category||'risk signal'} · transcript #${m.segment_seq??'–'} · 사람 확인이 필요합니다.`;startRiskSla(m)\n    }",
+              'risk alert SLA start',
+          )
+          replace_once(
+              "state.riskAlert=null;$('riskBanner').classList.remove('show')",
+              "state.riskAlert=null;clearRiskSla();$('riskBanner').classList.remove('show')",
+              'risk ack clear',
+          )
+          replace_once(
+              "$('riskBanner').classList.add('show');$('riskMeta').textContent='SLA를 넘겨 검토 우선순위가 올라갔습니다.'",
+              "$('riskBanner').classList.add('show');$('riskMeta').textContent='SLA를 넘겨 검토 우선순위가 올라갔습니다.';if($('riskSla'))$('riskSla').textContent='SLA 초과'",
+              'risk escalation',
+          )
+
+          consent_re = re.compile(r"async function loadConsent\(\).*?\nasync function saveAssessmentAndSign\(\)\{", re.S)
+          consent_new = r'''const STEP_KO={patient_shred:'환자 식별정보 파기',capture:'암호문 표본 캡처',redis:'Redis 키 삭제',objectstore:'오디오 오브젝트 삭제',rows:'PostgreSQL 행 삭제',crypto_shred:'세션 DEK 파기'};
+          const COUNT_KO={audio_chunks:'오디오 청크',transcript_segments:'전사 세그먼트',segment_search:'검색 색인',notes:'노트',note_statements:'노트 문장',note_assessments:'Assessment',risk_events:'위험 이벤트',objects:'오브젝트',redis_keys:'Redis 키',session_dek_destroyed:'파기된 세션 DEK',patient_identifiers:'환자 식별자',patient_dek_destroyed:'파기된 환자 DEK'};
+          const CHECK_KO={patient_shredded:'환자 식별정보 파기',rows:'PostgreSQL 잔존 행 없음',redis:'Redis 잔존 키 없음',objectstore:'잔존 오브젝트 없음',dek_null:'dek_wrapped IS NULL',unwrap:'DEK unwrap 실패',decrypt_sample:'암호문 표본 복호화 실패'};
+          const FINAL_PURGE=new Set(['verified','failed','completed','done']);
+          function fmtClock(v){if(!v)return'–';try{return new Date(v).toLocaleString('ko-KR',{timeZone:'UTC',hour12:false})+' UTC'}catch{return String(v)}}
+          function purgeStep(id,stateName,label){const el=$(id);if(!el)return;el.dataset.state=stateName;const s=el.querySelector('span');if(s)s.textContent=label||({wait:'대기',doing:'진행 중',done:'완료',bad:'실패'}[stateName]||stateName)}
+          function resetPurgeSteps(){for(const id of ['purgeStepRevoke','purgeStepOutbox','purgeStepPurge','purgeStepVerify','purgeStepReceipt'])purgeStep(id,'wait')}
+          function appendPurgeLog(msg){const box=$('purgeLog');if(!box)return;if(box.textContent.startsWith('파기 작업이 시작'))box.innerHTML='';const d=document.createElement('div');d.textContent=`${new Date().toLocaleTimeString('ko-KR',{hour12:false})} ${msg}`;box.appendChild(d);while(box.childElementCount>100)box.firstChild.remove();box.scrollTop=box.scrollHeight}
+          function renderDetailedReceipt(job){const st=job.state||job.status||'?';const ok=st==='verified'||st==='completed'||st==='done';const counts=job.counts||{};const countRows=Object.entries(counts).sort().map(([k,v])=>`<tr><td>${esc(COUNT_KO[k]||k)}</td><td class="mono">${esc(v)}</td></tr>`).join('')||'<tr><td>삭제 집계 없음</td><td>–</td></tr>';const steps=(job.steps||[]).map((s,i)=>`<tr><td>${i+1}. ${esc(STEP_KO[s.step||s.name]||s.step||s.name||'step')}</td><td class="mono">${esc(s.count??'–')}</td><td>${esc(fmtClock(s.at||s.ts))}</td></tr>`).join('')||'<tr><td colspan="3">아직 처리 단계가 없습니다.</td></tr>';const rawChecks=job.checks||job.verification||{};const entries=Array.isArray(rawChecks)?rawChecks.map((x,i)=>[x.name||x.check||`check-${i+1}`,x.ok??x.passed??x.value]):Object.entries(rawChecks);const checks=entries.map(([k,v])=>{const pass=v===true||v==='ok'||v==='passed'||v===0;return`<div class="receipt-check ${pass?'ok':'bad'}"><b>${pass?'✓':'!'}</b> ${esc(CHECK_KO[k]||k)}<div class="mono">${esc(typeof v==='object'?JSON.stringify(v):v)}</div></div>`}).join('')||'<div class="receipt-check">검증 결과가 아직 없습니다.</div>';const valid=job.receipt_hash_valid;const hashLabel=valid===true?'재계산 해시 일치':valid===false?'해시 불일치':'해시 검증 필드 없음';const fp=(job.dek_fingerprints||[]).map(x=>String(x).slice(0,20)+'…').join(', ')||'–';$('receiptBox').className='receipt paper';$('receiptBox').innerHTML=`<div class="receipt-head"><strong>파기 영수증</strong><span class="status ${ok?'ready':st==='failed'?'review':'closed'}">${esc(st)}</span><span class="rid mono">${esc(job.id||state.purgeJobId||'')}</span></div><div class="receipt-section"><table class="receipt-meta"><tr><td>대상</td><td>${esc(job.subject_type||'–')} · ${esc(String(job.subject_id||'–'))}</td></tr><tr><td>사유</td><td>${esc(job.reason||'–')}</td></tr><tr><td>시각</td><td>요청 ${esc(fmtClock(job.requested_at))}<br>완료 ${esc(fmtClock(job.completed_at))}<br>검증 ${esc(fmtClock(job.verified_at))}</td></tr></table></div><div class="receipt-section"><h4>삭제 집계</h4><table class="receipt-table">${countRows}</table></div><div class="receipt-section"><h4>단계별 처리</h4><table class="receipt-table"><thead><tr><th>단계</th><th>count</th><th>시각</th></tr></thead><tbody>${steps}</tbody></table></div><div class="receipt-section"><h4>검증 — 남은 것이 없고 열리지 않는지</h4><div class="receipt-checks">${checks}</div></div><div class="receipt-section"><h4>무결성</h4><div style="font-size:11px;margin-bottom:7px"><b>${esc(hashLabel)}</b> · DEK fingerprint ${esc(fp)}</div><div class="receipt-hash">${esc(job.receipt_hash||'–')}</div><details><summary>원본 JSON 보기</summary><pre>${esc(JSON.stringify(job,null,2))}</pre></details></div>`}
+          async function loadConsent(){if(!state.patientId){$('consentText').textContent='상담 기록에서 세션을 선택하거나 새 합성 상담을 시작하세요.';$('consentHistory').textContent='';return}try{const list=await api('GET',`/v1/patients/${state.patientId}/consents`);const arr=Array.isArray(list)?list:[];const latest=arr[arr.length-1];$('consentText').textContent=latest?`동의 v${latest.version} · ${(latest.scopes||[]).join(', ')}${latest.revoked_at?' · 철회됨':''}`:'동의 기록 없음';$('consentHistory').innerHTML=arr.slice(-5).reverse().map(c=>`v${esc(c.version)} · ${(c.scopes||[]).map(esc).join(', ')}${c.revoked_at?` · 철회 ${esc(fmtClock(c.revoked_at))}`:' · 활성'}`).join('<br>');$('lifeTitle').textContent=`${String(state.sessionId||'').slice(0,8)} 수명주기`}catch(e){toast(`동의 조회 실패 · ${e.message}`,true)}}
+          function startPurgeTracking(id){if(!id)return;state.purgeJobId=id;state.purgeSeen=0;$('purgeJobInput').value=id;clearInterval(state.purgeTimer);resetPurgeSteps();purgeStep('purgeStepRevoke','done');purgeStep('purgeStepOutbox','done');purgeStep('purgeStepPurge','doing');$('purgeLog').innerHTML='';appendPurgeLog(`purge job ${id} 추적 시작`);trackReceipt(true)}
+          async function revokeConsent(){if(!state.patientId)return toast('먼저 세션을 선택해 주세요.',true);try{const list=await api('GET',`/v1/patients/${state.patientId}/consents`);const latest=[...(Array.isArray(list)?list:[])].reverse().find(c=>!c.revoked_at);if(!latest)return toast('활성 동의가 없습니다.',true);resetPurgeSteps();purgeStep('purgeStepRevoke','doing');const out=await api('POST',`/v1/consents/${latest.id}/revoke`,{reason:'환자 요청(데모)'},{idempotent:true});state.purgeJobId=out?.purge_job_id||out?.purge_job?.id||null;purgeStep('purgeStepRevoke','done');purgeStep('purgeStepOutbox','doing');$('purgeStatus').textContent='파기 예약';$('purgeStatus').className='status review';appendPurgeLog(`consent ${latest.id} revoked → outbox consent.revoked`);toast('동의 철회 · 파기 예약');if(state.purgeJobId)startPurgeTracking(state.purgeJobId);else appendPurgeLog('purge job id는 worker가 생성합니다. admin으로 직접 생성하거나 ID를 추적하세요.')}catch(e){purgeStep('purgeStepRevoke','bad');toast(`철회 실패 · ${e.message}`,true)}}
+          async function createPurgeJob(){if(!state.sessionId)return toast('먼저 세션을 선택해 주세요.',true);if(state.role!=='admin'){state.token=null;if(!await login('admin'))return}try{const out=await api('POST','/v1/purge-jobs',{subject_type:'session',subject_id:state.sessionId},{idempotent:true});const id=out?.id||out?.purge_job_id;if(!id)throw new Error('purge job id 없음');startPurgeTracking(id);toast('파기 작업을 생성했습니다.')}catch(e){toast(`파기 작업 생성 실패 · ${e.message}`,true)}}
+          async function trackReceipt(poll=false){const manual=$('purgeJobInput')?.value.trim();if(manual)state.purgeJobId=manual;if(!state.purgeJobId)return toast('먼저 파기 작업이 생성되어야 합니다.',true);if(state.role!=='admin'&&state.role!=='auditor'){state.token=null;if(!await login('admin'))return}try{const job=await api('GET',`/v1/purge-jobs/${state.purgeJobId}`);const status=job.state||job.status||'processing';$('purgeStatus').textContent=status;$('purgeStatus').className=`status ${status==='verified'?'ready':'review'}`;$('purgeJobInput').value=job.id||state.purgeJobId;const steps=job.steps||[];for(;state.purgeSeen<steps.length;state.purgeSeen++){const s=steps[state.purgeSeen];appendPurgeLog(`step ${s.step||s.name||state.purgeSeen+1}: ${s.count!=null?`count=${s.count} `:''}${s.at||s.ts||''}`.trim())}renderDetailedReceipt(job);purgeStep('purgeStepRevoke','done');purgeStep('purgeStepOutbox','done');if(status==='failed'){purgeStep('purgeStepPurge','bad');purgeStep('purgeStepVerify','bad')}else if(FINAL_PURGE.has(status)){purgeStep('purgeStepPurge','done');purgeStep('purgeStepVerify',status==='verified'?'done':'doing')}else purgeStep('purgeStepPurge','doing');purgeStep('purgeStepReceipt',job.receipt_hash?'done':'doing');$('verifyDecrypt').disabled=status!=='verified';if(FINAL_PURGE.has(status)){clearInterval(state.purgeTimer);state.purgeTimer=null;appendPurgeLog(`영수증 state=${status} · hash=${job.receipt_hash||'–'}`)}else if(poll&&!state.purgeTimer){state.purgeTimer=setInterval(()=>trackReceipt(false),1000)}}catch(e){appendPurgeLog(`조회 실패 · ${e.message}`);toast(`영수증 조회 실패 · ${e.message}`,true)}}
+          async function saveAssessmentAndSign(){'''
+          text, n = consent_re.subn(consent_new, text, count=1)
+          if n != 1:
+              raise SystemExit('missing patch anchor: consent functions')
+
+          ack_old = "state.riskAlert=null;$('riskBanner').classList.remove('show');toast('검토 신호를 확인 처리했습니다.');"
+          ack_new = "state.riskAlert=null;clearRiskSla();$('riskBanner').classList.remove('show');toast('검토 신호를 확인 처리했습니다.');"
+          replace_once(ack_old, ack_new, 'manual risk ack')
+
+          replace_once(
+              "$('refreshOps').addEventListener('click',refreshOps);",
+              "$('refreshOps').addEventListener('click',refreshOps);\n$('opsAuto').addEventListener('change',()=>{clearInterval(state.opsTimer);state.opsTimer=null;if($('opsAuto').checked){refreshOps();state.opsTimer=setInterval(refreshOps,2000)}});",
+              'ops auto handler',
+          )
+          replace_once(
+              "$('verifyDecrypt').addEventListener('click',verifyDecrypt);",
+              "$('verifyDecrypt').addEventListener('click',verifyDecrypt);\n$('createPurge').addEventListener('click',createPurgeJob);\n$('trackJob').addEventListener('click',()=>{state.purgeJobId=$('purgeJobInput').value.trim();state.purgeSeen=0;trackReceipt(true)});",
+              'purge handlers',
+          )
+          replace_once(
+              "$('trackReceipt').addEventListener('click',trackReceipt);",
+              "$('trackReceipt').addEventListener('click',()=>trackReceipt(true));",
+              'receipt handler',
+          )
+          replace_once("document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));bindDynamic();", "document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>b.dataset.page==='session'?prepareNewSession():showPage(b.dataset.page)));bindDynamic();", 'session navigation')
+          replace_once("$('signCurrent').addEventListener('click',saveAssessmentAndSign);\n$('startDemo').addEventListener('click',async()=>{showPage('session');await createDemoSession()});$('newFromRecords').addEventListener('click',async()=>{showPage('session');await createDemoSession()});", "$('signCurrent').addEventListener('click',saveAssessmentAndSign);\n$('prepareSession').addEventListener('click',prepareNewSession);\n$('startDemo').addEventListener('click',prepareNewSession);$('newFromRecords').addEventListener('click',prepareNewSession);", 'new session handlers')
+
+          p.write_text(text, encoding='utf-8')
+          print('restored detailed receipt, purge tracking, script picker, SLA timer, staff role and ops polling')
+          PY
+
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          t=Path('console/index.html').read_text(encoding='utf-8')
+          scripts=re.findall(r'<script>(.*?)</script>',t,re.S)
+          assert len(scripts)==1
+          Path('/tmp/chartwire-console.js').write_text(scripts[0],encoding='utf-8')
+          ids=re.findall(r'id="([^"]+)"',t)
+          d=sorted({x for x in ids if ids.count(x)>1})
+          assert not d,d
+          for marker in ('data-depth-restored="v5"','renderDetailedReceipt','purgeJobInput','purgeLog','scriptSelect','riskSla','opsAuto','staff','receipt_hash_valid'):
+              assert marker in t,marker
+          PY
+          node --check /tmp/chartwire-console.js
+          pytest -q tests/unit/test_console_redesign_contract.py tests/unit/test_console_protocol_redesign.py
+
+      - name: Commit restored console and remove one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/restore-console-depth.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add console/index.html .github/workflows/restore-console-depth.yml
+          git commit -m "Restore ChartWire detailed demo features"
+          git push origin HEAD:main
