@@ -1,0 +1,34 @@
+name: finalize-v4-1
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: contains(github.event.head_commit.message, 'run ChartWire V4.1 finalizer')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Apply the exact reviewed V4.1 console and update its gates
+        run: |
+          python scripts/finalize_chartwire_v4_1.py
+          node --check /tmp/chartwire-console.js
+      - name: Remove one-time finalizer files and commit the reviewed result
+        run: |
+          rm scripts/finalize_chartwire_v4_1.py
+          rm .github/workflows/finalize-v4-1.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Finalize ChartWire V4.1 product console'
+          git push origin HEAD:main
