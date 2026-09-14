@@ -68,12 +68,32 @@ def test_evaluator_guidance_lives_in_readme_not_product_ui() -> None:
         assert needle in html, needle
 
     for needle in (
-        "## 추천 시연 경로 (약 60초)",
+        "## 서비스 데모",
+        "docs/images/demo.gif",
+        "## 빠른 확인 경로",
         "새 상담 → 실시간 기록 → 초안·근거 → 사람 검토 → 파기 → 파기 영수증",
-        "00–10초 · 새 상담",
-        "55–60초 · 파기 영수증",
     ):
         assert needle in readme, needle
+
+
+def test_product_first_landing_stays_service_like() -> None:
+    html = CONSOLE.read_text(encoding="utf-8")
+    for needle in (
+        "consult-preview-v1",
+        "상담 기록 중",
+        "근거 연결됨 ✓",
+        ">새 상담 시작</button>",
+        "N=100 ACK p95",
+        "449 ms",
+        "검증된 전송 결과",
+    ):
+        assert needle in html, needle
+    for forbidden in (
+        "새 합성 상담 시작",
+        "60초 데모 시작",
+        "면접관에게",
+    ):
+        assert forbidden not in html, forbidden
 
 
 def test_deep_demo_features_are_restored_inside_product_ui() -> None:
