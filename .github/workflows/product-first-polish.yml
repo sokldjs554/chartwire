@@ -14,6 +14,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install validation dependencies
+        run: python -m pip install -q -e ".[dev]"
       - name: Patch product presentation
         shell: bash
         run: |
@@ -35,14 +37,14 @@ jobs:
           anchor='''        <div class="section-head"><div><h2>핵심 기능</h2><p>상담 흐름에 필요한 핵심 동작만 먼저 보여줍니다.</p></div></div>'''
           if '상담 업무 흐름' not in s:
               block='''        <div class="section-head" style="margin-top:22px"><div><h2>상담 업무 흐름</h2><p>기록부터 검토와 데이터 수명주기까지 한 제품 안에서 이어집니다.</p></div></div>
-                  <div class="product-path product-path-v1" aria-label="상담 업무 흐름">
-                    <div class="product-step"><span class="step-no">01</span><div><b>상담 시작</b><small>합성 대본으로 안전하게 세션을 시작합니다.</small></div></div>
-                    <div class="product-step"><span class="step-no">02</span><div><b>기록 · 근거</b><small>실시간 기록과 초안 문장을 원문 발화에 연결합니다.</small></div></div>
-                    <div class="product-step"><span class="step-no">03</span><div><b>사람 검토</b><small>의료진이 수정·판단한 뒤 서명합니다.</small></div></div>
-                    <div class="product-step"><span class="step-no">04</span><div><b>보존 · 파기</b><small>보존 경계와 파기 증적을 데이터 수명주기로 관리합니다.</small></div></div>
-                  </div>
+        <div class="product-path product-path-v1" aria-label="상담 업무 흐름">
+          <div class="product-step"><span class="step-no">01</span><div><b>상담 시작</b><small>합성 대본으로 안전하게 세션을 시작합니다.</small></div></div>
+          <div class="product-step"><span class="step-no">02</span><div><b>기록 · 근거</b><small>실시간 기록과 초안 문장을 원문 발화에 연결합니다.</small></div></div>
+          <div class="product-step"><span class="step-no">03</span><div><b>사람 검토</b><small>의료진이 수정·판단한 뒤 서명합니다.</small></div></div>
+          <div class="product-step"><span class="step-no">04</span><div><b>보존 · 파기</b><small>보존 경계와 파기 증적을 데이터 수명주기로 관리합니다.</small></div></div>
+        </div>
 
-          '''+anchor
+'''+anchor
               assert anchor in s
               s=s.replace(anchor,block,1)
           pairs=[
@@ -57,33 +59,31 @@ jobs:
           p=Path('README.md'); r=p.read_text()
           old='''## 서비스 데모\n\n![ChartWire 서비스 데모](docs/images/demo.gif)\n\n## 제품 흐름'''
           new='''## 서비스 데모\n\n![ChartWire 서비스 데모](docs/images/demo.gif)\n\n**먼저 볼 장면 3개** — `상담 시작·실시간 기록` → `초안 문장의 원문 근거` → `검토·파기 영수증`.  
-          처음에는 제품 흐름만 보고, 프로토콜·RLS·outbox·부하 수치는 필요할 때 아래 기술 섹션에서 확인하면 됩니다.\n\n## 제품 흐름'''
+처음에는 제품 흐름만 보고, 프로토콜·RLS·outbox·부하 수치는 필요할 때 아래 기술 섹션에서 확인하면 됩니다.\n\n## 제품 흐름'''
           if '**먼저 볼 장면 3개**' not in r:
               assert old in r; r=r.replace(old,new,1)
           p.write_text(r)
           PY
       - name: Validate
         run: |
-          python -m pytest tests/unit/test_console_redesign_contract.py -q
+          python -m pytest tests/unit/test_console_redesign_contract.py tests/unit/test_product_first_landing_contract.py -q
           python - <<'PY'
           import re
           from pathlib import Path
           h=Path('console/index.html').read_text()
-          assert 'product-path-v1' in h
-          assert '상담 업무 흐름' in h
-          assert '네트워크가 끊겨도 기록은 이어집니다' in h
-          assert '기관이 달라지면 데이터도 분리됩니다' in h
-          assert '비동기 작업이 실패해도 추적할 수 있습니다' in h
-          assert '삭제 요청 뒤에는 복호화까지 막습니다' in h
+          for needle in ('product-path-v1','상담 업무 흐름','네트워크가 끊겨도 기록은 이어집니다','기관이 달라지면 데이터도 분리됩니다','비동기 작업이 실패해도 추적할 수 있습니다','삭제 요청 뒤에는 복호화까지 막습니다'):
+              assert needle in h, needle
           scripts=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
           assert len(scripts)==1
           Path('/tmp/console.js').write_text(scripts[0])
           PY
           node --check /tmp/console.js
+      - name: Remove one-shot workflow
+        run: rm .github/workflows/product-first-polish.yml
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add console/index.html README.md
+          git add console/index.html README.md .github/workflows/product-first-polish.yml
           git commit -m "polish: make ChartWire product flow easier to grasp"
           git push
