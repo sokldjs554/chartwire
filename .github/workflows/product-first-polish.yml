@@ -63,11 +63,13 @@ jobs:
           t = t.replace(old, new, 1)
           test.write_text(t, encoding='utf-8')
           PY
+      - name: Install validation dependency
+        run: python -m pip install -q pytest
       - name: Validate console and contract
         run: |
           python -m pytest tests/unit/test_console_redesign_contract.py -q
           python - <<'PY'
-          import re, pathlib, subprocess, tempfile
+          import re, pathlib, subprocess
           html = pathlib.Path('console/index.html').read_text(encoding='utf-8')
           scripts = re.findall(r'<script>(.*?)</script>', html, flags=re.S)
           assert len(scripts) == 1
