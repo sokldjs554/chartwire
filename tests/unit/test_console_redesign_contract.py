@@ -68,6 +68,7 @@ def test_evaluator_guidance_lives_in_readme_not_product_ui() -> None:
         assert needle in html, needle
 
     for needle in (
+        "실시간 상담 기록 → 근거 연결 초안 → 사람 검토 → 데이터 파기 증적까지 한 흐름으로 연결합니다.",
         "## 서비스 데모",
         "docs/images/demo.gif",
         "## 빠른 확인 경로",
