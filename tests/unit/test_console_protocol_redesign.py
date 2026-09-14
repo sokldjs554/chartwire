@@ -18,7 +18,11 @@ def _script_without_boot() -> str:
     html = CONSOLE.read_text(encoding="utf-8")
     scripts = re.findall(r"<script>(.*?)</script>", html, flags=re.S)
     assert len(scripts) == 1
-    return re.sub(r"\(async\(\)=>\{await loadCatalog\(\);.*?\}\)\(\);\s*$", "", scripts[0], flags=re.S)
+    # 부팅 블록은 DOM·네트워크를 건드리므로 하네스에서는 잘라 낸다. 첫 문장이 아니라
+    # `/* boot */` 표식에 거는 이유: 부팅 순서가 바뀌어도 이 테스트가 깨지지 않게.
+    stripped, n = re.subn(r"/\* boot \*/\(async\(\)=>\{.*?\}\)\(\);\s*$", "", scripts[0], flags=re.S)
+    assert n == 1, "console script must end with a `/* boot */(async()=>{…})();` block"
+    return stripped
 
 
 @pytest.fixture(scope="module")
