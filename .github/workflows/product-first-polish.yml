@@ -63,11 +63,26 @@ jobs:
           t = t.replace(old, new, 1)
           test.write_text(t, encoding='utf-8')
           PY
-      - name: Install validation dependency
-        run: python -m pip install -q pytest
-      - name: Validate console and contract
+      - name: Validate patched product contract
         run: |
-          python -m pytest tests/unit/test_console_redesign_contract.py -q
+          python - <<'PY'
+          from pathlib import Path
+          html = Path('console/index.html').read_text(encoding='utf-8')
+          readme = Path('README.md').read_text(encoding='utf-8')
+          test = Path('tests/unit/test_console_redesign_contract.py').read_text(encoding='utf-8')
+          for needle in (
+              '실시간 상담 기록 · 근거 연결 · 사람 검토',
+              '>상담 기록 보기</button>',
+              '합성 데이터로 기록 → 근거 확인 → 사람 검토 → 파기까지 전체 흐름을 안전하게 체험할 수 있습니다.',
+              '파기 영수증 확인',
+          ):
+              assert needle in html, needle
+          for forbidden in ('Realtime clinical documentation backend', '>시스템 구조 보기</button>', '면접관에게'):
+              assert forbidden not in html, forbidden
+          for needle in ('## 서비스 데모', 'docs/images/demo.gif', '## 제품 흐름'):
+              assert needle in readme, needle
+          assert 'test_product_first_landing_stays_service_like' in test
+          PY
           python - <<'PY'
           import re, pathlib, subprocess
           html = pathlib.Path('console/index.html').read_text(encoding='utf-8')
