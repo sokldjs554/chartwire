@@ -49,7 +49,18 @@ body.is-preview .safety-bar .seg-warn{display:inline}
 .toast{position:fixed;right:26px;bottom:26px;background:#111827;color:#fff;padding:12px 15px;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.2);font-size:12px;opacity:0;transform:translateY(8px);pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:translateY(0)}
 @media (prefers-color-scheme: dark){html{color-scheme:dark light}}
 @media(max-width:1080px){.app{grid-template-columns:84px 1fr}.brand-text,.nav button span,.sidebar-foot p{display:none}.brand{justify-content:center}.nav button{text-align:center}.hero{grid-template-columns:1fr}.grid4{grid-template-columns:repeat(2,1fr)}.workspace,.review-layout{grid-template-columns:1fr}.lifecycle{grid-template-columns:1fr}.life:not(:last-child)::after{content:"↓";right:auto;left:50%;top:auto;bottom:-15px}.tech-grid{grid-template-columns:1fr}}
-@media(max-width:720px){:root{--bar-h:52px}.app{display:block}.sidebar{display:none}.topbar{padding:0 16px}.content{padding:18px}.hero{padding:24px}.hero h1{font-size:27px}.grid4,.stats{grid-template-columns:1fr}.row{grid-template-columns:1fr 1fr}.receipt-grid{grid-template-columns:1fr}.workspace{grid-template-columns:1fr}.page-title{align-items:flex-start;gap:12px}.summary-strip{flex-direction:column}}
+/* 폰에서는 사이드바를 숨기는 대신 가로로 눕힌다. 숨기기만 하면 '데이터 관리'(파기 영수증)
+   처럼 홈에서 링크가 없는 페이지에 도달할 방법이 0개가 되고, 홈으로 돌아올 수도 없다.
+   내비게이션을 하나 더 만들지 않고 같은 .nav 를 재사용해 showPage 의 active 처리도 그대로 쓴다. */
+@media(max-width:720px){:root{--bar-h:52px}.app{display:block}
+.sidebar{flex-direction:row;align-items:center;gap:6px;height:auto;padding:8px 10px;
+  position:sticky;top:var(--bar-h);z-index:8;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+.sidebar::-webkit-scrollbar{height:0}
+.sidebar .brand,.sidebar .nav-sep,.sidebar-foot{display:none}
+.nav{flex-direction:row;gap:6px;flex:0 0 auto}
+.nav button{white-space:nowrap;padding:8px 12px;font-size:12px;text-align:center}
+.nav button span{display:inline}
+.topbar{position:static;height:auto;min-height:0;padding:12px 16px;gap:8px;flex-wrap:wrap}.content{padding:18px}.hero{padding:24px}.hero h1{font-size:27px}.grid4,.stats{grid-template-columns:1fr}.row{grid-template-columns:1fr 1fr}.receipt-grid{grid-template-columns:1fr}.workspace{grid-template-columns:1fr}.page-title{align-items:flex-start;gap:12px}.summary-strip{flex-direction:column}}
 
 .ops-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:14px}
 .ops-box{background:#fff;border:1px solid var(--line);border-radius:13px;padding:13px}
