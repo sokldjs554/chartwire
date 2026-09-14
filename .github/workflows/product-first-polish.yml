@@ -1,0 +1,167 @@
+name: Product-first landing polish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/product-first-polish.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch product landing, README, and contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          console_path = Path('console/index.html')
+          readme_path = Path('README.md')
+          test_path = Path('tests/unit/test_console_redesign_contract.py')
+
+          html = console_path.read_text(encoding='utf-8')
+          old_cta = '<div class="btns"><button class="btn primary" id="startDemo">새 합성 상담 시작</button><button class="btn secondary" data-go="engineering">시스템 구조 보기</button></div>'
+          new_cta = '<div class="btns"><button class="btn primary" id="startDemo">새 상담 시작</button><button class="btn secondary" data-go="engineering">시스템 구조 보기</button></div>'
+          assert html.count(old_cta) == 1, html.count(old_cta)
+          html = html.replace(old_cta, new_cta)
+
+          old_visual = '''          <div class="hero-visual">
+            <div class="mini-row"><div class="mini-icon">1</div><div class="mini-copy"><b>실시간 기록</b><small>WebSocket으로 상담 발화 수집</small></div><span class="arrow">→</span></div>
+            <div class="mini-row"><div class="mini-icon">2</div><div class="mini-copy"><b>근거 연결 초안</b><small>문장마다 transcript source 연결</small></div><span class="arrow">→</span></div>
+            <div class="mini-row"><div class="mini-icon">3</div><div class="mini-copy"><b>사람 검토</b><small>자동 확정 대신 필요한 경우 review</small></div><span class="arrow">→</span></div>
+            <div class="mini-row" style="margin-bottom:0"><div class="mini-icon">4</div><div class="mini-copy"><b>데이터 수명주기</b><small>삭제와 보존을 분리해 기록</small></div><span class="arrow">✓</span></div>
+          </div>'''
+          new_visual = '''          <div class="consult-preview consult-preview-v1" aria-label="합성 상담 기록 미리보기">
+            <div class="preview-top"><div><span class="preview-pulse"></span><b>상담 기록 중</b></div><span class="preview-badge">SYNTHETIC</span></div>
+            <div class="preview-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="preview-chat">
+              <div class="preview-bubble patient"><small>가상 환자</small>요즘 잠드는 데 시간이 오래 걸려요.</div>
+              <div class="preview-bubble clinician"><small>의료진</small>언제부터 가장 불편했는지 이야기해 주세요.</div>
+            </div>
+            <div class="preview-note">
+              <div class="preview-note-head"><b>기록 초안</b><span>근거 연결됨 ✓</span></div>
+              <p><strong>S</strong> 수면 시작 지연을 호소함</p>
+              <div class="preview-proof">↳ transcript #03 원문 연결</div>
+            </div>
+            <div class="preview-foot"><span>실시간 기록</span><span>근거 연결</span><span>사람 검토</span></div>
+          </div>'''
+          assert html.count(old_visual) == 1, html.count(old_visual)
+          html = html.replace(old_visual, new_visual)
+
+          old_stats = '''        <div class="stats">
+          <div class="card stat"><small>N=100 실측 처리량</small><b>500 chunk/s</b></div>
+          <div class="card stat"><small>시나리오 A–D</small><b class="ok">0 loss / 0 dup</b></div>
+          <div class="card stat"><small>Chaos resume</small><b class="ok">100%</b></div>
+        </div>'''
+          new_stats = '''        <div class="stats">
+          <div class="card stat"><small>N=100 실측 처리량</small><b>500 chunk/s</b></div>
+          <div class="card stat"><small>N=100 ACK p95</small><b>449 ms</b></div>
+          <div class="card stat"><small>검증된 전송 결과</small><b class="ok">0 loss / 0 dup</b></div>
+        </div>'''
+          assert html.count(old_stats) == 1, html.count(old_stats)
+          html = html.replace(old_stats, new_stats)
+
+          css = r'''
+/* consult-preview-v1 */
+.consult-preview{position:relative;overflow:hidden;min-height:290px;border-radius:22px;padding:18px;background:linear-gradient(155deg,#17362e 0%,#214b3f 58%,#285849 100%);color:#f4fbf8;box-shadow:0 22px 44px rgba(22,54,46,.18),inset 0 0 0 1px rgba(255,255,255,.08)}
+.consult-preview:before{content:"";position:absolute;width:210px;height:210px;border-radius:50%;right:-70px;top:-95px;background:radial-gradient(circle,rgba(113,210,172,.2),rgba(113,210,172,0) 68%);pointer-events:none}
+.preview-top{position:relative;display:flex;align-items:center;justify-content:space-between;font-size:12px}.preview-top>div{display:flex;align-items:center;gap:8px}.preview-pulse{width:8px;height:8px;border-radius:50%;background:#69d49d;box-shadow:0 0 0 5px rgba(105,212,157,.12)}.preview-badge{font-size:9px;letter-spacing:.11em;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);padding:5px 7px;border-radius:999px;color:#c9ddd5}
+.preview-wave{height:34px;margin:15px 0 10px;display:flex;align-items:center;gap:4px;padding:0 2px}.preview-wave i{display:block;flex:1;max-width:12px;height:10px;border-radius:4px;background:linear-gradient(180deg,#79d6b1,#4ea483);opacity:.78}.preview-wave i:nth-child(2),.preview-wave i:nth-child(6),.preview-wave i:nth-child(10){height:25px}.preview-wave i:nth-child(3),.preview-wave i:nth-child(8){height:18px}.preview-wave i:nth-child(4),.preview-wave i:nth-child(9),.preview-wave i:nth-child(12){height:30px}.preview-wave i:nth-child(5),.preview-wave i:nth-child(11){height:14px}
+.preview-chat{position:relative;display:flex;flex-direction:column;gap:8px}.preview-bubble{max-width:88%;padding:9px 11px;border-radius:13px;font-size:11px;line-height:1.45}.preview-bubble small{display:block;font-size:8px;margin-bottom:3px;opacity:.62}.preview-bubble.patient{align-self:flex-start;background:rgba(255,255,255,.09);border-bottom-left-radius:4px}.preview-bubble.clinician{align-self:flex-end;background:#eaf6f1;color:#20453a;border-bottom-right-radius:4px}.preview-note{position:relative;margin-top:13px;background:#fff;color:#263c35;border-radius:14px;padding:12px;box-shadow:0 12px 26px rgba(9,31,24,.15)}.preview-note-head{display:flex;align-items:center;justify-content:space-between;font-size:10px}.preview-note-head span{color:#2a775f;background:#e9f5f0;padding:4px 6px;border-radius:999px;font-size:8px;font-weight:800}.preview-note p{margin:9px 0 5px;font-size:11px}.preview-note p strong{display:inline-grid;place-items:center;width:20px;height:20px;margin-right:5px;border-radius:6px;background:#eef6f3;color:#28705b}.preview-proof{font-size:8px;color:#6f817b;padding-left:27px}.preview-foot{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}.preview-foot span{font-size:8px;color:#c8ddd5;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);padding:5px 7px;border-radius:999px}
+@media(max-width:720px){.consult-preview{min-height:270px}.preview-bubble{max-width:94%}}
+'''
+          marker = '</style>\n</head>'
+          assert html.count(marker) == 1, html.count(marker)
+          html = html.replace(marker, css + '\n</style>\n</head>')
+          assert 'consult-preview-v1' in html
+          assert '새 합성 상담 시작' not in html
+          console_path.write_text(html, encoding='utf-8')
+
+          readme = readme_path.read_text(encoding='utf-8')
+          assert readme.startswith('# chartwire\n')
+          readme = readme.replace('# chartwire\n\n', '# chartwire\n\n**실시간 상담 기록 → 근거 연결 초안 → 사람 검토 → 데이터 파기 증적까지 연결하는 clinical documentation backend.**\n\n', 1)
+          anchor = '<!-- 링크는 배포가 실제로 동작하는 동안에만 둔다 (spec §12.2). 내려갔으면 이 두 줄을 지운다. -->\n\n\n## 추천 시연 경로 (약 60초)\n'
+          replacement = '<!-- 링크는 배포가 실제로 동작하는 동안에만 둔다 (spec §12.2). 내려갔으면 이 두 줄을 지운다. -->\n\n## 서비스 데모\n\n![ChartWire 서비스 데모](docs/images/demo.gif)\n\n## 빠른 확인 경로\n'
+          assert readme.count(anchor) == 1, readme.count(anchor)
+          readme = readme.replace(anchor, replacement)
+          for old, new in (
+              ('1. **00–10초 · 새 상담**', '1. **새 상담**'),
+              ('2. **10–25초 · 실시간 기록**', '2. **실시간 기록**'),
+              ('3. **25–35초 · 초안·근거**', '3. **초안·근거**'),
+              ('4. **35–45초 · 사람 검토**', '4. **사람 검토**'),
+              ('5. **45–55초 · 파기**', '5. **파기**'),
+              ('6. **55–60초 · 파기 영수증**', '6. **파기 영수증**'),
+          ):
+              assert readme.count(old) == 1, old
+              readme = readme.replace(old, new)
+          old_note = '> 제품 흐름을 먼저 보여주고, `seq/ack/credit/resume`, RLS, outbox/DLQ, chaos 결과는 질문이 들어오면 **시스템 상세**와 아래 기술 문서에서 보여주는 구성을 권장합니다.'
+          new_note = '> 제품 흐름을 먼저 확인한 뒤, `seq/ack/credit/resume`, RLS, outbox/DLQ, chaos 결과는 **시스템 상세**와 아래 기술 문서에서 확인할 수 있습니다.'
+          assert readme.count(old_note) == 1
+          readme = readme.replace(old_note, new_note)
+          assert 'docs/images/demo.gif' in readme
+          assert '## 추천 시연 경로 (약 60초)' not in readme
+          readme_path.write_text(readme, encoding='utf-8')
+
+          test = test_path.read_text(encoding='utf-8')
+          old_readme_assertions = '''    for needle in (
+        "## 추천 시연 경로 (약 60초)",
+        "새 상담 → 실시간 기록 → 초안·근거 → 사람 검토 → 파기 → 파기 영수증",
+        "00–10초 · 새 상담",
+        "55–60초 · 파기 영수증",
+    ):
+        assert needle in readme, needle
+'''
+          new_readme_assertions = '''    for needle in (
+        "## 서비스 데모",
+        "docs/images/demo.gif",
+        "## 빠른 확인 경로",
+        "새 상담 → 실시간 기록 → 초안·근거 → 사람 검토 → 파기 → 파기 영수증",
+    ):
+        assert needle in readme, needle
+
+
+def test_product_first_landing_stays_service_like() -> None:
+    html = CONSOLE.read_text(encoding="utf-8")
+    for needle in (
+        "consult-preview-v1",
+        "상담 기록 중",
+        "근거 연결됨 ✓",
+        ">새 상담 시작</button>",
+        "N=100 ACK p95",
+        "449 ms",
+        "검증된 전송 결과",
+    ):
+        assert needle in html, needle
+    for forbidden in (
+        "새 합성 상담 시작",
+        "60초 데모 시작",
+        "면접관에게",
+    ):
+        assert forbidden not in html, forbidden
+'''
+          assert test.count(old_readme_assertions) == 1, test.count(old_readme_assertions)
+          test = test.replace(old_readme_assertions, new_readme_assertions)
+          test_path.write_text(test, encoding='utf-8')
+          PY
+
+      - name: Run focused contract tests
+        run: |
+          python -m pip install -q pytest
+          python -m pytest -q tests/unit/test_console_redesign_contract.py
+
+      - name: Commit polished product surface
+        run: |
+          rm .github/workflows/product-first-polish.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: sharpen product-first ChartWire landing"
+          git push origin main
