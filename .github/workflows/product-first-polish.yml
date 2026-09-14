@@ -1,0 +1,86 @@
+name: Product-first polish
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/product-first-polish.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  polish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Refine product-facing UI and README
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          console = Path('console/index.html')
+          html = console.read_text(encoding='utf-8')
+          replacements = {
+              '<div class="eyebrow">Realtime clinical documentation backend</div>': '<div class="eyebrow">실시간 상담 기록 · 근거 연결 · 사람 검토</div>',
+              '<p>실시간 상담 기록부터 근거가 연결된 초안, 사람 검토, 데이터 수명주기까지 한 흐름으로 관리합니다. 복잡한 백엔드 동작은 뒤로 숨기고, 화면에는 지금 필요한 정보만 보여줍니다.</p>': '<p>상담 내용을 실시간으로 기록하고, 초안의 문장마다 원문 근거를 연결합니다. 의료진은 필요한 부분만 검토하고 서명하며, 상담 데이터의 보존과 파기까지 같은 흐름에서 관리할 수 있습니다.</p>',
+              '<div class="btns"><button class="btn primary" id="startDemo">새 상담 시작</button><button class="btn secondary" data-go="engineering">시스템 구조 보기</button></div>': '<div class="btns"><button class="btn primary" id="startDemo">새 상담 시작</button><button class="btn secondary" data-go="records">상담 기록 보기</button></div>',
+              '<p id="homeMode" style="font-size:11px;margin-top:10px;color:var(--muted)">배포 시 같은 origin의 ChartWire API와 WebSocket을 사용합니다.</p>': '<p id="homeMode" style="font-size:11px;margin-top:10px;color:var(--muted)">합성 데이터로 기록 → 근거 확인 → 사람 검토 → 파기까지 전체 흐름을 안전하게 체험할 수 있습니다.</p>',
+              '<div class="section-head"><div><h2>핵심 기능</h2><p>처음 보는 사람도 네 가지 흐름만 이해하면 됩니다.</p></div></div>': '<div class="section-head"><div><h2>핵심 기능</h2><p>상담 흐름에 필요한 핵심 동작만 먼저 보여줍니다.</p></div></div>',
+          }
+          for old, new in replacements.items():
+              if old not in html:
+                  raise SystemExit(f'missing console anchor: {old[:80]}')
+              html = html.replace(old, new, 1)
+          console.write_text(html, encoding='utf-8')
+
+          readme = Path('README.md')
+          text = readme.read_text(encoding='utf-8')
+          readme_replacements = {
+              '**실시간 상담 기록 → 근거 연결 초안 → 사람 검토 → 데이터 파기 증적까지 한 흐름으로 연결합니다.**': '**상담에 집중하세요. ChartWire는 실시간 기록부터 근거 연결 초안, 사람 검토, 데이터 파기 증적까지 한 흐름으로 연결합니다.**',
+              '## 빠른 확인 경로': '## 제품 흐름',
+              '정신과 진료실 실시간 음성차팅의 밑바닥 — 무손실 WebSocket 스트리밍 프로토콜, 테넌시 격리, 파기 영수증, 실측된 운영 수치.': '실시간 음성 차팅을 안정적으로 운영하기 위한 백엔드 — 무손실 WebSocket 스트리밍, 테넌시 격리, 파기 영수증, 실측 운영 수치를 함께 검증합니다.',
+          }
+          for old, new in readme_replacements.items():
+              if old not in text:
+                  raise SystemExit(f'missing README anchor: {old}')
+              text = text.replace(old, new, 1)
+          readme.write_text(text, encoding='utf-8')
+
+          test = Path('tests/unit/test_console_redesign_contract.py')
+          t = test.read_text(encoding='utf-8')
+          t = t.replace(
+              '        "실시간 상담 기록 → 근거 연결 초안 → 사람 검토 → 데이터 파기 증적까지 한 흐름으로 연결합니다.",\n',
+              '        "상담에 집중하세요. ChartWire는 실시간 기록부터 근거 연결 초안, 사람 검토, 데이터 파기 증적까지 한 흐름으로 연결합니다.",\n',
+              1,
+          )
+          t = t.replace('        "## 빠른 확인 경로",\n', '        "## 제품 흐름",\n', 1)
+          old = '''    for forbidden in (\n        "새 합성 상담 시작",\n        "60초 데모 시작",\n        "면접관에게",\n    ):\n        assert forbidden not in html, forbidden\n'''
+          new = '''    for forbidden in (\n        "새 합성 상담 시작",\n        "60초 데모 시작",\n        "면접관에게",\n        "Realtime clinical documentation backend",\n        ">시스템 구조 보기</button>",\n    ):\n        assert forbidden not in html, forbidden\n\n    for needle in (\n        "실시간 상담 기록 · 근거 연결 · 사람 검토",\n        ">상담 기록 보기</button>",\n        "합성 데이터로 기록 → 근거 확인 → 사람 검토 → 파기까지 전체 흐름을 안전하게 체험할 수 있습니다.",\n    ):\n        assert needle in html, needle\n'''
+          if old not in t:
+              raise SystemExit('missing test anchor')
+          t = t.replace(old, new, 1)
+          test.write_text(t, encoding='utf-8')
+          PY
+      - name: Validate console and contract
+        run: |
+          python -m pytest tests/unit/test_console_redesign_contract.py -q
+          python - <<'PY'
+          import re, pathlib, subprocess, tempfile
+          html = pathlib.Path('console/index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script>(.*?)</script>', html, flags=re.S)
+          assert len(scripts) == 1
+          p = pathlib.Path('/tmp/chartwire-console.js')
+          p.write_text(scripts[0], encoding='utf-8')
+          subprocess.run(['node','--check',str(p)], check=True)
+          PY
+      - name: Remove one-shot workflow
+        run: rm .github/workflows/product-first-polish.yml
+      - name: Commit polish
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add console/index.html README.md tests/unit/test_console_redesign_contract.py .github/workflows/product-first-polish.yml
+          git commit -m 'polish: make ChartWire product-first'
+          git push
