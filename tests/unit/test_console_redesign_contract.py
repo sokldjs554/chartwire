@@ -46,6 +46,26 @@ def test_product_information_architecture_is_separated() -> None:
     assert "prefers-color-scheme" in html
 
 
+def test_deep_demo_features_are_restored_inside_product_ui() -> None:
+    html = CONSOLE.read_text(encoding="utf-8")
+    for needle in (
+        'data-depth-restored="v5"',
+        'id="scriptSelect"',
+        'value="staff"',
+        'id="riskSla"',
+        'id="purgeSteps"',
+        'id="purgeJobInput"',
+        'id="purgeLog"',
+        'id="opsAuto"',
+        'href="/docs"',
+        "renderDetailedReceipt",
+        "receipt_hash_valid",
+        "재계산 해시 일치",
+        "원본 JSON 보기",
+    ):
+        assert needle in html, needle
+
+
 def test_backend_contract_is_still_reachable() -> None:
     text = CONSOLE.read_text(encoding="utf-8")
     for needle in (
