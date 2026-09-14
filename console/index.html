@@ -33,6 +33,8 @@
   /* 흰 글자를 얹는 '채움' 색은 라이트·다크에서 같은 값을 쓴다 — 다크에서 밝아지면 대비가 무너진다.
      --bad/--ok 는 글자·테두리용, --*-fill 은 배경용. (--sev3 가 이미 쓰는 방식) */
   --bad-fill:#c0392b; --ok-fill:#1a7f4b; --bad-tint:#fbe9e4; --disabled-ink:#5f6a66; --sand:#efe8dc; --sand-2:#e4dac8; --glow:rgba(255,255,255,.55); --glow-2:rgba(255,255,255,.95);
+  /* 히어로 일러스트는 따뜻한 크림색이다 — 다크에서 그대로 두면 화면에서 혼자 빛난다. */
+  --art-dim:none; --art-ink:#4f5d54;
   --maxw:1200px; --gutter:clamp(16px,4vw,32px);
   --banner-h:34px; --header-h:64px;
   --r-sm:8px; --r-md:14px; --r-lg:20px; --r-pill:999px;
@@ -45,6 +47,7 @@
     --accent:#7fc9ad; --accent-ink:#0e1a15; --accent-tint:#1c2f28;
     --ok:#5fcf98; --warn:#e2b85a; --bad:#ff7a66; --info:#6fb8dc; --mark:#5b4b00;
     --bad-tint:#3a2420; --disabled-ink:#9aa4a0; --sand:#232927; --sand-2:#2b3330; --glow:rgba(255,255,255,.07); --glow-2:rgba(255,255,255,.12);   /* --bad-fill/--ok-fill 은 다크에서도 그대로 */
+    --art-dim:brightness(.40) saturate(.8); --art-ink:#b9c5bd;
   }
 }
 
@@ -55,6 +58,7 @@
   --accent:#7fc9ad; --accent-ink:#0e1a15; --accent-tint:#1c2f28;
   --ok:#5fcf98; --warn:#e2b85a; --bad:#ff7a66; --info:#6fb8dc; --mark:#5b4b00;
   --bad-tint:#3a2420; --disabled-ink:#9aa4a0; --sand:#232927; --sand-2:#2b3330; --glow:rgba(255,255,255,.07); --glow-2:rgba(255,255,255,.12);
+  --art-dim:brightness(.40) saturate(.8); --art-ink:#b9c5bd;
 }
 :root[data-theme="light"]{
   --bg:#f7f4ee; --panel:#fffdf9; --elev:#ffffff; --ink:#1d2a27; --muted:#65726e;
@@ -62,6 +66,7 @@
   --accent:#1f6f5b; --accent-ink:#ffffff; --accent-tint:#e6f1ec;
   --ok:#1f7a4d; --warn:#a8711a; --bad:#b8402e; --info:#2a6f8f; --mark:#fff3a3;
   --bad-tint:#fbe9e4; --disabled-ink:#5f6a66; --sand:#efe8dc; --sand-2:#e4dac8; --glow:rgba(255,255,255,.55); --glow-2:rgba(255,255,255,.95);
+  --art-dim:none; --art-ink:#4f5d54;
 }
 
 *{ box-sizing:border-box; }
@@ -405,40 +410,99 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
   max-width:64ch; word-break:keep-all; }
 #intro code{ font-size:.92em; }
 
-/* ── 02 히어로: 왼쪽 글 · 오른쪽 빛이 드는 패널 ──────────────────────── */
-#intro .hero{ padding-block:clamp(48px,8vw,104px) clamp(24px,4vw,48px); }
-#intro .hero .container{ display:grid; grid-template-columns:minmax(0,1.05fr) minmax(300px,.95fr);
-  gap:clamp(28px,5vw,64px); align-items:center; }
+/* ── 02 히어로: 왼쪽 글 · 오른쪽으로 흘러 나가는 진료실 ────────────────
+   그림이 화면 오른쪽 끝까지 흘러 나가야 '제품 홈'으로 읽힌다. 그래서 히어로만
+   .container 를 쓰지 않고, 왼쪽 칸 안쪽에서 폭을 잡아 컨테이너의 왼쪽 선에 맞춘다. */
+#intro .hero{ position:relative; overflow:hidden; padding:0;
+  background:linear-gradient(90deg, var(--panel) 0%, var(--panel) 46%, var(--sand) 68%, var(--sand-2) 100%); }
+#intro .hero__grid{ display:grid; grid-template-columns:53fr 47fr; align-items:stretch;
+  min-height:clamp(430px,56vw,576px); }
+#intro .hero__copy{ display:flex; align-items:center; justify-content:flex-end;
+  padding:clamp(44px,6vw,72px) clamp(20px,3vw,40px) clamp(76px,9vw,116px) var(--gutter); }
+#intro .hero__copy-in{ width:100%; max-width:calc(var(--maxw) * .53 - var(--gutter) - 40px); }
 #intro .eyebrow{ margin:0 0 16px; font-size:13px; font-weight:700; letter-spacing:.02em;
   color:var(--accent); word-break:keep-all; }
-#intro .hero-sub{ margin:0 0 18px; font-size:clamp(17px,2.4vw,21px); line-height:1.6;
-  letter-spacing:-0.01em; color:var(--ink); max-width:44ch; word-break:keep-all; text-wrap:balance; }
-#intro .hero .lead{ margin-bottom:6px; }
+/* 히어로 제목은 전역 h1 보다 한 단계 작다 — 세 줄이 되면 첫 화면에서 CTA 가 밀려 내려간다. */
+#intro .hero h1{ margin:0 0 18px; font-size:clamp(28px,3.3vw,42px); line-height:1.34;
+  letter-spacing:-0.035em; }
+#intro .hero-sub{ margin:0 0 4px; font-size:clamp(15px,1.5vw,17px); line-height:1.85;
+  color:var(--muted); max-width:46ch; word-break:keep-all; }
 #intro .hero .cta-row{ margin:26px 0 14px; }
-#intro .hero-visual{ position:relative; min-height:clamp(300px,38vw,520px); border-radius:var(--r-lg);
-  overflow:hidden; border:1px solid var(--line);
-  background:
-    radial-gradient(120% 80% at 88% 8%, var(--glow-2), rgba(255,255,255,0) 60%),
-    linear-gradient(160deg, var(--glow), rgba(255,255,255,0) 45%),
-    linear-gradient(135deg, var(--sand) 0%, var(--sand-2) 100%);
-  box-shadow:0 30px 70px -40px rgba(30,40,35,.35); }
-#intro .hero-visual::before{ content:''; position:absolute; top:-20%; right:-10%; width:70%; height:130%;
-  background:linear-gradient(115deg, rgba(255,255,255,0) 30%, var(--glow) 50%, rgba(255,255,255,0) 70%);
-  transform:rotate(8deg); pointer-events:none; }
-#intro .hero-visual svg{ position:absolute; left:clamp(20px,4vw,40px); right:clamp(20px,4vw,40px);
-  top:clamp(28px,5vw,56px); width:auto; height:auto; max-height:40%; color:var(--accent); opacity:.85; }
-#intro .hero-verbs{ position:absolute; left:clamp(20px,4vw,40px); bottom:clamp(20px,3vw,32px); margin:0;
-  font-family:var(--serif); font-style:italic; font-size:clamp(17px,2vw,21px); line-height:1.5;
-  letter-spacing:.02em; color:var(--muted); }
+#intro .hero-note{ margin:0; color:var(--muted); font-size:12.5px; line-height:1.7;
+  max-width:52ch; word-break:keep-all; }
+
+#intro .hero__art{ position:relative; overflow:hidden; }
+/* 그림만 가리고 흐린다 — 위에 얹은 글자는 또렷하게 남는다. */
+#intro .hero__art-img{ position:absolute; inset:0; filter:var(--art-dim);
+  -webkit-mask-image:linear-gradient(90deg, transparent 0, rgba(0,0,0,.32) 13%, #000 40%);
+          mask-image:linear-gradient(90deg, transparent 0, rgba(0,0,0,.32) 13%, #000 40%); }
+#intro .hero__art-img svg{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+#intro .hero-verbs{ position:absolute; right:clamp(16px,3.4vw,46px); top:clamp(28px,5vw,62px); margin:0;
+  font-family:var(--serif); font-style:italic; font-size:clamp(15px,1.7vw,21px); line-height:1.95;
+  letter-spacing:.02em; color:var(--art-ink); }
 #intro .hero-verbs span{ display:block; }
 #intro .hero-verbs b{ font-weight:700; font-style:normal; color:var(--accent); font-family:var(--sans); }
+
+/* 히어로 아래 걸쳐 뜨는 네 장 — 첫 화면에서 "무엇을 해 주는가"가 바로 읽히게 */
+#intro .benefits{ position:relative; z-index:6; margin-top:clamp(-92px,-7vw,-56px); }
+#intro .benefits .container{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:clamp(10px,1.2vw,16px); }
+#intro .benefit{ display:grid; grid-template-columns:38px 1fr; column-gap:12px; align-content:center;
+  min-height:112px; padding:18px 16px; border:1px solid var(--line); border-radius:var(--r-md);
+  background:var(--panel); box-shadow:0 18px 40px -24px rgba(30,40,35,.42); }
+#intro .benefit__ico{ grid-row:1/3; width:38px; height:38px; display:grid; place-items:center;
+  border-radius:50%; background:var(--accent-tint); color:var(--accent); }
+#intro .benefit__ico svg{ width:19px; height:19px; }
+#intro .benefit h3{ margin:0 0 5px; font-size:14px; line-height:1.35; letter-spacing:-.01em;
+  word-break:keep-all; }
+#intro .benefit p{ margin:0; color:var(--muted); font-size:12.5px; line-height:1.65; word-break:keep-all; }
+
+@media (max-width:1000px){
+  #intro .benefits .container{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
 @media (max-width:900px){
-  #intro .hero .container{ grid-template-columns:1fr; }
-  #intro .hero-visual{ min-height:260px; order:2; }
+  #intro .hero__grid{ grid-template-columns:1fr; min-height:0; }
+  #intro .hero__copy{ justify-content:flex-start;
+    padding:clamp(32px,7vw,48px) var(--gutter) clamp(40px,7vw,56px); }
+  #intro .hero__copy-in{ max-width:58ch; }
+  #intro .hero__art{ min-height:clamp(200px,44vw,300px); }
+  #intro .hero__art-img{ -webkit-mask-image:linear-gradient(180deg, transparent 0, #000 24%);
+                                 mask-image:linear-gradient(180deg, transparent 0, #000 24%); }
+  #intro .hero-verbs{ top:auto; bottom:clamp(14px,3vw,24px); }
+  #intro .benefits{ margin-top:clamp(-44px,-5vw,-24px); }
+}
+@media (max-width:560px){
+  #intro .benefits{ margin-top:20px; }
+  #intro .benefits .container{ grid-template-columns:1fr; }
+  #intro .benefit{ min-height:0; }
 }
 
+/* 숫자 띠 — 홈에서는 네 값만, 재는 방법은 기술 상세로 넘긴다 */
+#intro .stat-band{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px;
+  background:var(--line); border:1px solid var(--line); border-radius:var(--r-md); overflow:hidden; }
+#intro .stat{ padding:clamp(18px,2.4vw,28px); background:var(--panel); }
+#intro .stat b{ display:block; font-family:var(--mono); font-size:clamp(21px,2.5vw,29px);
+  letter-spacing:-.02em; line-height:1.2; color:var(--ink); }
+#intro .stat span{ display:block; margin-top:8px; font-size:13px; font-weight:700; color:var(--ink); }
+#intro .stat small{ display:block; margin-top:4px; color:var(--muted); font-size:12px; line-height:1.65;
+  word-break:keep-all; }
+@media (max-width:860px){ #intro .stat-band{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:460px){ #intro .stat-band{ grid-template-columns:1fr; } }
+
+/* 기술 상세 뷰 머리말 */
+#intro .tech-head{ padding-block:clamp(40px,6vw,68px) clamp(22px,3vw,34px);
+  background:var(--sand); border-bottom:1px solid var(--line); }
+#intro .tech-head h1{ margin:0 0 14px; font-size:clamp(25px,3.4vw,38px); }
+#intro .tech-nav{ display:flex; flex-wrap:wrap; gap:8px 10px; margin:22px 0 0; }
+#intro .tech-nav a{ padding:7px 13px; border:1px solid var(--line-strong); border-radius:var(--r-pill);
+  background:var(--panel); color:var(--ink); font-size:13px; font-weight:700; text-decoration:none; }
+#intro .tech-nav a:hover{ border-color:var(--accent); color:var(--accent); }
+/* 파일 경로는 읽는 순서대로 왼쪽 정렬 — .kv 의 기본 오른쪽 정렬은 숫자용이다. */
+#intro #sec-guards .kv td{ text-align:left; }
+#intro #view-tech .tech-head + .section{ border-top:0; padding-block:clamp(36px,5vw,64px) clamp(64px,10vw,128px); }
+
 /* 03 제품 화면 — 히어로 아래 한 장, 브라우저 창처럼 */
-#intro .proof{ padding-block:0 clamp(16px,3vw,32px); }
+#intro .proof{ padding-block:clamp(48px,6vw,80px) clamp(16px,3vw,32px); }
 #intro .shot{ margin:0; background:var(--panel); border:1px solid var(--line);
   border-radius:var(--r-lg); overflow:hidden; box-shadow:0 40px 80px -48px rgba(30,40,35,.35); }
 #intro .shot-bar{ display:flex; align-items:center; gap:6px; padding:10px 14px;
@@ -1115,11 +1179,11 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
     </a>
 
     <nav class="site-nav" aria-label="주요 섹션">
-      <a href="#sec-problem">고비</a>
       <a href="#sec-how">흐름</a>
-      <a href="#sec-evidence">숫자</a>
-      <a href="#sec-decisions">고른 것</a>
       <a href="#sec-controls">보호</a>
+      <a href="#sec-numbers">숫자</a>
+      <a href="#sec-console">데모</a>
+      <a href="#/tech" data-route="#/tech">기술 상세</a>
       <a href="https://github.com/sokldjs554/chartwire" target="_blank" rel="noopener">GitHub ↗</a>
     </nav>
 
@@ -1203,38 +1267,116 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
 
 <div id="view-landing">
 
-  <!-- ── 02 히어로 ─────────────────────────────────────────────────────── -->
+  <!-- ── 02 히어로: 왼쪽 글 · 오른쪽으로 흘러 나가는 진료실 ─────────────── -->
   <section class="hero" id="sec-hero">
-    <div class="container">
-      <div class="hero-copy">
-        <p class="eyebrow">정신과 진료실을 위한 실시간 음성 차팅 · 백엔드</p>
-        <h1 tabindex="-1">말한 것은 남고,<br class="brk"> 지운 것은 정말 사라집니다.</h1>
-        <p class="hero-sub">진료실 Wi-Fi 가 끊겨도 무엇이 저장됐는지 서버와 화면이 다투지 않습니다. 환자가 지워 달라고 하면, 지웠다는 영수증이 남습니다.</p>
-        <p class="lead">chartwire 는 녹음 → 전사 → SOAP 초안 밑에서 조용히 일하는 층입니다. 놓치지 않는 스트리밍, 의원과 의원 사이의 벽, 문장마다 붙는 근거, 그리고 파기 영수증. 모델을 만드는 대신 모델이 기대는 바닥을 만들고, 그 바닥을 숫자로 잽니다.</p>
+    <div class="hero__grid">
+      <div class="hero__copy">
+        <div class="hero__copy-in">
+          <p class="eyebrow">정신과 진료실을 위한 실시간 음성 차팅</p>
+          <h1 tabindex="-1">오늘도 누군가는<br class="brk"> 마음을 꺼내 놓고 갑니다.</h1>
+          <p class="hero-sub">그 말을 받아 적는 일은 chartwire 가 합니다. 진료실 Wi-Fi 가 흔들려도 한 조각 잃지 않고, 환자가 지워 달라고 하면 정말로 지웁니다. 의사는 화면 대신 사람을 봅니다.</p>
 
-        <div class="cta-row">
-          <button type="button" class="btn-primary js-consult" data-source="hero">서비스 상담신청하기</button>
-          <button type="button" class="btn-secondary js-demo" data-source="hero">상담 없이 데모 콘솔 열기</button>
+          <div class="cta-row">
+            <button type="button" class="btn-primary js-consult" data-source="hero">서비스 상담신청하기</button>
+            <button type="button" class="btn-secondary js-demo" data-source="hero">상담 없이 데모 열어 보기</button>
+          </div>
+          <p class="hero-note">합성 데이터로 만든 공개 데모입니다 — 실제 환자 정보는 없습니다. 무료 서버라 첫 접속에 1~2분 걸릴 수 있습니다.</p>
         </div>
-        <p class="footnote">포트폴리오 데모입니다 — 합성 데이터, 실제 고객·실제 환자 없음. 공개 데모는 무료 인스턴스라 첫 접속에 1~2분 걸립니다.</p>
       </div>
 
-      <!-- 빛이 드는 패널: 사진 대신 CSS 그라디언트 + 인라인 SVG. 외부 자원 없음 (CSP img-src 'self' data:) -->
-      <div class="hero-visual" aria-hidden="true">
-        <svg viewBox="0 0 400 120" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
-          <g stroke-width="3">
-            <path d="M14 60v-8M26 60v-22M38 60v-14M50 60v-34M62 60v-18M74 60v-40M86 60v-12M98 60v-26M110 60v-8"/>
-            <path d="M14 60v8M26 60v22M38 60v14M50 60v34M62 60v18M74 60v40M86 60v12M98 60v26M110 60v8"/>
-          </g>
-          <path d="M136 60h44M172 52l8 8-8 8" opacity=".6"/>
-          <g>
-            <rect x="208" y="22" width="176" height="76" rx="12" stroke-width="1.5"/>
-            <path d="M228 46h96M228 62h136M228 78h72" stroke-width="2.5"/>
-            <path d="M338 76l7 7 13-14" stroke-width="2.5"/>
-          </g>
-        </svg>
+      <div class="hero__art">
+        <div class="hero__art-img" aria-hidden="true"><svg viewBox="0 0 760 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+<defs>
+<linearGradient id="cwWall" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffdf9"/><stop offset=".52" stop-color="#f8f2e7"/><stop offset="1" stop-color="#e8ddca"/></linearGradient>
+<linearGradient id="cwGlass" x1="0" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#f5eee0"/></linearGradient>
+<linearGradient id="cwBeam" x1="0" y1="0" x2=".2" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".72"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+<linearGradient id="cwFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6d9c4"/><stop offset="1" stop-color="#d3c1a3"/></linearGradient>
+<linearGradient id="cwWood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#dbbb94"/><stop offset="1" stop-color="#bd9566"/></linearGradient>
+<linearGradient id="cwPot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d9b596"/><stop offset="1" stop-color="#bd9170"/></linearGradient>
+</defs>
+
+<rect width="760" height="620" fill="url(#cwWall)"/>
+
+<rect x="88" y="40" width="242" height="320" rx="12" fill="url(#cwGlass)"/>
+<rect x="88" y="40" width="242" height="320" rx="12" fill="none" stroke="#e7dcc9" stroke-width="4"/>
+<path d="M209 40v320M88 206h242" stroke="#ede3d3" stroke-width="4"/>
+<path d="M112 360 L328 360 L470 600 L146 600 Z" fill="url(#cwBeam)"/>
+
+<path d="M328 34c32 76 22 158 8 228s-16 88-2 122h64V34z" fill="#fffdf9" opacity=".95"/>
+<path d="M350 44c16 78 9 156-1 222s-10 82 1 114" fill="none" stroke="#f1e8d9" stroke-width="4"/>
+
+<path d="M0 438h760v182H0z" fill="url(#cwFloor)"/>
+<path d="M0 438h760" stroke="#cbb89a" stroke-width="2"/>
+<ellipse cx="300" cy="552" rx="340" ry="66" fill="#e9dbc1" opacity=".55"/>
+
+<ellipse cx="124" cy="494" rx="104" ry="12" fill="#c2ad8e" opacity=".40"/>
+<ellipse cx="352" cy="540" rx="56" ry="11" fill="#c2ad8e" opacity=".40"/>
+<ellipse cx="512" cy="548" rx="78" ry="12" fill="#c2ad8e" opacity=".38"/>
+
+<g>
+  <rect x="60" y="252" width="128" height="150" rx="30" fill="#d3ab80"/>
+  <rect x="76" y="272" width="96" height="122" rx="18" fill="#eee1c8"/>
+  <path d="M84 332h80" stroke="#e2d2b4" stroke-width="3" stroke-linecap="round"/>
+  <rect x="32" y="322" width="44" height="80" rx="20" fill="#cca379"/>
+  <rect x="172" y="322" width="44" height="80" rx="20" fill="#cca379"/>
+  <rect x="24" y="386" width="200" height="40" rx="14" fill="#f2e8d4"/>
+  <path d="M24 404h200" stroke="#e5d8bd" stroke-width="3"/>
+  <path d="M42 424l-8 66M206 424l8 66M74 424l2 58M174 424l-2 58" stroke="#bd9566" stroke-width="10" stroke-linecap="round"/>
+</g>
+
+<g>
+  <path d="M320 442h64l-8 96h-48z" fill="url(#cwPot)"/>
+  <path d="M312 428h80a5 5 0 0 1 5 5v9a5 5 0 0 1-5 5h-80a5 5 0 0 1-5-5v-9a5 5 0 0 1 5-5z" fill="#c7a179"/>
+  <polyline points="356,424 353,390 349,357 343,323 335,290 325,256" fill="none" stroke="#7f9878" stroke-width="3.5" stroke-linecap="round"/><ellipse cx="342" cy="385" rx="13" ry="7" fill="#8fa886" opacity=".95" transform="rotate(-156 342 385)"/><ellipse cx="363" cy="384" rx="13" ry="7" fill="#8fa886" opacity=".95" transform="rotate(-32 363 384)"/><ellipse cx="340" cy="351" rx="12" ry="6" fill="#8fa886" opacity=".95" transform="rotate(-146 340 351)"/><ellipse cx="356" cy="349" rx="12" ry="6" fill="#8fa886" opacity=".95" transform="rotate(-48 356 349)"/><ellipse cx="335" cy="318" rx="10" ry="5" fill="#8fa886" opacity=".95" transform="rotate(-143 335 318)"/><ellipse cx="348" cy="315" rx="10" ry="5" fill="#8fa886" opacity=".95" transform="rotate(-58 348 315)"/><ellipse cx="327" cy="287" rx="9" ry="4" fill="#8fa886" opacity=".95" transform="rotate(-160 327 287)"/><ellipse cx="340" cy="284" rx="9" ry="4" fill="#8fa886" opacity=".95" transform="rotate(-47 340 284)"/><ellipse cx="319" cy="254" rx="7" ry="4" fill="#8fa886" opacity=".95" transform="rotate(-166 319 254)"/><ellipse cx="329" cy="251" rx="7" ry="4" fill="#8fa886" opacity=".95" transform="rotate(-46 329 251)"/><polyline points="349,420 353,387 359,354 368,321 379,288" fill="none" stroke="#7f9878" stroke-width="3.5" stroke-linecap="round"/><ellipse cx="344" cy="381" rx="12" ry="6" fill="#9cb493" opacity=".95" transform="rotate(-145 344 381)"/><ellipse cx="363" cy="383" rx="12" ry="6" fill="#9cb493" opacity=".95" transform="rotate(-21 363 383)"/><ellipse cx="353" cy="347" rx="10" ry="5" fill="#9cb493" opacity=".95" transform="rotate(-129 353 347)"/><ellipse cx="367" cy="349" rx="10" ry="5" fill="#9cb493" opacity=".95" transform="rotate(-30 367 349)"/><ellipse cx="364" cy="314" rx="8" ry="4" fill="#9cb493" opacity=".95" transform="rotate(-117 364 314)"/><ellipse cx="375" cy="317" rx="8" ry="4" fill="#9cb493" opacity=".95" transform="rotate(-32 375 317)"/><ellipse cx="375" cy="283" rx="7" ry="4" fill="#9cb493" opacity=".95" transform="rotate(-128 375 283)"/><ellipse cx="386" cy="286" rx="7" ry="4" fill="#9cb493" opacity=".95" transform="rotate(-14 386 286)"/><polyline points="357,416 364,385 364,355 358,324" fill="none" stroke="#7f9878" stroke-width="3.5" stroke-linecap="round"/><ellipse cx="357" cy="379" rx="10" ry="5" fill="#8fa886" opacity=".95" transform="rotate(-139 357 379)"/><ellipse cx="373" cy="383" rx="10" ry="5" fill="#8fa886" opacity=".95" transform="rotate(-15 373 383)"/><ellipse cx="358" cy="349" rx="9" ry="5" fill="#8fa886" opacity=".95" transform="rotate(-139 358 349)"/><ellipse cx="370" cy="350" rx="9" ry="5" fill="#8fa886" opacity=".95" transform="rotate(-40 370 350)"/><ellipse cx="353" cy="320" rx="7" ry="4" fill="#8fa886" opacity=".95" transform="rotate(-144 353 320)"/><ellipse cx="361" cy="318" rx="7" ry="4" fill="#8fa886" opacity=".95" transform="rotate(-59 361 318)"/>
+</g>
+
+<g>
+  <ellipse cx="512" cy="424" rx="84" ry="20" fill="#d2b58c"/>
+  <ellipse cx="512" cy="416" rx="84" ry="20" fill="url(#cwWood)"/>
+  <path d="M480 432l-16 110M544 432l16 110M512 434v108" stroke="#bd9566" stroke-width="9" stroke-linecap="round"/>
+  <path d="M466 544h92" stroke="#bd9566" stroke-width="8" stroke-linecap="round"/>
+</g>
+<g>
+  <path d="M488 388h34v13c0 9-8 17-17 17s-17-8-17-17z" fill="#fffdf9" stroke="#e9dfce" stroke-width="3"/>
+  <path d="M522 392c9 0 14 4 14 10s-5 10-14 10" fill="none" stroke="#e9dfce" stroke-width="4"/>
+  <path d="M496 376c3-7-3-11 0-18M508 374c3-7-3-11 0-18" fill="none" stroke="#dfd4c1" stroke-width="3" stroke-linecap="round"/>
+</g>
+
+<g>
+  <path d="M760 372c-84 4-146 52-166 124 88 12 158-40 190-110z" fill="#9db795"/>
+  <path d="M760 400c-62 10-110 48-130 96" fill="none" stroke="#829a7b" stroke-width="4"/>
+  <path d="M760 530c-70 2-124 38-146 90h200z" fill="#8aa481"/>
+  <path d="M760 556c-54 6-96 34-116 72" fill="none" stroke="#748c6e" stroke-width="4"/>
+</g>
+</svg></div>
         <p class="hero-verbs"><span>듣고,</span><span>적고,</span><span>지키고,</span><span><b>지웁니다.</b></span></p>
       </div>
+    </div>
+  </section>
+
+  <!-- ── 02b 히어로에 걸친 네 장 — "무엇을 해 주는가"를 첫 화면에서 ───────── -->
+  <section class="benefits" id="sec-benefits" aria-label="chartwire 가 해 주는 일">
+    <div class="container">
+      <article class="benefit">
+        <span class="benefit__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" focusable="false"><path d="M3 12h2.5M8 12V7M12 12V4M16 12V8M20.5 12H19"/><path d="M8 12v5M12 12v8M16 12v4"/></svg></span>
+        <h3>끊겨도 이어 적습니다</h3>
+        <p>연결이 흔들려도 빠진 구간을 되짚어 채웁니다.</p>
+      </article>
+      <article class="benefit">
+        <span class="benefit__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M6 4h12v16l-6-3-6 3z"/><path d="M9 9h6M9 13h4"/></svg></span>
+        <h3>문장마다 근거가 붙습니다</h3>
+        <p>초안의 모든 문장이 실제 발화를 그대로 인용합니다.</p>
+      </article>
+      <article class="benefit">
+        <span class="benefit__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M18 15V10a6 6 0 1 0-12 0v5l-2 3h16z"/><path d="M10 21h4"/></svg></span>
+        <h3>위험한 말은 그 자리에서</h3>
+        <p>요약을 기다리지 않고 초 단위로 띄워 줍니다.</p>
+      </article>
+      <article class="benefit">
+        <span class="benefit__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z"/><path d="M9.5 12.2l1.8 1.8 3.4-3.6"/></svg></span>
+        <h3>지우면 정말 사라집니다</h3>
+        <p>동의를 거두면 파기하고, 지웠다는 영수증을 냅니다.</p>
+      </article>
     </div>
   </section>
 
@@ -1252,6 +1394,255 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
         재현: <code>python scripts/console_screenshots.py</code>
         · <a href="/console/media/demo.gif" data-media="demo.gif" target="_blank" rel="noopener">데모 39초 보기 (GIF, 용량이 큽니다)</a>
       </p>
+    </div>
+  </section>
+
+  <!-- ── 06 작동 방식 4단계 ──────────────────────────────────────────── -->
+  <section class="section" id="sec-how">
+    <div class="container">
+      <p class="kicker">흐름</p>
+      <h2>한 번의 진료가 기록이 되기까지</h2>
+
+      <svg class="flowdiag" viewBox="0 0 720 96" role="img" aria-label="한 세션의 흐름: 녹음, 라이브 전사와 위험 경보, SOAP 초안과 서명, 동의 철회와 파기 영수증 순서로 이어진다." focusable="false">
+        <g fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="1" y="26" width="160" height="44" rx="8"/>
+          <rect x="187" y="26" width="160" height="44" rx="8"/>
+          <rect x="373" y="26" width="160" height="44" rx="8"/>
+          <rect x="559" y="26" width="160" height="44" rx="8"/>
+          <path d="M161 48 h18 M347 48 h18 M533 48 h18"/>
+          <path d="M179 44 l6 4 -6 4 M365 44 l6 4 -6 4 M551 44 l6 4 -6 4"/>
+        </g>
+        <g fill="currentColor" font-size="13" font-family="inherit" text-anchor="middle">
+          <text x="81" y="53">① 녹음</text>
+          <text x="267" y="53">② 전사 · 경보</text>
+          <text x="453" y="53">③ 초안 · 서명</text>
+          <text x="639" y="53">④ 철회 · 영수증</text>
+        </g>
+      </svg>
+
+      <ol class="steps-list">
+        <li>
+          <div class="steps-list__body">
+            <h3>녹음</h3>
+            <p>진료 중 오간 말을 짧은 조각으로 나눠 보냅니다. 서버가 「받았습니다」라고 답하는 건 그 조각이 실제로 저장된 뒤입니다 — 그래서 답이 돌아온 조각은 잃지 않습니다.</p>
+          </div>
+          <button type="button" class="link-cta js-feature" data-feature="rec">이 단계 열어 보기 →</button>
+        </li>
+        <li>
+          <div class="steps-list__body">
+            <h3>라이브 전사 · 위험 경보</h3>
+            <p>말이 글로 바뀌는 과정이 화면에 그대로 보입니다. 위험한 말이 나오면 요약을 기다리지 않고 그 자리에서 띄우고, 확인할 때까지 시간을 셉니다. 「죽고 싶다는 생각까지는 없어요」처럼 아니라고 말한 문장은 울리지 않습니다.</p>
+          </div>
+          <button type="button" class="link-cta js-feature" data-feature="live">이 단계 열어 보기 →</button>
+        </li>
+        <li>
+          <div class="steps-list__body">
+            <h3>SOAP 초안 · 서명</h3>
+            <p>초안의 모든 문장이 실제로 오간 말을 그대로 인용하고, 서버가 그 인용이 맞는지 하나씩 확인합니다. 근거를 못 대는 문장은 초안에 들어가지 못합니다. 진단과 평가는 아예 쓰지 않습니다 — 그건 의사가 쓰는 자리입니다.</p>
+          </div>
+          <button type="button" class="link-cta js-feature" data-feature="soap">이 단계 열어 보기 →</button>
+        </li>
+        <li>
+          <div class="steps-list__body">
+            <h3>철회 → 파기 → 영수증</h3>
+            <p>환자가 동의를 거두면 녹음과 전사를 지우고 그 진료의 열쇠까지 없앱니다. 무엇을 몇 건 지웠는지 적힌 영수증이 남고, 남은 파일을 다시 열어 보면 열리지 않는 것까지 화면에서 보여 드립니다.</p>
+          </div>
+          <button type="button" class="link-cta js-feature" data-feature="consent">이 단계 열어 보기 →</button>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ── 08 안전·통제 6타일 (인증 배지의 치환) ───────────────────────── -->
+  <section class="section" id="sec-controls">
+    <div class="container">
+      <p class="kicker">보호 장치</p>
+      <h2>환자의 말을 이렇게 지킵니다</h2>
+      <p class="lead">SOC 2 나 HIPAA 인증은 조직과 감사가 있어야 받는 것이라 아직 없습니다. 대신 인증이 확인하는 항목들을 하나씩 테스트로 고정해 두었습니다 — 하나라도 깨지면 CI 가 빨간불이 됩니다.</p>
+
+      <div class="controls">
+        <!-- row:eval.rls.tile --><article class="control">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z"/><path d="M9.5 12.2l1.8 1.8 3.4-3.6"/></svg>
+          <b>의원 사이의 벽</b></b>
+          <p>한 서버에 여러 의원이 있어도 서로의 기록은 보이지 않습니다. 일부러 남의 기록을 꺼내 보려 한 <!-- num:eval.rls.attempts -->252<!-- /num -->가지 시도에서 열린 적은 <!-- num:eval.rls.leaks -->0<!-- /num -->번입니다.</p>
+        </article><!-- /row -->
+        <article class="control">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h7M9 16h5"/></svg>
+          <b>누가 무엇을 했는지</b></b>
+          <p>민감한 화면은 누가 · 무엇을 · 어떻게 됐는지를 남깁니다. 상담 신청서에 쓰신 내용은 어떤 로그에도 싣지 않습니다.</p>
+        </article>
+        <article class="control">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12.3l2.4 2.4 4.6-5"/></svg>
+          <b>동의한 것만</b></b>
+          <p>녹음 · 전사 · 초안 작성 · 검색을 따로 동의합니다. 동의하지 않은 일은 서버가 아예 거절합니다.</p>
+        </article>
+        <article class="control">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 10c0-2 1.4-3.4 3.2-3.7"/><path d="M5 17c2.6 0 4-1.7 4-4V9H5v4"/><path d="M15 17c2.6 0 4-1.7 4-4V9h-4v4"/></svg>
+          <b>근거 없는 문장은 못 들어갑니다</b></b>
+          <p>근거를 못 대는 문장은 「확인 필요」로 남고 사람이 보기 전에는 서명되지 않습니다. 근거가 모자라면 초안을 만들지 않고 비워 둡니다.</p>
+        </article>
+        <!-- row:eval.purge.tile --><article class="control">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>
+          <b>지웠다는 증거</b></b>
+          <p>지운 뒤에 남은 기록 · 파일 · 열쇠가 각각 <!-- num:eval.purge.residual_rows -->0<!-- /num --> · <!-- num:eval.purge.residual_objects -->0<!-- /num --> · <!-- num:eval.purge.residual_keys -->0<!-- /num --> 인지 세어 영수증에 적습니다. 파기 뒤 다시 열어 본 시도는 <!-- num:eval.purge.decrypt_failure_pct -->100<!-- /num --> % 실패했습니다.</p>
+        </article><!-- /row -->
+        <article class="control">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="12" r="3.5"/><path d="M12 12h8M17 12v3M20 12v2.5"/></svg>
+          <b>진료마다 다른 열쇠</b></b>
+          <p>녹음은 진료마다 다른 열쇠로 잠급니다. 이미 서명된 기록은 진료기록 보존을 위해 또 다른 열쇠로 따로 봉인해 남습니다.</p>
+        </article>
+      </div>
+      <p class="footnote">각 항목을 어떤 테스트가 붙잡고 있는지는 <a href="#/tech" data-route="#/tech">기술 상세</a>에 파일 이름까지 적어 두었습니다.</p>
+    </div>
+  </section>
+
+  <!-- ── 10 숫자 띠 — 홈에는 네 값만, 재는 방법은 기술 상세로 ───────────── -->
+  <section class="section" id="sec-numbers">
+    <div class="container">
+      <p class="kicker">숫자</p>
+      <h2>말로만 하지 않았습니다</h2>
+      <p class="lead">아래 네 값은 사람이 적은 게 아니라 코드가 만든 리포트에서 그대로 옮겨 온 것입니다. 손으로 고치면 CI 가 막습니다.</p>
+
+      <div class="stat-band">
+        <!-- row:load.A.n50.stat --><div class="stat">
+          <b><!-- num:load.A.n50.ack_p95_ms -->223<!-- /num --> ms</b>
+          <span>저장됐다는 응답까지</span>
+          <small>동시 진료 50개를 한 대로 받으면서 잰 값입니다. 응답은 기록이 실제로 저장된 뒤에만 돌아옵니다.</small>
+        </div><!-- /row -->
+        <!-- row:load.D.stat --><div class="stat">
+          <b><!-- num:load.D.loss -->0<!-- /num --> · <!-- num:load.D.dup -->0<!-- /num --></b>
+          <span>잃은 기록 · 겹친 기록</span>
+          <small>연결을 강제로 끊고 캐시를 비우고 처리기를 멈춰 세운 시나리오에서 <!-- num:load.D.sessions -->100<!-- /num -->개 진료를 돌렸습니다.</small>
+        </div><!-- /row -->
+        <!-- row:eval.purge.stat --><div class="stat">
+          <b><!-- num:eval.purge.decrypt_failure_pct -->100<!-- /num --> %</b>
+          <span>파기 뒤 다시 열어 보면 실패</span>
+          <small>지운 녹음은 열쇠까지 없앴기 때문에 남은 파일을 다시 열려고 해도 열리지 않습니다.</small>
+        </div><!-- /row -->
+        <!-- row:eval.rls.stat --><div class="stat">
+          <b><!-- num:eval.rls.leaks -->0<!-- /num --> / <!-- num:eval.rls.attempts -->252<!-- /num --></b>
+          <span>다른 의원의 기록이 보인 횟수</span>
+          <small>화면 × 역할 × 의원을 교차해 일부러 남의 기록을 꺼내 보려 한 시도입니다.</small>
+        </div><!-- /row -->
+      </div>
+
+      <p class="soft-cta">어떻게 쟀는지, 어디서 무너지는지, 무엇을 재고 골랐는지 — <a class="link-cta" href="#/tech" data-route="#/tech">기술 상세에서 전부 보기 →</a></p>
+    </div>
+  </section>
+
+  <!-- ── 11b 데모 콘솔 바로 열기 (기능 카드 · 대본 · 검색 · 5분 투어) ─── -->
+  <section class="section" id="sec-console">
+    <div class="container">
+      <p class="kicker">데모</p>
+      <h2>콘솔에서 바로 해 보기</h2>
+      <p class="lead">카드를 누르면 그 기능으로 들어갑니다. 로그인 전이면 필요한 데모 계정으로 자동 로그인합니다(④ · ⑤ · 운영 지표는 admin).</p>
+
+      <form class="search" id="homeSearchForm" role="search">
+        <label class="sr-only" for="homeSearch">기능 검색</label>
+        <input type="search" id="homeSearch" autocomplete="off"
+               placeholder="기능을 검색해서 바로 들어가세요 — 예: 경보, 영수증, 초안, 대본, 지표">
+        <button class="btn" type="submit">들어가기</button>
+      </form>
+      <p class="hint" id="searchHint">검색어를 치면 아래 기능·대본 카드가 걸러지고, Enter 를 누르면 첫 결과로 들어갑니다 (필요하면 데모 계정으로 자동 로그인).</p>
+
+      <div class="cta-row cta-row--tight">
+        <button type="button" class="btn-primary" id="quickStart">데모 계정으로 시작 (clinician)</button>
+        <button type="button" class="btn-secondary hidden" id="backToConsole">콘솔로 돌아가기</button>
+      </div>
+
+      <div class="stats" id="homeStats">
+        <span>합성 대본 <b>20</b>개</span>
+        <span>주호소 <b>8</b>가지</span>
+        <span>데모 역할 <b>4</b>개</span>
+        <span>API 키 <b>없음</b></span>
+      </div>
+
+      <h3 class="sub-h">기능</h3>
+      <div class="cards" id="features"></div>
+      <p class="empty hidden" id="featuresEmpty">검색 결과가 없습니다.</p>
+
+      <h3 class="sub-h">대본 둘러보기 — 8가지 주호소</h3>
+      <p class="muted small">합성 대본은 주호소가 대화의 질문 · 답 · 계획을 바꿉니다. 대본을 고르면 세션 만들기 화면으로 들어갑니다(새 가상환자 → 세션 생성).</p>
+      <div class="cards" id="templates"></div>
+
+      <h3 class="sub-h">5분 투어 — 콘솔 위쪽의 단계 표시를 따라가면 됩니다</h3>
+      <ol class="tour">
+        <li><b>녹음 (Recorder)</b><span>Start 를 누르면 브라우저 녹음기가 12 B 헤더가 붙은 200 ms 청크를 WebSocket 으로 보냅니다. <code>ack_seq</code> 는 청크가 PostgreSQL 에 커밋된 뒤에만 올라갑니다. 중간에 「네트워크 끊기 5초」를 눌러 보세요 — 재접속 뒤 재전송이 로그에 찍힙니다.</span></li>
+        <li><b>라이브 전사 · 위험 경보 (Live chart)</b><span>회색 partial 이 final 로 확정되고, 위험 발화에서 배너와 SLA 카운트다운이 뜹니다. ACK 를 누르면 닫힙니다.</span></li>
+        <li><b>SOAP 초안 · 서명 (SOAP draft)</b><span>문장을 누르면 근거 발화가 하이라이트됩니다. A(평가)는 「AI가 작성하지 않는 영역」이라 직접 적어야 서명이 됩니다.</span></li>
+        <li><b>동의 철회 → 파기 영수증 (Consent &amp; purge)</b><span>철회하면 아웃박스를 거쳐 파기 파이프라인이 돌고, 단계별 삭제 건수와 해시가 붙은 파기 영수증이 남습니다. 영수증 조회는 admin · auditor 권한이라 계정을 바꿔 로그인합니다.</span></li>
+        <li><b>복호화 시도</b><span>영수증의 표본 암호문을 다시 풀어 봅니다. 세션 DEK 가 파기되어 <code>failed:dek_destroyed</code> 가 나와야 정상입니다.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ── 12 최종 CTA ─────────────────────────────────────────────────── -->
+  <section class="section section--tight" id="sec-cta">
+    <div class="container">
+      <div class="cta-banner">
+        <h2>읽는 것보다 한 번 해 보는 게 빠릅니다</h2>
+        <p class="lead">상담을 남기면 접수함에 저장됩니다 — 데모라 실제 연락은 가지 않습니다. 기다리지 않고 바로 콘솔에 들어갈 수도 있습니다.</p>
+        <div class="cta-row">
+          <button type="button" class="btn-primary js-consult" data-source="final-cta">서비스 상담신청하기</button>
+          <button type="button" class="btn-secondary js-demo" data-source="final-cta">지금 데모 콘솔 열기</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 13 FAQ ──────────────────────────────────────────────────────── -->
+  <section class="section section--tight" id="sec-faq">
+    <div class="container">
+      <p class="kicker">질문</p>
+      <h2>자주 묻는 질문</h2>
+      <div class="faq">
+        <details open>
+          <summary>지금 바로 해 볼 수 있는 게 뭔가요?</summary>
+          <p>전부입니다. 「상담 없이 데모 콘솔 열기」를 누르면 clinician 계정으로 바로 들어가고, 녹음 → 라이브 전사 → 위험 경보 → SOAP 초안 → 동의 철회 → 파기 영수증 → 복호화 시도까지 5분이면 끝까지 눌러 볼 수 있습니다. 녹음 중에 「네트워크 끊기 5초」를 눌러 끊어 보셔도 됩니다 — 다시 붙고 빠진 조각을 채우는 게 로그에 그대로 찍힙니다.</p>
+        </details>
+        <details>
+          <summary>실제 환자 데이터가 들어 있나요?</summary>
+          <p>전부 합성입니다. 대본 20개는 문법으로 만든 한국어이고 환자는 「가상환자-NNNN」이라, 무엇을 누르든 지우든 괜찮습니다. 실제로 동의를 철회하고 파기까지 돌려 보셔도 됩니다.</p>
+        </details>
+        <details>
+          <summary>임상에 쓸 수 있나요?</summary>
+          <p>임상 판단에 쓰는 도구는 아닙니다. 여기서 보실 수 있는 것은 그 아래 계층입니다 — 한 조각도 잃지 않는 저장, 문장마다 붙는 근거, 동의를 거둔 뒤의 파기 영수증. 음성차팅 제품을 올리려면 먼저 있어야 하는 바닥입니다.</p>
+        </details>
+        <details>
+          <summary>상담을 남기면 연락이 오나요?</summary>
+          <p>접수는 실제로 됩니다 — <code>POST /v1/consultations</code> 로 저장되고 접수 번호가 나옵니다. 폼에 예시 값이 채워져 있으니 실제 연락처 없이 그대로 제출해 보셔도 됩니다. 다만 영업 조직이 없어 연락은 가지 않고, 접수일로부터 90일 뒤 파기합니다(인스턴스가 기동할 때마다 파기 명령이 돕니다).</p>
+        </details>
+        <details>
+          <summary>데모가 느린데요?</summary>
+          <p>무료 인스턴스 한 컨테이너에 PostgreSQL · Redis · 워커가 다 들어 있어서 그렇습니다. 15분 쉬면 잠들고 다시 깨는 데 1~2분 걸립니다 — 로그인이 멈춘 것처럼 보이면 그때입니다. 제 속도로 보시려면 <code>docker compose up --build</code> 한 줄이면 같은 것이 로컬에서 돕니다.</p>
+        </details>
+        <details>
+          <summary>인증(SOC 2 · HIPAA · ISMS-P)이 있나요?</summary>
+          <p>인증은 조직과 감사가 있어야 받는 것이라 아직 없습니다. 대신 인증이 확인하는 항목들 — 테넌트 격리 · 감사 로그 · 동의 범위 · 암호화 · 파기 — 이 각각 테스트로 고정돼 있고, 하나라도 깨지면 CI 가 빨간불이 됩니다. 위 「환자의 말을 이렇게 지킵니다」에 어떤 파일이 무엇을 붙잡는지 적어 두었습니다.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /#view-landing -->
+
+<!-- ══ 기술 상세 뷰 (#/tech) — 홈이 제품을 말하고, 여기가 근거를 말한다 ══════ -->
+<div id="view-tech" class="hidden">
+
+  <section class="tech-head">
+    <div class="container">
+      <p class="kicker">기술 상세</p>
+      <h1 id="techTitle" tabindex="-1">무엇을, 어떻게 쟀는지</h1>
+      <p class="lead">홈에 적은 네 숫자가 어디서 나왔는지, 한 대로 어디까지 버티는지, 어떤 대안을 같이 재고 나서 지금 것을 골랐는지 — 전부 여기 있습니다.</p>
+      <nav class="tech-nav" aria-label="기술 상세 목차">
+        <a href="#sec-evidence">재어 본 것</a>
+        <a href="#sec-problem">고비</a>
+        <a href="#sec-features">안에 든 것</a>
+        <a href="#sec-guards">고정한 것</a>
+        <a href="#sec-knee">한계선</a>
+        <a href="#sec-decisions">고른 것</a>
+        <a href="#sec-repro">직접 돌려 보기</a>
+      </nav>
     </div>
   </section>
 
@@ -1341,62 +1732,6 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
     </div>
   </section>
 
-  <!-- ── 06 작동 방식 4단계 ──────────────────────────────────────────── -->
-  <section class="section" id="sec-how">
-    <div class="container">
-      <p class="kicker">흐름</p>
-      <h2>한 번의 진료가 기록이 되기까지</h2>
-
-      <svg class="flowdiag" viewBox="0 0 720 96" role="img" aria-label="한 세션의 흐름: 녹음, 라이브 전사와 위험 경보, SOAP 초안과 서명, 동의 철회와 파기 영수증 순서로 이어진다." focusable="false">
-        <g fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="1" y="26" width="160" height="44" rx="8"/>
-          <rect x="187" y="26" width="160" height="44" rx="8"/>
-          <rect x="373" y="26" width="160" height="44" rx="8"/>
-          <rect x="559" y="26" width="160" height="44" rx="8"/>
-          <path d="M161 48 h18 M347 48 h18 M533 48 h18"/>
-          <path d="M179 44 l6 4 -6 4 M365 44 l6 4 -6 4 M551 44 l6 4 -6 4"/>
-        </g>
-        <g fill="currentColor" font-size="13" font-family="inherit" text-anchor="middle">
-          <text x="81" y="53">① 녹음</text>
-          <text x="267" y="53">② 전사 · 경보</text>
-          <text x="453" y="53">③ 초안 · 서명</text>
-          <text x="639" y="53">④ 철회 · 영수증</text>
-        </g>
-      </svg>
-
-      <ol class="steps-list">
-        <li>
-          <div class="steps-list__body">
-            <h3>녹음</h3>
-            <p>12 B 헤더 + PCM 200 ms 청크를 seq 순으로 보냅니다. <code>ack{ack_seq, credit}</code> 은 원장 행이 PostgreSQL 에 커밋된 뒤에만 옵니다 — 인메모리 ack 는 없습니다.</p>
-          </div>
-          <button type="button" class="link-cta js-feature" data-feature="rec">이 단계 열어 보기 →</button>
-        </li>
-        <li>
-          <div class="steps-list__body">
-            <h3>라이브 전사 · 위험 경보</h3>
-            <p>회색 partial 이 final 로 확정되고, 위험 발화에서 배너 + SLA 카운트다운 + ACK 가 뜹니다. 「죽고 싶다는 생각까지는 없어요」는 경보가 아닙니다 — 부정 범위 규칙입니다.</p>
-          </div>
-          <button type="button" class="link-cta js-feature" data-feature="live">이 단계 열어 보기 →</button>
-        </li>
-        <li>
-          <div class="steps-list__body">
-            <h3>SOAP 초안 · 서명</h3>
-            <p>문장마다 전사 원문을 그대로 인용하고, 결정론적 검증기 8규칙이 그것을 확인합니다. 출력 스키마에 Assessment·진단 필드가 아예 없습니다 — 평가는 임상의만 씁니다.</p>
-          </div>
-          <button type="button" class="link-cta js-feature" data-feature="soap">이 단계 열어 보기 →</button>
-        </li>
-        <li>
-          <div class="steps-list__body">
-            <h3>철회 → 파기 영수증 → 복호화 시도</h3>
-            <p>동의를 거두면 세션 DEK 를 crypto-shred 하고 하드 삭제한 뒤, 삭제 건수와 재계산 해시가 붙은 영수증을 냅니다. 그리고 그 암호문을 다시 열어 <code>failed:dek_destroyed</code> 를 보여 줍니다.</p>
-          </div>
-          <button type="button" class="link-cta js-feature" data-feature="consent">이 단계 열어 보기 →</button>
-        </li>
-      </ol>
-    </div>
-  </section>
-
   <!-- ── 07 기능 그리드 6칸 ──────────────────────────────────────────── -->
   <section class="section" id="sec-features">
     <div class="container">
@@ -1437,50 +1772,27 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
     </div>
   </section>
 
-  <!-- ── 08 안전·통제 6타일 (인증 배지의 치환) ───────────────────────── -->
-  <section class="section" id="sec-controls">
+  <!-- ── 08b 보호 장치를 붙잡는 테스트 (홈에서 옮겨 온 파일 목록) ──────── -->
+  <section class="section" id="sec-guards">
     <div class="container">
-      <p class="kicker">보호 장치</p>
-      <h2>환자의 말을 이렇게 지킵니다</h2>
-      <p class="lead">인증서는 없습니다 — 포트폴리오 구현이고, SOC 2 나 HIPAA 는 조직과 감사가 있어야 받는 것이니까요. 대신 깨지면 CI 가 빨간불이 되는 보호 장치를 하나씩 적었습니다.</p>
-
-      <div class="controls">
-        <!-- row:eval.rls.tile --><article class="control">
-          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z"/><path d="M9.5 12.2l1.8 1.8 3.4-3.6"/></svg>
-          <b>테넌트 격리 (RLS)</b>
-          <p>런타임은 <code>chartwire_app</code>(NOBYPASSRLS)으로만 접속합니다. 라우트 × 역할 × 테넌트 <!-- num:eval.rls.attempts -->252<!-- /num -->가지 시도에서 누출 <!-- num:eval.rls.leaks -->0<!-- /num -->.</p>
-          <span class="src">tests/rls/test_rls_leak.py · tests/integration/test_rbac_matrix.py</span>
-        </article><!-- /row -->
-        <article class="control">
-          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h7M9 16h5"/></svg>
-          <b>감사 로그</b>
-          <p>민감 라우트는 actor · resource · 결과를 남깁니다. 상담 폼 본문은 로그에 싣지 않습니다.</p>
-          <span class="src">tests/rls/test_audit_immutable.py · tests/integration/test_phi_logs.py</span>
-        </article>
-        <article class="control">
-          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12.3l2.4 2.4 4.6-5"/></svg>
-          <b>동의 범위 게이트</b>
-          <p>recording / transcription / ai_drafting / search_index 4범위. 범위가 없으면 WebSocket 은 4011, REST 는 CW-4031 로 막힙니다.</p>
-          <span class="src">tests/unit/test_consent_gates.py</span>
-        </article>
-        <article class="control">
-          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 10c0-2 1.4-3.4 3.2-3.7"/><path d="M5 17c2.6 0 4-1.7 4-4V9H5v4"/><path d="M15 17c2.6 0 4-1.7 4-4V9h-4v4"/></svg>
-          <b>근거 검증</b>
-          <p>문장이 근거를 못 대면 <code>unsupported</code> 로 남고, 검토 전까지 서명할 수 없습니다. 커버리지가 기준에 못 미치면 초안 대신 abstain 합니다.</p>
-          <span class="src">tests/unit/test_notes_verifier.py</span>
-        </article>
-        <!-- row:eval.purge.tile --><article class="control">
-          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>
-          <b>파기 영수증</b>
-          <p>잔존 행 · 오브젝트 · 키 <!-- num:eval.purge.residual_rows -->0<!-- /num --> / <!-- num:eval.purge.residual_objects -->0<!-- /num --> / <!-- num:eval.purge.residual_keys -->0<!-- /num -->, 파기 후 복호화 시도 실패 <!-- num:eval.purge.decrypt_failure_pct -->100<!-- /num --> %, 영수증 재계산 해시 일치.</p>
-          <span class="src">tests/integration/test_purge_pipeline.py</span>
-        </article><!-- /row -->
-        <article class="control">
-          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="12" r="3.5"/><path d="M12 12h8M17 12v3M20 12v2.5"/></svg>
-          <b>암호화 · 키</b>
-          <p>세션 DEK 로 청크를 암호화하고, 서명 노트는 테넌트 기록 키로 따로 봉인합니다(DEK 파기와 독립).</p>
-          <span class="src">tests/unit/test_crypto_envelope.py</span>
-        </article>
+      <p class="kicker">고정한 것</p>
+      <h2>보호 장치마다 붙잡는 테스트</h2>
+      <p class="lead">홈의 「환자의 말을 이렇게 지킵니다」에 적은 여섯 가지가 각각 어떤 파일에 묶여 있는지입니다. 하나라도 깨지면 CI 가 빨간불이 되고 배포가 막힙니다.</p>
+      <div class="scroll-x">
+        <table class="kv">
+          <caption class="sr-only">보호 장치와 그것을 고정하는 테스트 파일</caption>
+          <thead>
+            <tr><th scope="col">보호 장치</th><th scope="col">붙잡는 테스트</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">의원 사이의 벽</th><td><code>tests/rls/test_rls_leak.py · tests/integration/test_rbac_matrix.py</code></td></tr>
+            <tr><th scope="row">누가 무엇을 했는지</th><td><code>tests/rls/test_audit_immutable.py · tests/integration/test_phi_logs.py</code></td></tr>
+            <tr><th scope="row">동의한 것만</th><td><code>tests/unit/test_consent_gates.py</code></td></tr>
+            <tr><th scope="row">근거 없는 문장은 못 들어갑니다</th><td><code>tests/unit/test_notes_verifier.py</code></td></tr>
+            <tr><th scope="row">지웠다는 증거</th><td><code>tests/integration/test_purge_pipeline.py</code></td></tr>
+            <tr><th scope="row">진료마다 다른 열쇠</th><td><code>tests/unit/test_crypto_envelope.py</code></td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </section>
@@ -1607,99 +1919,8 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
     </div>
   </section>
 
-  <!-- ── 11b 데모 콘솔 바로 열기 (기능 카드 · 대본 · 검색 · 5분 투어) ─── -->
-  <section class="section" id="sec-console">
-    <div class="container">
-      <p class="kicker">데모</p>
-      <h2>콘솔에서 바로 해 보기</h2>
-      <p class="lead">카드를 누르면 그 기능으로 들어갑니다. 로그인 전이면 필요한 데모 계정으로 자동 로그인합니다(④ · ⑤ · 운영 지표는 admin).</p>
+</div><!-- /#view-tech -->
 
-      <form class="search" id="homeSearchForm" role="search">
-        <label class="sr-only" for="homeSearch">기능 검색</label>
-        <input type="search" id="homeSearch" autocomplete="off"
-               placeholder="기능을 검색해서 바로 들어가세요 — 예: 경보, 영수증, 초안, 대본, 지표">
-        <button class="btn" type="submit">들어가기</button>
-      </form>
-      <p class="hint" id="searchHint">검색어를 치면 아래 기능·대본 카드가 걸러지고, Enter 를 누르면 첫 결과로 들어갑니다 (필요하면 데모 계정으로 자동 로그인).</p>
-
-      <div class="cta-row cta-row--tight">
-        <button type="button" class="btn-primary" id="quickStart">데모 계정으로 시작 (clinician)</button>
-        <button type="button" class="btn-secondary hidden" id="backToConsole">콘솔로 돌아가기</button>
-      </div>
-
-      <div class="stats" id="homeStats">
-        <span>합성 대본 <b>20</b>개</span>
-        <span>주호소 <b>8</b>가지</span>
-        <span>데모 역할 <b>4</b>개</span>
-        <span>API 키 <b>없음</b></span>
-      </div>
-
-      <h3 class="sub-h">기능</h3>
-      <div class="cards" id="features"></div>
-      <p class="empty hidden" id="featuresEmpty">검색 결과가 없습니다.</p>
-
-      <h3 class="sub-h">대본 둘러보기 — 8가지 주호소</h3>
-      <p class="muted small">합성 대본은 주호소가 대화의 질문 · 답 · 계획을 바꿉니다. 대본을 고르면 세션 만들기 화면으로 들어갑니다(새 가상환자 → 세션 생성).</p>
-      <div class="cards" id="templates"></div>
-
-      <h3 class="sub-h">5분 투어 — 콘솔 위쪽의 단계 표시를 따라가면 됩니다</h3>
-      <ol class="tour">
-        <li><b>녹음 (Recorder)</b><span>Start 를 누르면 브라우저 녹음기가 12 B 헤더가 붙은 200 ms 청크를 WebSocket 으로 보냅니다. <code>ack_seq</code> 는 청크가 PostgreSQL 에 커밋된 뒤에만 올라갑니다. 중간에 「네트워크 끊기 5초」를 눌러 보세요 — 재접속 뒤 재전송이 로그에 찍힙니다.</span></li>
-        <li><b>라이브 전사 · 위험 경보 (Live chart)</b><span>회색 partial 이 final 로 확정되고, 위험 발화에서 배너와 SLA 카운트다운이 뜹니다. ACK 를 누르면 닫힙니다.</span></li>
-        <li><b>SOAP 초안 · 서명 (SOAP draft)</b><span>문장을 누르면 근거 발화가 하이라이트됩니다. A(평가)는 「AI가 작성하지 않는 영역」이라 직접 적어야 서명이 됩니다.</span></li>
-        <li><b>동의 철회 → 파기 영수증 (Consent &amp; purge)</b><span>철회하면 아웃박스를 거쳐 파기 파이프라인이 돌고, 단계별 삭제 건수와 해시가 붙은 파기 영수증이 남습니다. 영수증 조회는 admin · auditor 권한이라 계정을 바꿔 로그인합니다.</span></li>
-        <li><b>복호화 시도</b><span>영수증의 표본 암호문을 다시 풀어 봅니다. 세션 DEK 가 파기되어 <code>failed:dek_destroyed</code> 가 나와야 정상입니다.</span></li>
-      </ol>
-    </div>
-  </section>
-
-  <!-- ── 12 최종 CTA ─────────────────────────────────────────────────── -->
-  <section class="section section--tight" id="sec-cta">
-    <div class="container">
-      <div class="cta-banner">
-        <h2>읽는 것보다 한 번 해 보는 게 빠릅니다</h2>
-        <p class="lead">상담을 남기면 접수함에 저장됩니다 — 데모라 실제 연락은 가지 않습니다. 기다리지 않고 바로 콘솔에 들어갈 수도 있습니다.</p>
-        <div class="cta-row">
-          <button type="button" class="btn-primary js-consult" data-source="final-cta">서비스 상담신청하기</button>
-          <button type="button" class="btn-secondary js-demo" data-source="final-cta">지금 데모 콘솔 열기</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── 13 FAQ ──────────────────────────────────────────────────────── -->
-  <section class="section section--tight" id="sec-faq">
-    <div class="container">
-      <p class="kicker">질문</p>
-      <h2>자주 묻는 질문</h2>
-      <div class="faq">
-        <details open>
-          <summary>지금 바로 해 볼 수 있는 게 뭔가요?</summary>
-          <p>전부입니다. 「상담 없이 데모 콘솔 열기」를 누르면 clinician 계정으로 바로 들어가고, 녹음 → 라이브 전사 → 위험 경보 → SOAP 초안 → 동의 철회 → 파기 영수증 → 복호화 시도까지 5분이면 끝까지 눌러 볼 수 있습니다. 녹음 중에 「네트워크 끊기 5초」를 눌러 끊어 보셔도 됩니다 — 다시 붙고 빠진 조각을 채우는 게 로그에 그대로 찍힙니다.</p>
-        </details>
-        <details>
-          <summary>실제 환자 데이터가 들어 있나요?</summary>
-          <p>전부 합성입니다. 대본 20개는 문법으로 만든 한국어이고 환자는 「가상환자-NNNN」이라, 무엇을 누르든 지우든 괜찮습니다. 실제로 동의를 철회하고 파기까지 돌려 보셔도 됩니다.</p>
-        </details>
-        <details>
-          <summary>임상에 쓸 수 있나요?</summary>
-          <p>임상 판단에 쓰는 도구는 아닙니다. 여기서 보실 수 있는 것은 그 아래 계층입니다 — 한 조각도 잃지 않는 저장, 문장마다 붙는 근거, 동의를 거둔 뒤의 파기 영수증. 음성차팅 제품을 올리려면 먼저 있어야 하는 바닥입니다.</p>
-        </details>
-        <details>
-          <summary>상담을 남기면 연락이 오나요?</summary>
-          <p>접수는 실제로 됩니다 — <code>POST /v1/consultations</code> 로 저장되고 접수 번호가 나옵니다. 폼에 예시 값이 채워져 있으니 실제 연락처 없이 그대로 제출해 보셔도 됩니다. 다만 영업 조직이 없어 연락은 가지 않고, 접수일로부터 90일 뒤 파기합니다(인스턴스가 기동할 때마다 파기 명령이 돕니다).</p>
-        </details>
-        <details>
-          <summary>데모가 느린데요?</summary>
-          <p>무료 인스턴스 한 컨테이너에 PostgreSQL · Redis · 워커가 다 들어 있어서 그렇습니다. 15분 쉬면 잠들고 다시 깨는 데 1~2분 걸립니다 — 로그인이 멈춘 것처럼 보이면 그때입니다. 제 속도로 보시려면 <code>docker compose up --build</code> 한 줄이면 같은 것이 로컬에서 돕니다.</p>
-        </details>
-        <details>
-          <summary>인증(SOC 2 · HIPAA · ISMS-P)이 있나요?</summary>
-          <p>인증은 조직과 감사가 있어야 받는 것이라 아직 없습니다. 대신 인증이 확인하는 항목들 — 테넌트 격리 · 감사 로그 · 동의 범위 · 암호화 · 파기 — 이 각각 테스트로 고정돼 있고, 하나라도 깨지면 CI 가 빨간불이 됩니다. 위 「환자의 말을 이렇게 지킵니다」에 어떤 파일이 무엇을 붙잡는지 적어 두었습니다.</p>
-        </details>
-      </div>
-    </div>
-  </section>
 
   <!-- ── 14 푸터 ─────────────────────────────────────────────────────── -->
   <footer class="site-footer" id="sec-footer">
@@ -1708,10 +1929,10 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
         <nav aria-label="제품">
           <h3>제품</h3>
           <ul>
-            <li><a href="#sec-problem">고비</a></li>
             <li><a href="#sec-how">흐름</a></li>
-            <li><a href="#sec-decisions">고른 것</a></li>
             <li><a href="#sec-controls">보호</a></li>
+            <li><a href="#sec-numbers">숫자</a></li>
+            <li><a href="#sec-faq">자주 묻는 질문</a></li>
           </ul>
         </nav>
         <nav aria-label="문서">
@@ -1730,7 +1951,7 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
           <ul>
             <li><a href="#sec-repro">docker compose</a></li>
             <li><a href="https://chartwire.onrender.com" target="_blank" rel="noopener">공개 데모</a></li>
-            <li><a href="#sec-repro">재현 명령</a></li>
+            <li><a href="#/tech" data-route="#/tech">기술 상세</a></li>
           </ul>
         </nav>
         <nav aria-label="저장소">
@@ -1746,7 +1967,6 @@ pre.json{ font-family:var(--mono); font-size:11px; overflow:auto; max-height:240
     </div>
   </footer>
 
-</div><!-- /#view-landing -->
 
 
 <!-- ══ 상담 신청 뷰 (#/contact) ═══════════════════════════════════════════ -->
@@ -3379,6 +3599,7 @@ const router = {
     this.view = view;
     if (view === 'console') {
       $('view-landing').classList.remove('hidden');    // 홈으로 돌아올 때 기본 뷰로 되돌려 둔다
+      $('view-tech').classList.add('hidden');
       $('view-contact').classList.add('hidden');
       intro.show(false);
       if (opts.hash !== false) setHash('#/console');
@@ -3386,20 +3607,35 @@ const router = {
       return;
     }
     $('view-landing').classList.toggle('hidden', view !== 'home');
+    $('view-tech').classList.toggle('hidden', view !== 'tech');
     $('view-contact').classList.toggle('hidden', view !== 'contact');
+    $('sec-footer').classList.toggle('hidden', view === 'contact');   // 푸터는 홈·기술 상세가 함께 쓴다
     intro.show(true);
-    if (opts.hash !== false) setHash(view === 'contact' ? '#/contact' : '#/');
+    if (opts.hash !== false) setHash(view === 'contact' ? '#/contact' : view === 'tech' ? '#/tech' : '#/');
     if (opts.scroll !== false) scrollTop0();
-    focusEl(view === 'contact' ? $('consultTitle') : (qs('sec-hero', 'h1') || $('intro')));
+    // 앵커를 눌러 뷰만 바꾼 경우에는 포커스를 뺏지 않는다 — 브라우저가 그 섹션으로 스크롤해야 한다.
+    if (opts.focus !== false) {
+      focusEl(view === 'contact' ? $('consultTitle')
+        : view === 'tech' ? $('techTitle')
+        : (qs('sec-hero', 'h1') || $('intro')));
+    }
     mobileBar.update();
   },
 };
+/* 기술 상세 뷰에만 있는 섹션들 — 앵커를 누르거나 그 해시로 새로고침하면 이 뷰를 먼저 연다. */
+const TECH_SECTIONS = ['sec-evidence', 'sec-problem', 'sec-features', 'sec-guards', 'sec-knee', 'sec-decisions', 'sec-repro'];
+
 /* '#/' 로 시작하는 해시만 라우트다 — 헤더 nav 의 '#sec-…' 앵커는 그대로 통과시킨다. */
 function routeFromHash() {
   const h = currentHash();
-  if (h.indexOf('#/') !== 0) return;
+  if (h.indexOf('#/') !== 0) {
+    // '#sec-knee' 상태로 새로고침해도 그 섹션이 있는 뷰를 연다 — 홈에는 없는 섹션이다.
+    if (TECH_SECTIONS.indexOf(h.slice(1)) >= 0) router.show('tech', { hash: false, scroll: false, focus: false });
+    return;
+  }
   if (h === '#/contact') consult.open(null, { hash: false });
   else if (h === '#/console') router.show('console', { hash: false });
+  else if (h === '#/tech') router.show('tech', { hash: false });
   else router.show('home', { hash: false });
 }
 window.addEventListener('hashchange', () => routeFromHash());
@@ -3562,6 +3798,13 @@ document.querySelectorAll('.js-consult').forEach((b) => b.addEventListener('clic
 document.querySelectorAll('.js-home').forEach((b) => b.addEventListener('click', () => consult.close()));
 document.querySelectorAll('.js-demo').forEach((b) => b.addEventListener('click', () => enterDemo(b.dataset.source || 'console-home')));
 document.querySelectorAll('.js-console').forEach((b) => b.addEventListener('click', () => router.show('console')));
+
+/* '#sec-…' 앵커는 홈과 기술 상세에 나뉘어 있다 — 헤더·푸터에서 누르면 먼저 그 뷰를 연다.
+   뷰만 바꾸고 스크롤·포커스는 건드리지 않는다: 그 뒤는 브라우저의 기본 앵커 이동에 맡긴다. */
+document.querySelectorAll('a[href^="#sec-"]').forEach((a) => a.addEventListener('click', () => {
+  const want = TECH_SECTIONS.indexOf(String(a.getAttribute('href')).slice(1)) >= 0 ? 'tech' : 'home';
+  if (router.view !== want) router.show(want, { hash: false, scroll: false, focus: false });
+}));
 document.querySelectorAll('.js-feature[data-feature]').forEach((b) => b.addEventListener('click', () => enterFeature(b.dataset.feature)));
 
 /* 히어로 미디어는 apiBase 를 따라간다 — GET /console/media/{name} (화이트리스트 읽기 전용). */
