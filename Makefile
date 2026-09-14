@@ -99,9 +99,9 @@ readme-numbers: ## README + docs/perf/README.md + 콘솔 홈 화면의 숫자 �
 # CI(frozen-artifacts)가 거는 게이트와 같은 명령. 위 readme-numbers 가 --write 하는 세 파일을 그대로
 # --check 한다 — 한 파일만 게이트 밖에 있으면 측정 JSON 이 바뀔 때 그 파일만 조용히 낡는다.
 readme-numbers-check: ## README + docs/perf/README.md + console/index.html 의 숫자가 측정 JSON 과 같은지 검사 (stale → exit 1)
-	$(PY) scripts/readme_numbers.py --check
-	$(PY) scripts/readme_numbers.py --check --readme docs/perf/README.md
-	$(PY) scripts/readme_numbers.py --check --readme console/index.html
+	$(PY) scripts/readme_numbers.py --check --require-markers
+	$(PY) scripts/readme_numbers.py --check --readme docs/perf/README.md --require-markers
+	$(PY) scripts/readme_numbers.py --check --readme console/index.html --require-markers
 
 demo: ## api + worker + stt-worker 를 한 프로세스로 (http://localhost:8000/console) — 시드된 데모, 합성 데이터만
 	$(CHARTWIRE) db bootstrap-roles && $(CHARTWIRE) db upgrade && $(CHARTWIRE) seed --demo --if-empty

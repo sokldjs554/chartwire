@@ -483,6 +483,11 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--check", action="store_true", help="README가 최신인지 검사 (stale → exit 1)")
     mode.add_argument("--list", action="store_true", help="키 레지스트리 출력")
     parser.add_argument("--readme", default=DEFAULT_README)
+    parser.add_argument(
+        "--require-markers",
+        action="store_true",
+        help="마커가 하나도 없으면 실패 (검사할 것이 없는데 통과하는 상황을 막는다)",
+    )
     parser.add_argument("--root", default=".", help="JSON 리포트 경로의 기준 디렉터리")
     args = parser.parse_args(argv)
     root = Path(args.root)
@@ -494,6 +499,14 @@ def main(argv: list[str] | None = None) -> int:
 
     readme_path = root / args.readme if not Path(args.readme).is_absolute() else Path(args.readme)
     original = readme_path.read_text(encoding="utf-8")
+    # 마커가 사라지면 --check 는 '검사할 것이 없다'는 이유로 조용히 통과한다. 손으로 쓴 숫자가
+    # 없다는 이 프로젝트의 보증이 정확히 그렇게 무효가 됐다 — 그래서 0개는 실패로 본다.
+    if args.require_markers and not NUM_RE.search(original):
+        print(
+            f"{args.readme} 에 숫자 마커가 하나도 없습니다 — 손으로 쓴 값이 섞였을 수 있습니다",
+            file=sys.stderr,
+        )
+        return 3
     result = render(original, load_values(root))
     _report(result)
     if not result.ok:

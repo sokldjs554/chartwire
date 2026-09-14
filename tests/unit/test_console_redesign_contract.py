@@ -85,8 +85,12 @@ def test_product_first_landing_stays_service_like() -> None:
         "근거 연결됨 ✓",
         ">새 상담 시작</button>",
         "N=100 ACK p95",
-        "449 ms",
         "검증된 전송 결과",
+        # 값(449)이 아니라 출처를 단언한다 — 측정이 갱신되면 값은 바뀌어야 하고,
+        # 손으로 적힌 숫자가 다시 들어오면 이 단언이 깨져야 한다.
+        "<!-- num:load.A.n100.ack_p95_ms -->",
+        "<!-- num:load.A.n100.chunks_per_s -->",
+        "<!-- num:load.A.n100.loss -->",
     ):
         assert needle in html, needle
     for forbidden in (

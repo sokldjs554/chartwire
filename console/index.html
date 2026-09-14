@@ -351,9 +351,9 @@ body.is-preview .safety-bar .seg-warn{display:inline}
         </div>
         <div class="section-head"><div><h2>현재 검증된 범위</h2><p>대표 숫자만 먼저 보여주고, 자세한 내용은 시스템 상세에서 확인합니다.</p></div><button class="link-btn" data-go="engineering">전체 검증 보기 →</button></div>
         <div class="stats">
-          <div class="card stat"><small>N=100 실측 처리량</small><b>500 chunk/s</b></div>
-          <div class="card stat"><small>N=100 ACK p95</small><b>449 ms</b></div>
-          <div class="card stat"><small>검증된 전송 결과</small><b class="ok">0 loss / 0 dup</b></div>
+          <!-- row:load.A.n100.home --><div class="card stat"><small>N=100 실측 처리량</small><b><!-- num:load.A.n100.chunks_per_s -->500<!-- /num --> chunk/s</b></div>
+          <div class="card stat"><small>N=100 ACK p95</small><b><!-- num:load.A.n100.ack_p95_ms -->449<!-- /num --> ms</b></div>
+          <div class="card stat"><small>검증된 전송 결과</small><b class="ok"><!-- num:load.A.n100.loss -->0<!-- /num --> loss / <!-- num:load.A.n100.dup -->0<!-- /num --> dup</b></div><!-- /row -->
         </div>
         <div class="section-head"><div><h2>최근 상담</h2><p>실제 공개 데모의 합성 세션을 불러옵니다.</p></div><button class="link-btn" data-go="records">전체 보기 →</button></div>
         <div class="card table-card"><div class="table-head"><h3>최근 기록</h3><span class="chip">synthetic only</span></div><div class="rows" id="homeRows"><div class="row"><div><span class="primary-text">연결 후 표시</span><span class="sub">데모 계정으로 자동 로그인합니다.</span></div><div>–</div><div><span class="status closed">대기</span></div><div>–</div></div></div></div>
@@ -408,9 +408,9 @@ body.is-preview .safety-bar .seg-warn{display:inline}
       <section class="page" id="page-engineering">
         <div class="page-title"><div><h1>시스템 상세</h1><p>이 페이지에서만 ChartWire의 백엔드 깊이를 보여줍니다.</p></div><span class="chip">Engineering deep dive</span></div>
         <div class="tech-grid">
-          <div class="card tech-card"><h3>네트워크가 끊겨도 기록은 이어집니다</h3><p><b>seq / ack / credit / resume / epoch</b>로 WebSocket 재연결과 재전송을 다룹니다. ACK는 PostgreSQL durable commit 이후에만 증가합니다.</p><div class="metric-row"><div class="metric"><b>500 chunk/s</b>same-host N=100</div><div class="metric"><b>449 ms</b>ack p95</div><div class="metric"><b>0 / 0</b>loss / dup</div></div></div>
-          <div class="card tech-card"><h3>기관이 달라지면 데이터도 분리됩니다</h3><p>PostgreSQL RLS와 단일 app role을 사용해 테넌트 경계를 DB 수준에서도 강제합니다. 라우트 × 역할 × 테넌트 매트릭스 테스트를 둡니다.</p><div class="metric-row"><div class="metric"><b>RLS</b>PostgreSQL</div><div class="metric"><b>NOBYPASSRLS</b>app role</div></div></div>
-          <div class="card tech-card"><h3>비동기 작업이 실패해도 추적할 수 있습니다</h3><p>Transactional outbox → Redis Streams → worker 흐름으로 비동기 이벤트 전달과 재시도를 다룹니다.</p><div class="metric-row"><div class="metric"><b>413 ev/s</b>same-host 100K outbox</div><div class="metric"><b>0</b>DLQ</div></div></div>
+          <div class="card tech-card"><h3>네트워크가 끊겨도 기록은 이어집니다</h3><p><b>seq / ack / credit / resume / epoch</b>로 WebSocket 재연결과 재전송을 다룹니다. ACK는 PostgreSQL durable commit 이후에만 증가합니다.</p><!-- row:load.A.n100.tech --><div class="metric-row"><div class="metric"><b><!-- num:load.A.n100.chunks_per_s -->500<!-- /num --> chunk/s</b>same-host N=100</div><div class="metric"><b><!-- num:load.A.n100.ack_p95_ms -->449<!-- /num --> ms</b>ack p95</div><div class="metric"><b><!-- num:load.A.n100.loss -->0<!-- /num --> / <!-- num:load.A.n100.dup -->0<!-- /num --></b>loss / dup</div></div><!-- /row --></div>
+          <div class="card tech-card"><h3>기관이 달라지면 데이터도 분리됩니다</h3><p>PostgreSQL RLS와 단일 app role을 사용해 테넌트 경계를 DB 수준에서도 강제합니다. 라우트 × 역할 × 테넌트 매트릭스 테스트를 둡니다.</p><!-- row:eval.rls.tech --><div class="metric-row"><div class="metric"><b>RLS</b>PostgreSQL</div><div class="metric"><b>NOBYPASSRLS</b>app role</div><div class="metric"><b><!-- num:eval.rls.leaks -->0<!-- /num --> / <!-- num:eval.rls.attempts -->252<!-- /num --></b>누출 / 교차 시도</div></div><!-- /row --></div>
+          <div class="card tech-card"><h3>비동기 작업이 실패해도 추적할 수 있습니다</h3><p>Transactional outbox → Redis Streams → worker 흐름으로 비동기 이벤트 전달과 재시도를 다룹니다.</p><!-- row:load.H.tech --><div class="metric-row"><div class="metric"><b><!-- num:load.H.events_per_s -->413<!-- /num --> ev/s</b>same-host 100K outbox</div><div class="metric"><b><!-- num:load.H.dlq_count -->0<!-- /num --></b>DLQ</div></div><!-- /row --></div>
           <div class="card tech-card"><h3>삭제 요청 뒤에는 복호화까지 막습니다</h3><p>세션 데이터는 crypto-shred 대상으로, 보존이 필요한 서명 기록은 별도 retention 경계로 관리합니다.</p><div class="metric-row"><div class="metric"><b>DEK destroyed</b>decrypt fails</div><div class="metric"><b>Receipt</b>audit evidence</div></div></div>
         </div>
         <div class="tech-note">이 페이지는 기술 면접용 deep dive입니다. 상담 화면에서는 숨겨 두지만 실제 데모는 같은 WebSocket · PostgreSQL · Redis · RLS · outbox 경로를 사용합니다.</div>
@@ -436,7 +436,7 @@ body.is-preview .safety-bar .seg-warn{display:inline}
           <div class="dlq-list" id="dlqList"></div>
         </details>
 
-        <div class="knee"><b>성능 한계도 숨기지 않습니다.</b><p>N=200에서 ack p95가 9,036 ms까지 악화되고 실제 처리량은 790 chunk/s에 그쳤습니다. 이 결과를 실패로 감추지 않고 병목 지점으로 기록합니다.</p></div>
+        <div class="knee"><b>성능 한계도 숨기지 않습니다.</b><!-- row:load.A.n200.knee --><p>N=200에서 ack p95가 <!-- num:load.A.n200.ack_p95_ms -->9036<!-- /num --> ms까지 악화되고 실제 처리량은 <!-- num:load.A.n200.chunks_per_s -->790<!-- /num --> chunk/s에 그쳤습니다. 이 결과를 실패로 감추지 않고 병목 지점으로 기록합니다.</p><!-- /row --></div>
       </section>
     </div>
   </main>

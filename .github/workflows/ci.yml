@@ -364,9 +364,9 @@ jobs:
       # (`make readme-numbers-check` 와 같은 명령).
       - name: README + docs/perf + console numbers in sync with docs/{eval,loadtest,perf}/*.json (stdlib only)
         run: |
-          python scripts/readme_numbers.py --check
-          python scripts/readme_numbers.py --check --readme docs/perf/README.md
-          python scripts/readme_numbers.py --check --readme console/index.html
+          python scripts/readme_numbers.py --check --require-markers
+          python scripts/readme_numbers.py --check --readme docs/perf/README.md --require-markers
+          python scripts/readme_numbers.py --check --readme console/index.html --require-markers
       - name: docs/loadtest/results.md is the rendered form of the JSON reports
         run: |
           pip install -e . -q
