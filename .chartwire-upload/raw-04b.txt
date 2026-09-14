@@ -1,0 +1,47 @@
+.</p>
+          <div class="ops-actions">
+            <button class="btn secondary" id="dropNetwork">5초 연결 끊기</button>
+            <button class="btn secondary" id="wireState">연결 상태 기록</button>
+            <button class="btn secondary" id="loadDlq">DLQ 조회</button>
+          </div>
+          <div class="ops-log" id="opsLog">운영 실험 로그가 여기에 표시됩니다.</div>
+          <div class="dlq-list" id="dlqList"></div>
+        </details>
+
+        <div class="knee"><b>성능 한계도 숨기지 않습니다.</b><p>N=200에서 ack p95가 9,036 ms까지 악화되고 실제 처리량은 790 chunk/s에 그쳤습니다. 이 결과를 실패로 감추지 않고 병목 지점으로 기록합니다.</p></div>
+      </section>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast">완료되었습니다.</div>
+<script>
+const labels={home:'홈',session:'새 상담',records:'상담 기록',review:'검토 대기',data:'데이터 관리',engineering:'시스템 상세'};
+const LIVE_HOST='chartwire.onrender.com';
+const PREVIEW_MODE=location.hostname!==LIVE_HOST;
+const API_BASE=PREVIEW_MODE?'https://chartwire.onrender.com':location.origin;
+const WS_BASE=API_BASE.replace(/^http/,'ws');
+const DEMO={tenant_slug:'demo',email:'clinician@demo.clinic',password:['demo','1234','!'].join('')};
+const SCOPES=['recording','transcription','ai_drafting','search_index'];
+const WIRE={MAGIC:0x4357,VER:1,FLAG_LAST:1,FLAG_SIM:4,HEADER:12,CHUNK_MS:200,CHUNK_BYTES:6400};
+const state={token:null,role:null,userId:null,sessionId:null,patientId:null,session:null,note:null,segments:new Map(),watch:null,rec:null,catalog:new Map(),purgeJobId:null,riskAlert:null};
+const preview={
+  patients:new Map(), consents:new Map(), sessions:[], notes:new Map(), purge:new Map(), seq:1,
+  id(prefix){return `${prefix}-${Date.now().toString(36)}-${(this.seq++).toString(36)}`},
+  noteFor(sessionId){
+    if(this.notes.has(sessionId)) return this.notes.get(sessionId);
+    const segs=[...state.segments.entries()].sort((a,b)=>a[0]-b[0]);
+    if(!segs.length) return null;
+    const pick=(seq,section,text)=>({id:this.id('st'),section,ordinal:1,text,edited_text:null,verdict:'supported',verdict_reason:null,decision:null,
+      evidence:[{seq,start:0,end:(state.segments.get(seq)||'').length,quote:state.segments.get(seq)||''}]});
+    const note={id:this.id('note'),session_id:sessionId,status:'drafted',coverage:1,unsupported_count:0,assessment:null,
+      statements:[
+        pick(1,'S','최근 잠들기까지 시간이 오래 걸리고 아침 피로가 지속된다고 말했습니다.'),
+        pick(3,'O','대화 중 말투와 호흡은 차분하게 관찰되었습니다.'),
+        pick(4,'P','다음 방문에서 수면 기록을 함께 확인할 계획입니다.')
+      ]};
+    this.notes.set(sessionId,note); return note;
+  }
+};
+const $=id=>document.getElementById(id);
+function esc(s){return String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));}
+function toast(msg,bad=false){const t=$('toast');t.textContent=msg;t.classList.add('show');t.style.backgroun
