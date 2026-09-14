@@ -1,0 +1,38 @@
+d=bad?'#8d2f2f':'#172033';clearTimeout(window.__tt);window.__tt=setTimeout(()=>t.classList.remove('show'),2600)}
+function showPage(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));$('crumb').textContent=labels[name];window.scrollTo({top:0,behavior:'smooth'});if(name==='records')loadSessions();if(name==='review')loadReviewQueue();if(name==='data')loadConsent();if(name==='engineering')refreshOps();}
+function setConn(ok,text){$('connLabel').textContent=text;$('connDot').style.background=ok?'#61d394':'#e3a64c';}
+
+async function previewApi(method,path,body){
+  await new Promise(r=>setTimeout(r,120));
+  if(method==='POST'&&path==='/v1/auth/token') return {access_token:'preview-token',expires_in:3600};
+  if(method==='GET'&&path==='/v1/me') return {role:state.role||'clinician',sub:'preview-user'};
+  if(method==='POST'&&path==='/v1/patients'){
+    const p={id:preview.id('patient'),pseudonym:body?.name||'가상환자',consent_state:'active'};
+    preview.patients.set(p.id,p); return p;
+  }
+  let m=path.match(/^\/v1\/patients\/([^/]+)\/consents$/);
+  if(m&&method==='POST'){
+    const c={id:preview.id('consent'),version:(preview.consents.get(m[1])||[]).length+1,scopes:body?.scopes||[],revoked_at:null};
+    const arr=preview.consents.get(m[1])||[]; arr.push(c); preview.consents.set(m[1],arr); return c;
+  }
+  if(m&&method==='GET') return preview.consents.get(m[1])||[];
+  if(method==='POST'&&path==='/v1/sessions'){
+    const s={id:preview.id('session'),patient_id:body.patient_id,script_ref:body.script_ref||'s01',state:'created',created_at:new Date().toISOString()};
+    preview.sessions.unshift(s); return s;
+  }
+  if(method==='GET'&&path.startsWith('/v1/sessions?')) return {items:preview.sessions};
+  m=path.match(/^\/v1\/sessions\/([^/]+)\/segments/);
+  if(m&&method==='GET') return [...state.segments.entries()].map(([seq,text])=>({seq,text,speaker:seq%2?'patient':'clinician'}));
+  m=path.match(/^\/v1\/sessions\/([^/]+)\/notes\/latest$/);
+  if(m&&method==='GET'){
+    const n=preview.notes.get(m[1])||preview.noteFor(m[1]);
+    if(!n){const e=new Error('404 초안 없음');e.status=404;throw e;} return n;
+  }
+  m=path.match(/^\/v1\/sessions\/([^/]+)\/notes\/draft$/);
+  if(m&&method==='POST'){const n=preview.noteFor(m[1]); if(n) return {status:'queued'}; return {status:'queued'};}
+  m=path.match(/^\/v1\/notes\/([^/]+)\/statements\/([^/]+)\/decision$/);
+  if(m&&method==='POST'){
+    for(const n of preview.notes.values()){const st=(n.statements||[]).find(x=>x.id===m[2]);if(st){st.decision=body?.decision;return st;}}
+    return {ok:true};
+  }
+  
