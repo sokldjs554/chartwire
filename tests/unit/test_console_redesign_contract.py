@@ -46,6 +46,24 @@ def test_product_information_architecture_is_separated() -> None:
     assert "prefers-color-scheme" in html
 
 
+def test_recruiter_guided_demo_and_visual_hierarchy_are_present() -> None:
+    html = CONSOLE.read_text(encoding="utf-8")
+    for needle in (
+        "story-ui-v1",
+        "60 sec recommended demo",
+        'id="guidedDemoStart"',
+        "면접관에게는 이 흐름만 보여주세요",
+        "00–10s",
+        "55–60s",
+        'data-tour-page="review"',
+        'data-tour-page="data"',
+        "파기 영수증 확인",
+        ".journey-track",
+        ".feature:nth-child(4):before",
+    ):
+        assert needle in html, needle
+
+
 def test_deep_demo_features_are_restored_inside_product_ui() -> None:
     html = CONSOLE.read_text(encoding="utf-8")
     for needle in (
