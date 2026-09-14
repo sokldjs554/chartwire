@@ -14,6 +14,8 @@
 
 ![ChartWire 서비스 데모](docs/images/demo.gif)
 
+**먼저 볼 장면 3개** — `상담 시작·실시간 기록` → `초안 문장의 원문 근거` → `검토·파기 영수증`.
+
 ## 제품 흐름
 
 공개 데모: <https://chartwire.onrender.com>
