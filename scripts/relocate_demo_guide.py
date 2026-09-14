@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+# One-time migration: keep evaluator guidance in README, not in the live product UI.
 console_path = Path("console/index.html")
 readme_path = Path("README.md")
 
