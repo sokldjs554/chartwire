@@ -73,6 +73,180 @@ button{cursor:pointer}
 .ops-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.ops-auto{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}.docs-link{text-decoration:none}
 @media(max-width:900px){.data-grid{grid-template-columns:1fr}.receipt-checks{grid-template-columns:1fr}.script-picker span{display:none}}
 
+
+/* receipt-paper-v2 */
+#receiptBox.receipt.paper{
+  position:relative;
+  max-width:620px;
+  margin:28px auto 10px;
+  padding:34px 34px 42px;
+  background:#fffef8;
+  color:#202521;
+  border:1px solid #e2dccf;
+  border-radius:2px;
+  box-shadow:0 18px 42px rgba(45,52,48,.12),0 2px 7px rgba(45,52,48,.08);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono',monospace;
+  line-height:1.55;
+}
+#receiptBox.receipt.paper:before,
+#receiptBox.receipt.paper:after{
+  content:'';
+  position:absolute;
+  left:18px;
+  right:18px;
+  border-top:1px dashed #cfc7b7;
+}
+#receiptBox.receipt.paper:before{top:14px}
+#receiptBox.receipt.paper:after{bottom:14px}
+#receiptBox.receipt.paper .receipt-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:8px 12px;
+  text-align:center;
+  padding:4px 0 20px;
+  margin-bottom:4px;
+  border-bottom:1px dashed #bdb5a5;
+}
+#receiptBox.receipt.paper .receipt-head strong{
+  width:100%;
+  font-size:21px;
+  letter-spacing:.12em;
+  font-weight:900;
+}
+#receiptBox.receipt.paper .receipt-head strong:before{
+  content:'CHARTWIRE';
+  display:block;
+  margin-bottom:5px;
+  color:#6f796f;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.32em;
+}
+#receiptBox.receipt.paper .receipt-head .rid{
+  width:100%;
+  color:#7e827d;
+  font-size:9px;
+  overflow-wrap:anywhere;
+}
+#receiptBox.receipt.paper .receipt-head .status{
+  border:2px solid #39815d;
+  background:transparent;
+  color:#2f704f;
+  padding:5px 10px;
+  border-radius:4px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  transform:rotate(-3deg);
+}
+#receiptBox.receipt.paper .receipt-section{
+  padding:15px 0;
+  border-bottom:1px dashed #d2cabb;
+  color:#292d29;
+}
+#receiptBox.receipt.paper .receipt-section:last-child{border-bottom:0;padding-bottom:4px}
+#receiptBox.receipt.paper .receipt-section h4{
+  margin:0 0 9px;
+  color:#222722;
+  font-size:10px;
+  letter-spacing:.11em;
+  text-transform:uppercase;
+}
+#receiptBox.receipt.paper .receipt-meta,
+#receiptBox.receipt.paper .receipt-table{
+  width:100%;
+  border-collapse:collapse;
+  table-layout:fixed;
+  font-size:10px;
+}
+#receiptBox.receipt.paper .receipt-meta td,
+#receiptBox.receipt.paper .receipt-table td,
+#receiptBox.receipt.paper .receipt-table th{
+  padding:6px 2px;
+  border:0;
+  border-bottom:1px dotted #ddd6c8;
+  vertical-align:top;
+  overflow-wrap:anywhere;
+}
+#receiptBox.receipt.paper .receipt-meta tr:last-child td,
+#receiptBox.receipt.paper .receipt-table tr:last-child td{border-bottom:0}
+#receiptBox.receipt.paper .receipt-meta td:first-child{
+  width:82px;
+  color:#777d77;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+#receiptBox.receipt.paper .receipt-table th{
+  color:#70766f;
+  font-size:9px;
+  font-weight:800;
+  text-align:left;
+  text-transform:uppercase;
+}
+#receiptBox.receipt.paper .receipt-table td:nth-child(2),
+#receiptBox.receipt.paper .receipt-table th:nth-child(2){text-align:right}
+#receiptBox.receipt.paper .receipt-checks{display:grid;gap:4px}
+#receiptBox.receipt.paper .receipt-check{
+  padding:5px 0;
+  background:transparent;
+  border:0;
+  border-bottom:1px dotted #ddd6c8;
+  border-radius:0;
+  color:#2d332f;
+  font-size:10px;
+}
+#receiptBox.receipt.paper .receipt-check:last-child{border-bottom:0}
+#receiptBox.receipt.paper .receipt-check.ok b{color:#2f704f}
+#receiptBox.receipt.paper .receipt-check.bad b{color:#a44d44}
+#receiptBox.receipt.paper .receipt-hash{
+  margin-top:8px;
+  padding:9px 0;
+  background:transparent;
+  border-top:1px dotted #d4cdbf;
+  border-bottom:1px dotted #d4cdbf;
+  color:#353b36;
+  font-size:9px;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+#receiptBox.receipt.paper details{margin-top:12px}
+#receiptBox.receipt.paper details summary{
+  color:#6f756f;
+  cursor:pointer;
+  font-size:9px;
+  text-align:center;
+  letter-spacing:.04em;
+}
+#receiptBox.receipt.paper details pre{
+  max-height:260px;
+  overflow:auto;
+  margin:10px 0 0;
+  padding:10px;
+  background:#f6f2e9;
+  border:1px dashed #d6cebd;
+  border-radius:2px;
+  color:#3f443f;
+  font-size:8px;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+#receiptBox.receipt.paper .receipt-section:last-child:after{
+  content:'VERIFIED AUDIT EVIDENCE · SYNTHETIC DEMO';
+  display:block;
+  margin-top:18px;
+  text-align:center;
+  color:#8a8d88;
+  font-size:8px;
+  letter-spacing:.12em;
+}
+@media(max-width:720px){
+  #receiptBox.receipt.paper{max-width:100%;padding:30px 20px 38px}
+}
+@media print{
+  #receiptBox.receipt.paper{box-shadow:none;border-color:#bbb;max-width:78mm}
+}
+
 </style>
 </head>
 <body>
