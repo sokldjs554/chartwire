@@ -44,4 +44,4 @@ const preview={
 };
 const $=id=>document.getElementById(id);
 function esc(s){return String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));}
-function toast(msg,bad=false){const t=$('toast');t.textContent=msg;t.classList.add('show');t.style.backgroun
+function toast(msg,bad=false){const t=$('toast');t.textContent=msg;t.classList.add('show');
