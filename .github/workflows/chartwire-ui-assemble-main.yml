@@ -1,0 +1,77 @@
+name: Assemble staged ChartWire UI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/chartwire-ui-assemble-main.yml
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chartwire-ui-redesign-v4
+          fetch-depth: 0
+
+      - name: Assemble and verify staged UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat \
+            .chartwire-upload/raw-01.txt \
+            .chartwire-upload/raw-02.txt \
+            .chartwire-upload/raw-03.txt \
+            .chartwire-upload/raw-04a1.txt \
+            .chartwire-upload/raw-04a2.txt \
+            .chartwire-upload/raw-04a3.txt \
+            .chartwire-upload/raw-04b.txt \
+            .chartwire-upload/raw-04c.txt \
+            .chartwire-upload/raw-05.txt \
+            .chartwire-upload/raw-06.txt \
+            .chartwire-upload/raw-07.txt \
+            .chartwire-upload/raw-08.txt \
+            .chartwire-upload/raw-09.txt \
+            > console/index.html
+
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import re
+
+          p = Path('console/index.html')
+          b = p.read_bytes()
+          sha = hashlib.sha1(b'blob ' + str(len(b)).encode() + b'\0' + b).hexdigest()
+          expected = 'c3c7196bf592a2f2884e7eddd0fbde0adac47aa4'
+          if sha != expected:
+              raise SystemExit(f'blob mismatch: {sha} != {expected}')
+          text = b.decode('utf-8')
+          scripts = re.findall(r'<script>(.*?)</script>', text, re.S)
+          if len(scripts) != 1:
+              raise SystemExit(f'expected one script, got {len(scripts)}')
+          Path('/tmp/chartwire-console.js').write_text(scripts[0], encoding='utf-8')
+          ids = re.findall(r'id="([^"]+)"', text)
+          dupes = sorted({x for x in ids if ids.count(x) > 1})
+          if dupes:
+              raise SystemExit(f'duplicate ids: {dupes}')
+          for marker in ('상담에 집중하세요.', 'page-session', 'page-review', 'page-data', 'page-engineering', '/ws/v1/ingest', '/ws/v1/watch', '/verify-decrypt'):
+              if marker not in text:
+                  raise SystemExit(f'missing marker: {marker}')
+          print(f'verified {len(b)} bytes; git blob {sha}')
+          PY
+          node --check /tmp/chartwire-console.js
+
+      - name: Commit assembled UI to staging branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add console/index.html
+          git commit -m "Redesign ChartWire demo as a focused product workflow"
+          git push origin HEAD:chartwire-ui-redesign-v4
