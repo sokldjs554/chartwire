@@ -65,6 +65,64 @@ def test_recorder_resume_credit_and_final_chunk(node: str, tmp_path: Path) -> No
     assert result == {"ok": True, "reconnects": 1}
 
 
+EVIDENCE_HARNESS = r"""
+const assert=require('assert');
+const makeEl=()=>{const el={style:{},dataset:{},classList:{add(){},remove(){},toggle(){}},children:[]};el.addEventListener=()=>{};el.appendChild=c=>{el.children.push(c);return c};el.querySelector=()=>null;el.querySelectorAll=()=>[];el.setAttribute=()=>{};el.remove=()=>{};el.closest=()=>null;el.scrollIntoView=()=>{};Object.defineProperty(el,'innerHTML',{get:()=>'',set(){}});Object.defineProperty(el,'textContent',{get:()=>'',set(){}});el.value='';el.disabled=false;return el};
+const els=new Map();
+global.document={getElementById:id=>{if(!els.has(id))els.set(id,makeEl());return els.get(id)},querySelectorAll:()=>[],querySelector:()=>null,createElement:()=>makeEl()};
+global.window={scrollTo(){},addEventListener(){}};
+global.location={hostname:'localhost',origin:'http://test'};
+global.performance={now:()=>Date.now()};
+global.fetch=async()=>{throw new Error('no backend')};
+global.crypto={randomUUID:()=>'00000000-0000-4000-8000-000000000000'};
+global.WebSocket=class{constructor(){this.readyState=1}send(){}close(){}};
+eval(require('fs').readFileSync(process.argv[2],'utf8')+'\n;globalThis.__cw={api,detectMode,state,preview,isPreview:()=>PREVIEW_MODE};');
+// eval 한 스크립트와 같은 스코프라 이름이 겹치면 안 된다 — 전부 cw* 로 받는다.
+const cwApi=globalThis.__cw.api, cwDetect=globalThis.__cw.detectMode;
+const cwPreview=globalThis.__cw.preview, cwIsPreview=globalThis.__cw.isPreview;
+const refused=async(method,path)=>{try{await cwApi(method,path);return null}catch(e){return e}};
+(async()=>{
+  // 백엔드가 없으면(fetch throw) 미리보기로 떨어진다.
+  await cwDetect();
+  assert.strictEqual(cwIsPreview(),true,'no backend must fall back to preview');
+
+  // 증적 경로는 미리보기 답을 주지 않는다 — 지어낸 영수증이 화면에 찍히면 안 된다.
+  for(const [m,p] of [['POST','/v1/purge-jobs'],['GET','/v1/purge-jobs/abc'],
+                      ['POST','/v1/purge-jobs/abc/verify-decrypt']]){
+    const e=await refused(m,p);
+    assert.ok(e && e.needsBackend===true, `${m} ${p} must be refused in preview, got ${e}`);
+  }
+
+  // 증적이 아닌 경로는 미리보기에서도 화면 흐름을 위해 답한다.
+  const sessions=await cwApi('GET','/v1/sessions?limit=5');
+  assert.ok(sessions && Array.isArray(sessions.items),'non-evidence routes still answer in preview');
+
+  // 동의 철회는 추적할 영수증 id 를 지어내지 않는다.
+  const patient=await cwApi('POST','/v1/patients',{name:'가상환자-0001'});
+  const consent=await cwApi('POST',`/v1/patients/${patient.id}/consents`,{scopes:['recording']});
+  const revoked=await cwApi('POST',`/v1/consents/${consent.id}/revoke`,{reason:'test'});
+  assert.strictEqual(revoked.purge_job_id,null,'preview revoke must not invent a purge job id');
+
+  // 미리보기 영수증 객체에 'verified' 도장이 남아 있으면 안 된다.
+  for(const job of cwPreview.purge.values()){
+    assert.notStrictEqual(job.state,'verified','preview must never stamp a purge job verified');
+  }
+  console.log(JSON.stringify({ok:true}));
+})().catch(e=>{console.error(e.stack||e);process.exit(1)});
+"""
+
+
+def test_preview_mode_never_fabricates_purge_evidence(node: str, tmp_path: Path) -> None:
+    """'VERIFIED' · 재계산 해시 · DEK 파기는 규제 증적의 언어다 — 백엔드 없이 그리면 안 된다."""
+    js = tmp_path / "console.js"
+    js.write_text(_script_without_boot(), encoding="utf-8")
+    harness = tmp_path / "evidence.js"
+    harness.write_text(EVIDENCE_HARNESS, encoding="utf-8")
+    proc = subprocess.run([node, str(harness), str(js)], capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, proc.stderr or proc.stdout
+    assert json.loads(proc.stdout.strip().splitlines()[-1]) == {"ok": True}
+
+
 def test_console_media_whitelist_matches_committed_images() -> None:
     from chartwire.api.app import CONSOLE_MEDIA
 
