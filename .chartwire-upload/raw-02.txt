@@ -1,0 +1,53 @@
+dding:14px}.summary-strip b{display:block;font-size:18px}.summary-strip small{color:var(--muted)}
+.review-layout{display:grid;grid-template-columns:360px 1fr;gap:16px}.queue{display:flex;flex-direction:column;gap:9px}.queue-item{border:1px solid var(--line);border-radius:13px;padding:13px;cursor:pointer;background:#fff}.queue-item.active{border-color:#9caef2;background:#f7f8ff}.queue-item b{font-size:13px}.queue-item p{margin:6px 0 0;color:var(--muted);font-size:11px;line-height:1.5}.signal{display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:12px;background:var(--warn-soft);color:#6c4b00}.signal .ico{font-weight:900}.signal b{display:block;font-size:12px}.signal p{font-size:11px;margin:3px 0 0;line-height:1.5}.decision{margin-top:14px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:flex-end;gap:8px}
+.lifecycle{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:start}.life{position:relative;padding:15px;background:#fff;border:1px solid var(--line);border-radius:14px;text-align:center}.life:not(:last-child)::after{content:"→";position:absolute;right:-12px;top:30px;color:#a7afbd;z-index:2}.life b{display:block;font-size:12px}.life small{display:block;color:var(--muted);font-size:10px;margin-top:5px}.receipt{margin-top:16px;background:#151c2d;color:#d8e1f1;border-radius:16px;padding:18px}.receipt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.receipt small{display:block;color:#7f8cab;font-size:10px}.receipt b{font-size:12px}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.tech-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.tech-card{padding:18px}.tech-card h3{margin:0 0 8px;font-size:15px}.tech-card p{margin:0;color:var(--muted);font-size:12px;line-height:1.6}.metric-row{display:flex;gap:8px;margin-top:13px;flex-wrap:wrap}.metric{background:#f3f5f9;border-radius:10px;padding:9px 10px;font-size:11px}.metric b{display:block;color:var(--ink);font-size:13px;margin-bottom:3px}.knee{margin-top:14px;padding:15px;border-radius:14px;background:var(--danger-soft);border:1px solid #ffdada}.knee b{color:var(--danger)}.knee p{margin:6px 0 0;color:#7c4d4d;font-size:12px;line-height:1.55}
+
+.risk-banner{display:none;align-items:flex-start;gap:12px;padding:14px 16px;margin-bottom:16px;border:1px solid #f0cbc5;background:#fff6f4;border-radius:14px}.risk-banner.show{display:flex}.risk-banner .risk-ico{width:32px;height:32px;border-radius:10px;background:#fbe5e1;color:var(--danger);display:grid;place-items:center;font-weight:900}.risk-banner b{display:block;font-size:13px;color:#78372f}.risk-banner p{margin:4px 0 0;color:#875b54;font-size:11px;line-height:1.5}.quiet-details{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}.quiet-details summary{cursor:pointer;color:var(--muted);font-size:11px;list-style:none}.quiet-details summary::-webkit-details-marker{display:none}.quiet-details summary:after{content:"  +"}.quiet-details[open] summary:after{content:"  −"}.wire-detail{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}.wire-detail code{font-size:10px;background:#f3f6f5;padding:5px 7px;border-radius:7px;color:#61716c}.account-select{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:7px 10px;font-size:12px}.review-footer{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:flex-end}.review-footer label{font-size:11px;color:var(--muted);display:block;margin-bottom:5px}.review-footer textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical}.receipt.simple{background:#18362e}.tech-note{margin-top:10px;padding:12px;border:1px dashed #c9d8d3;border-radius:12px;color:var(--muted);font-size:11px;line-height:1.6}
+.toast{position:fixed;right:26px;bottom:26px;background:#111827;color:#fff;padding:12px 15px;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.2);font-size:12px;opacity:0;transform:translateY(8px);pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:translateY(0)}
+@media(max-width:1080px){.app{grid-template-columns:84px 1fr}.brand-text,.nav button span,.sidebar-foot p{display:none}.brand{justify-content:center}.nav button{text-align:center}.hero{grid-template-columns:1fr}.grid4{grid-template-columns:repeat(2,1fr)}.workspace,.review-layout{grid-template-columns:1fr}.lifecycle{grid-template-columns:1fr}.life:not(:last-child)::after{content:"↓";right:auto;left:50%;top:auto;bottom:-15px}.tech-grid{grid-template-columns:1fr}}
+@media(max-width:720px){.app{display:block}.sidebar{display:none}.topbar{padding:0 16px}.content{padding:18px}.hero{padding:24px}.hero h1{font-size:27px}.grid4,.stats{grid-template-columns:1fr}.row{grid-template-columns:1fr 1fr}.receipt-grid{grid-template-columns:1fr}.workspace{grid-template-columns:1fr}.page-title{align-items:flex-start;gap:12px}.summary-strip{flex-direction:column}}
+
+.ops-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:14px}
+.ops-box{background:#fff;border:1px solid var(--line);border-radius:13px;padding:13px}
+.ops-box small{display:block;color:var(--muted);font-size:10px}
+.ops-box b{display:block;font-size:16px;margin-top:5px}
+.ops-tools{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fbfcfe}
+.ops-tools summary{cursor:pointer;font-weight:800;font-size:12px}
+.ops-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.ops-log{margin-top:10px;background:#151c2d;color:#cfd8e8;border-radius:10px;padding:10px;min-height:54px;max-height:160px;overflow:auto;font:11px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}
+.dlq-list{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+.dlq-item{display:flex;align-items:center;gap:8px;justify-content:space-between;border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 10px;font-size:11px}
+.decrypt-result{margin-top:14px;padding:14px;border-radius:12px;border:1px solid var(--line);background:#fbfcfe;font-size:12px;line-height:1.6}
+.decrypt-result.ok{background:var(--success-soft);border-color:#ccebd8;color:#285f43}
+.decrypt-result.bad{background:var(--danger-soft);border-color:#f0cbc5;color:#7b3f38}
+.risk-actions{margin-left:auto;display:flex;gap:8px}
+@media(max-width:980px){.ops-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:620px){.ops-grid{grid-template-columns:1fr}.risk-banner{align-items:stretch}.risk-actions{margin-left:0}}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">CW</div><div class="brand-text"><b>chartwire</b><small>clinical documentation</small></div></div>
+    <nav class="nav">
+      <button class="active" data-page="home">⌂ <span>홈</span></button>
+      <button data-page="session">＋ <span>새 상담</span></button>
+      <button data-page="records">▤ <span>상담 기록</span></button>
+      <button data-page="review">✓ <span>검토 대기</span></button>
+      <button data-page="data">◫ <span>데이터 관리</span></button>
+      <div class="nav-sep"></div>
+      <button class="tech" data-page="engineering">⌘ <span>시스템 상세</span></button>
+    </nav>
+    <div class="sidebar-foot"><div class="demo-badge"><span class="dot" id="connDot"></span><span id="connLabel">API 연결 전</span></div><p>합성 데이터 전용 데모<br>진단·치료 자동화 없음</p></div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div class="crumb" id="crumb">홈</div><div class="top-actions"><span class="chip">합성 데이터</span><select class="account-select" id="roleSelect" aria-label="데모 역할"><option value="clinician">clinician</option><option value="admin">admin</option><option value="auditor">auditor</option></select><span class="chip" id="authChip">DEMO · 로그인 전</span><div class="avatar">CW</div></div></header>
+    <div class="content">
+      <section class="page active" id="page-home">
+        <div class="hero">
+          <div>
+            <div class="eyebrow">Realtime clinical documentation backend</div>
+            <h1>상담에 집중하세요.<br>기록과 근거는 ChartWire가 연결합니다.</h1>
+            <p>실시간 상담 기록부터 근거가 연결된 초안, 사람 검토, 데이터 수명주기까지 한 흐름으로 관리합니다. 복잡한 백엔드 동작은 뒤로 숨기고, 화면에는 지금 필요한 정보만 보여줍니다.</p>
