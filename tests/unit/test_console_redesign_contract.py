@@ -15,6 +15,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 CONSOLE = ROOT / "console" / "index.html"
+README = ROOT / "README.md"
 
 
 def _script() -> str:
@@ -46,22 +47,33 @@ def test_product_information_architecture_is_separated() -> None:
     assert "prefers-color-scheme" in html
 
 
-def test_recruiter_guided_demo_and_visual_hierarchy_are_present() -> None:
+def test_evaluator_guidance_lives_in_readme_not_product_ui() -> None:
     html = CONSOLE.read_text(encoding="utf-8")
-    for needle in (
-        "story-ui-v1",
+    readme = README.read_text(encoding="utf-8")
+
+    for forbidden in (
         "60 sec recommended demo",
-        'id="guidedDemoStart"',
         "면접관에게는 이 흐름만 보여주세요",
-        "00–10s",
-        "55–60s",
-        'data-tour-page="review"',
-        'data-tour-page="data"',
+        'id="guidedDemoStart"',
+        'class="demo-journey"',
+        "data-tour-page",
+    ):
+        assert forbidden not in html, forbidden
+
+    for needle in (
+        "visual-hierarchy-v2",
         "파기 영수증 확인",
-        ".journey-track",
         ".feature:nth-child(4):before",
     ):
         assert needle in html, needle
+
+    for needle in (
+        "## 추천 시연 경로 (약 60초)",
+        "새 상담 → 실시간 기록 → 초안·근거 → 사람 검토 → 파기 → 파기 영수증",
+        "00–10초 · 새 상담",
+        "55–60초 · 파기 영수증",
+    ):
+        assert needle in readme, needle
 
 
 def test_deep_demo_features_are_restored_inside_product_ui() -> None:
