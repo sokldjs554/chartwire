@@ -1,0 +1,50 @@
+{ok:true};
+  }
+  m=path.match(/^\/v1\/notes\/([^/]+)\/assessment$/);
+  if(m&&method==='PUT'){
+    for(const n of preview.notes.values())if(n.id===m[1]){n.assessment={text:body?.text||''};return n.assessment;}
+    return {text:body?.text||''};
+  }
+  m=path.match(/^\/v1\/notes\/([^/]+)\/sign$/);
+  if(m&&method==='POST'){
+    for(const n of preview.notes.values())if(n.id===m[1]){
+      n.status='signed'; n.legal_hold='medical_record'; n.retention_until='preview-retention';
+      const s=preview.sessions.find(x=>x.id===n.session_id); if(s)s.state='signed';
+      return {...n};
+    }
+    return {status:'signed'};
+  }
+  m=path.match(/^\/v1\/consents\/([^/]+)\/revoke$/);
+  if(m&&method==='POST'){
+    let patientId=null;
+    for(const [pid,arr] of preview.consents)for(const c of arr)if(c.id===m[1]){c.revoked_at=new Date().toISOString();patientId=pid;}
+    const job={id:preview.id('purge'),state:'verified',counts:{transcript_segments:4,audio_chunks:60},receipt_hash:'preview-sha256-receipt'};
+    preview.purge.set(job.id,job); return {purge_job_id:job.id};
+  }
+  m=path.match(/^\/v1\/purge-jobs\/([^/]+)\/verify-decrypt$/);
+  if(m&&method==='POST') return {unwrap:'failed:dek_destroyed',decrypt_sample:'failed:authentication',decrypt_attempted:true,job_state:'verified'};
+  m=path.match(/^\/v1\/purge-jobs\/([^/]+)$/);
+  if(m&&method==='GET') return preview.purge.get(m[1])||{id:m[1],state:'verified',counts:{transcript_segments:4},receipt_hash:'preview-sha256-receipt'};
+  if(method==='GET'&&path==='/v1/ops/dead-letters') return {items:[]};
+  m=path.match(/^\/v1\/ops\/dead-letters\/([^/]+)\/replay$/);
+  if(m&&method==='POST') return {status:'replayed'};
+  m=path.match(/^\/v1\/alerts\/([^/]+)\/ack$/);
+  if(m&&method==='POST') return {status:'acked'};
+  m=path.match(/^\/v1\/sessions\/([^/]+)\/ws-ticket$/);
+  if(m&&method==='POST') return {ticket:'preview-ticket'};
+  throw Object.assign(new Error(`preview endpoint 미구현: ${method} ${path}`),{status:404});
+}
+
+async function api(method,path,body,opts={}){if(PREVIEW_MODE)return previewApi(method,path,body);const h={Accept:'application/json'};if(state.token)h.Authorization=`Bearer ${state.token}`;if(body!==undefined)h['Content-Type']='application/json';if(opts.idempotent)h['Idempotency-Key']=crypto.randomUUID();let r;try{r=await fetch(API_BASE+path,{method,headers:h,body:body===undefined?undefined:JSON.stringify(body)});}catch(e){throw new Error(`네트워크 연결 실패: ${e.message}`)}const txt=await r.text();let data=null;try{data=txt?JSON.parse(txt):null}catch{data=txt}if(!r.ok){const d=data&&typeof data==='object'?(data.detail||data.message||data.title||JSON.stringify(data)):txt;const e=new Error(`${r.status} ${d||r.statusText}`);e.status=r.status;throw e}return data;}
+async function login(role='clinician'){if(state.token&&state.role===role)return true;const email=`${role}@demo.clinic`;try{if(PREVIEW_MODE)state.role=role;setConn(false,PREVIEW_MODE?'미리보기 준비 중…':'데모 깨우는 중…');const out=await api('POST','/v1/auth/token',{tenant_slug:'demo',email,password:DEMO.password});state.token=out.access_token;const me=await api('GET','/v1/me');state.role=(me.role||(me.principal&&me.principal.role)||role);state.userId=me.sub||me.user_id||(me.principal&&me.principal.sub)||null;$('authChip').textContent=`DEMO · ${state.role}`;if($('roleSelect'))$('roleSelect').value=state.role;setConn(true,'API 연결됨');return true}catch(e){setConn(false,'API 연결 실패');toast(`로그인 실패 · ${e.message}`,true);return false}}
+async function loadCatalog(){if(PREVIEW_MODE){state.catalog.set('s01',{script_ref:'s01',template:'수면·피로 상담',n_utterances:4,n_expected_alerts:0,total_ms:12000});return;}try{const r=await fetch(API_BASE+'/console/scripts.json',{headers:{Accept:'application/json'}});if(r.ok){const d=await r.json();for(const s of d.scripts||[])state.catalog.set(s.script_ref,s)}}catch{}}
+function statusClass(s){if(['signed','purged','completed','ended','transcribed','drafted'].includes(s))return'ready';if(['recording','paused','created'].includes(s))return'review';return'closed'}
+function statusKo(s){return({created:'준비',recording:'기록 중',paused:'일시정지',ended:'기록 종료',transcribed:'전사 완료',drafted:'초안',signed:'서명 완료',purged:'삭제 완료'}[s]||s||'–')}
+async function loadSessions(){if(!await login())return;try{const out=await api('GET','/v1/sessions?limit=200');const list=Array.isArray(out)?out:(out&&out.items)||[];list.sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));renderSessionRows(list);return list}catch(e){toast(`세션 조회 실패 · ${e.message}`,true);return[]}}
+function renderSessionRows(list){$('countAll').textContent=list.length;$('countReview').textContent=list.filter(s=>['created','recording','paused','drafted','transcribed'].includes(s.state)).length;$('countDone').textContent=list.filter(s=>['signed','purged','ended'].includes(s.state)).length;const render=(box,rows)=>{box.innerHTML='';for(const s of rows){const meta=state.catalog.get(s.script_ref);const row=document.createElement('div');row.className='row';row.style.cursor='pointer';row.innerHTML=`<div><span class="primary-text">${esc(String(s.id).slice(0,8))}</span><span class="sub">${esc(meta?.template||s.script_ref||'합성 상담')}</span></div><div>${esc(new Date(s.created_at||Date.now()).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))}</div><div><span class="status ${statusClass(s.state)}">${esc(statusKo(s.state))}</span></div><div>${esc(s.state||'–')}</div>`;row.addEventListener('click',()=>selectSession(s));box.appendChild(row)}if(!rows.length)box.innerHTML='<div style="padding:18px;color:var(--muted);font-size:13px">세션이 없습니다.</div>'};render($('recordRows'),list);render($('homeRows'),list.slice(0,3));}
+async function selectSession(s){$('riskBanner').classList.remove('show');state.session=s;state.sessionId=s.id;state.patientId=s.patient_id;$('sessionChip').textContent=String(s.id).slice(0,8);$('sessionStatus').textContent=statusKo(s.state);$('sessionStatus').className=`status ${statusClass(s.state)}`;showPage('session');await loadSegments();await loadNote(true);}
+async function createDemoSession(){if(!await login())return false;$('riskBanner').classList.remove('show');try{const name=`가상환자-${1000+Math.floor(Math.random()*9000)}`;const p=await api('POST','/v1/patients',{name,birth_year:1988,sex:'F'});state.patientId=p.id;await api('POST',`/v1/patients/${p.id}/consents`,{scopes:SCOPES},{idempotent:true});const s=await api('POST','/v1/sessions',{patient_id:p.id,script_ref:'s01'},{idempotent:true});state.session=s;state.sessionId=s.id;state.purgeJobId=null;if($('verifyDecrypt'))$('verifyDecrypt').disabled=true;$('sessionChip').textContent=String(s.id).slice(0,8);$('sessionStatus').textContent=statusKo(s.state);$('sessionStatus').className=`status ${statusClass(s.state)}`;$('transcript').innerHTML=`<div style="color:var(--muted);font-size:13px">세션이 생성되었습니다. 「합성 상담 실행」을 누르면 ${PREVIEW_MODE?'미리보기 스트리밍':'실제 WebSocket 스트리밍'}을 시작합니다.</div>`;$('notePane').innerHTML=`<div class="signal"><div class="ico">i</div><div><b>${PREVIEW_MODE?'미리보기 세션':'실제 API 세션'}이 생성되었습니다.</b><p>기록이 끝난 뒤 초안을 불러옵니다.</p></div></div><div class="actions"><button class="btn primary" id="requestDraftInner">초안 요청</button><button class="btn secondary" data-go="review">검토 화면 보기</button></div>`;bindDynamic();showPage('session');return true}catch(e){toast(`세션 생성 실패 · ${e.message}`,true);return false}}
+async function wsTicket(kind){const o=await api('POST',`/v1/sessions/${state.sessionId}/ws-ticket`,{kind});return o.ticket}
+function buildFrame(seq,offset,payload,last){const buf=new ArrayBuffer(WIRE.HEADER+payload.length),dv=new DataView(buf);dv.setUint16(0,WIRE.MAGIC,true);dv.setUint8(2,WIRE.VER);dv.setUint8(3,(last?WIRE.FLAG_LAST:0)|WIRE.FLAG_SIM);dv.setUint32(4,seq,true);dv.setUint32(8,offset,true);new Uint8Array(buf,WIRE.HEADER).set(payload);return buf}
+function chunkPayload(seed,seq,size){let x=((seed*2654435761)^(seq*40503)^0x9e3779b9)>>>0||1;const out=new Uint8Array(size);for(let i=0;i<size;i++){x^=x<<13;x>>>=0;x^=x>>>17;x^=x<<5;x>>>=0;out[i]=x&255}return out}
+async function startWatch(){if(state.watch)try{state.watch.close()}catch{};const ticket=await wsTicket('watch');const ws=new WebSocket(`${WS_
