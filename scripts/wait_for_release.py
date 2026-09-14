@@ -15,7 +15,7 @@ Checks (each is recorded in the JSON, pass or fail; the exit code is 0 only when
 1. ``/v1/release`` — served ``git_sha`` == expected (the wait itself)
 2. ``/readyz`` — 200 (PostgreSQL · Redis · workers up inside the container)
 3. ``/`` — 302 to ``/console``
-4. ``/console`` — 200, carries the SYNTHETIC notice, the home hero and the 상담 신청 entry
+4. ``/console`` — 200, carries the SYNTHETIC notice and redesigned product-home landmarks
 5. ``/console/media/00_intro.png`` — 200 ``image/png`` (the home shows its own screenshots)
 6. ``POST /v1/auth/token`` with the demo clinician → a token; ``GET /v1/sessions?limit=1`` with it → 200
 7. ``GET /v1/sessions`` without a token → 401 (the role gate is on)
@@ -38,7 +38,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 DEMO_LOGIN = {"tenant_slug": "demo", "email": "clinician@demo.clinic", "password": "demo1234!"}
-CONSOLE_LANDMARKS = ("SYNTHETIC", 'id="sec-hero"', "서비스 상담신청하기")
+CONSOLE_LANDMARKS = ("SYNTHETIC", 'id="page-home"', "상담에 집중하세요.")
 USER_AGENT = "chartwire-live-gate/1"
 
 

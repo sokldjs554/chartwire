@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
@@ -37,6 +37,7 @@ button{cursor:pointer}
 
 .risk-banner{display:none;align-items:flex-start;gap:12px;padding:14px 16px;margin-bottom:16px;border:1px solid #f0cbc5;background:#fff6f4;border-radius:14px}.risk-banner.show{display:flex}.risk-banner .risk-ico{width:32px;height:32px;border-radius:10px;background:#fbe5e1;color:var(--danger);display:grid;place-items:center;font-weight:900}.risk-banner b{display:block;font-size:13px;color:#78372f}.risk-banner p{margin:4px 0 0;color:#875b54;font-size:11px;line-height:1.5}.quiet-details{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}.quiet-details summary{cursor:pointer;color:var(--muted);font-size:11px;list-style:none}.quiet-details summary::-webkit-details-marker{display:none}.quiet-details summary:after{content:"  +"}.quiet-details[open] summary:after{content:"  −"}.wire-detail{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}.wire-detail code{font-size:10px;background:#f3f6f5;padding:5px 7px;border-radius:7px;color:#61716c}.account-select{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:7px 10px;font-size:12px}.review-footer{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:flex-end}.review-footer label{font-size:11px;color:var(--muted);display:block;margin-bottom:5px}.review-footer textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical}.receipt.simple{background:#18362e}.tech-note{margin-top:10px;padding:12px;border:1px dashed #c9d8d3;border-radius:12px;color:var(--muted);font-size:11px;line-height:1.6}
 .toast{position:fixed;right:26px;bottom:26px;background:#111827;color:#fff;padding:12px 15px;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.2);font-size:12px;opacity:0;transform:translateY(8px);pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:translateY(0)}
+@media (prefers-color-scheme: dark){html{color-scheme:dark light}}
 @media(max-width:1080px){.app{grid-template-columns:84px 1fr}.brand-text,.nav button span,.sidebar-foot p{display:none}.brand{justify-content:center}.nav button{text-align:center}.hero{grid-template-columns:1fr}.grid4{grid-template-columns:repeat(2,1fr)}.workspace,.review-layout{grid-template-columns:1fr}.lifecycle{grid-template-columns:1fr}.life:not(:last-child)::after{content:"↓";right:auto;left:50%;top:auto;bottom:-15px}.tech-grid{grid-template-columns:1fr}}
 @media(max-width:720px){.app{display:block}.sidebar{display:none}.topbar{padding:0 16px}.content{padding:18px}.hero{padding:24px}.hero h1{font-size:27px}.grid4,.stats{grid-template-columns:1fr}.row{grid-template-columns:1fr 1fr}.receipt-grid{grid-template-columns:1fr}.workspace{grid-template-columns:1fr}.page-title{align-items:flex-start;gap:12px}.summary-strip{flex-direction:column}}
 
@@ -72,7 +73,7 @@ button{cursor:pointer}
       <div class="nav-sep"></div>
       <button class="tech" data-page="engineering">⌘ <span>시스템 상세</span></button>
     </nav>
-    <div class="sidebar-foot"><div class="demo-badge"><span class="dot" id="connDot"></span><span id="connLabel">API 연결 전</span></div><p>합성 데이터 전용 데모<br>진단·치료 자동화 없음</p></div>
+    <div class="sidebar-foot"><div class="demo-badge"><span class="dot" id="connDot"></span><span id="connLabel">API 연결 전</span></div><p>모든 데이터는 합성(SYNTHETIC)입니다 — 실제 환자 정보 없음<br>진단·치료 자동화 없음</p></div>
   </aside>
   <main class="main">
     <header class="topbar"><div class="crumb" id="crumb">홈</div><div class="top-actions"><span class="chip">합성 데이터</span><select class="account-select" id="roleSelect" aria-label="데모 역할"><option value="clinician">clinician</option><option value="admin">admin</option><option value="auditor">auditor</option></select><span class="chip" id="authChip">DEMO · 로그인 전</span><div class="avatar">CW</div></div></header>
@@ -139,7 +140,7 @@ button{cursor:pointer}
         <div class="page-title"><div><h1>검토 대기</h1><p>근거가 부족하거나 아직 서명되지 않은 초안만 이 화면에서 확인합니다.</p></div><button class="btn secondary" id="refreshReview">대기 목록 새로고침</button></div>
         <div class="review-layout">
           <div class="panel"><div class="panel-head"><h3 id="reviewCount">대기 목록</h3></div><div class="panel-body queue" id="reviewQueue"><div style="color:var(--muted);font-size:12px">불러오는 중이 아닙니다.</div></div></div>
-          <div class="panel"><div class="panel-head"><h3>검토 상세</h3><span class="status review" id="reviewBadge">선택 없음</span></div><div class="panel-body" id="reviewDetail"><div style="color:var(--muted);font-size:13px">왼쪽에서 초안을 선택하면 문장별 근거와 검토 상태를 표시합니다.</div></div><div class="panel-body" style="padding-top:0"><div class="review-footer"><div style="flex:1"><label for="assessmentInput">Assessment · 사람이 작성</label><textarea id="assessmentInput" placeholder="검토자가 직접 작성하는 영역입니다."></textarea></div><button class="btn primary" id="signCurrent" disabled>검토 후 서명</button></div></div></div>
+          <div class="panel"><div class="panel-head"><h3>검토 상세</h3><span class="status review" id="reviewBadge">선택 없음</span></div><div class="panel-body" id="reviewDetail"><div style="color:var(--muted);font-size:13px">왼쪽에서 초안을 선택하면 문장별 근거와 검토 상태를 표시합니다.</div></div><div class="panel-body" style="padding-top:0"><div class="review-footer"><div style="flex:1"><label for="assessmentInput">Assessment · 사람이 작성 (AI가 작성하지 않는 영역)</label><textarea id="assessmentInput" placeholder="검토자가 직접 작성하는 영역입니다."></textarea></div><button class="btn primary" id="signCurrent" disabled>검토 후 서명</button></div></div></div>
         </div>
       </section>
 
@@ -175,7 +176,7 @@ button{cursor:pointer}
           <summary>복구·운영 실험 도구 보기</summary>
           <p style="margin:10px 0 0;color:var(--muted);font-size:11px;line-height:1.6">실시간 상담 중 5초 연결 단절을 만들면 resume hello와 missing 재전송 경로를 확인할 수 있습니다. 운영 기능은 이 영역에만 둡니다.</p>
           <div class="ops-actions">
-            <button class="btn secondary" id="dropNetwork">5초 연결 끊기</button>
+            <button class="btn secondary" id="dropNetwork">네트워크 끊기 5초</button>
             <button class="btn secondary" id="wireState">연결 상태 기록</button>
             <button class="btn secondary" id="loadDlq">DLQ 조회</button>
           </div>
@@ -198,6 +199,8 @@ const WS_BASE=API_BASE.replace(/^http/,'ws');
 const DEMO={tenant_slug:'demo',email:'clinician@demo.clinic',password:['demo','1234','!'].join('')};
 const SCOPES=['recording','transcription','ai_drafting','search_index'];
 const WIRE={MAGIC:0x4357,VER:1,FLAG_LAST:1,FLAG_SIM:4,HEADER:12,CHUNK_MS:200,CHUNK_BYTES:6400};
+const CLOSE_CODES={1000:'normal',1006:'abnormal',1012:'service_restart',4000:'heartbeat_timeout',4001:'unauthorized',4003:'forbidden',4004:'session_not_found',4005:'bad_hello',4008:'seq_gap_unrecoverable',4009:'credit_violation',4010:'bad_frame',4011:'consent_missing',4012:'session_ended',4013:'viewer_too_slow',4409:'superseded',4503:'dependency_unavailable'};
+const RESUMABLE_CLOSE=new Set([1006,1012,4000,4503]);
 const state={token:null,role:null,userId:null,sessionId:null,patientId:null,session:null,note:null,segments:new Map(),watch:null,rec:null,catalog:new Map(),purgeJobId:null,riskAlert:null};
 const preview={
   patients:new Map(), consents:new Map(), sessions:[], notes:new Map(), purge:new Map(), seq:1,
@@ -303,7 +306,37 @@ async function createDemoSession(){if(!await login())return false;$('riskBanner'
 async function wsTicket(kind){const o=await api('POST',`/v1/sessions/${state.sessionId}/ws-ticket`,{kind});return o.ticket}
 function buildFrame(seq,offset,payload,last){const buf=new ArrayBuffer(WIRE.HEADER+payload.length),dv=new DataView(buf);dv.setUint16(0,WIRE.MAGIC,true);dv.setUint8(2,WIRE.VER);dv.setUint8(3,(last?WIRE.FLAG_LAST:0)|WIRE.FLAG_SIM);dv.setUint32(4,seq,true);dv.setUint32(8,offset,true);new Uint8Array(buf,WIRE.HEADER).set(payload);return buf}
 function chunkPayload(seed,seq,size){let x=((seed*2654435761)^(seq*40503)^0x9e3779b9)>>>0||1;const out=new Uint8Array(size);for(let i=0;i<size;i++){x^=x<<13;x>>>=0;x^=x>>>17;x^=x<<5;x>>>=0;out[i]=x&255}return out}
-async function startWatch(){if(state.watch)try{state.watch.close()}catch{};const ticket=await wsTicket('watch');const ws=new WebSocket(`${WS_BASE}/ws/v1/watch`);state.watch=ws;ws.onopen=()=>ws.send(JSON.stringify({t:'hello',ticket}));ws.onmessage=ev=>{if(typeof ev.data!=='string')return;const m=JSON.parse(ev.data);if(m.t==='transcript.final')renderSegment(m);if(m.t==='risk.alert'){state.riskAlert=m;toast('검토가 필요한 표현이 감지되었습니다.',true);$('sessionStatus').textContent='검토 필요';$('sessionStatus').className='status review';$('riskBanner').classList.add('show');$('riskTitle').textContent='검토가 필요한 표현이 감지되었습니다.';$('riskMeta').textContent=`${m.category||'risk signal'} · transcript #${m.segment_seq??'–'} · 사람 확인이 필요합니다.`}if(m.t==='risk.ack'){if(state.riskAlert&&state.riskAlert.risk_event_id===m.risk_event_id){state.riskAlert=null;$('riskBanner').classList.remove('show')}}if(m.t==='note.status'){loadNote(true)}if(m.t==='session.state'){$('sessionStatus').textContent=statusKo(m.state);$('sessionStatus').className=`status ${statusClass(m.state)}`}};ws.onclose=()=>{if($('liveLabel'))$('liveLabel').textContent='전사 연결 종료'};}
+async function startWatch(){
+  if(state.watch)try{state.watch.close()}catch{}
+  const ticket=await wsTicket('watch');
+  const ws=new WebSocket(`${WS_BASE}/ws/v1/watch`);state.watch=ws;
+  ws.onopen=()=>ws.send(JSON.stringify({t:'hello',ticket}));
+  ws.onmessage=ev=>{
+    if(typeof ev.data!=='string')return;
+    const m=JSON.parse(ev.data);
+    if(m.t==='ping'){ws.send(JSON.stringify({t:'pong',ts:m.ts}));return}
+    if(m.t==='transcript.partial'){if($('liveLabel'))$('liveLabel').textContent='실시간 전사 중…';return}
+    if(m.t==='transcript.final')renderSegment(m);
+    if(m.t==='risk.alert'){
+      state.riskAlert=m;toast('검토가 필요한 표현이 감지되었습니다.',true);
+      $('sessionStatus').textContent='검토 필요';$('sessionStatus').className='status review';
+      $('riskBanner').classList.add('show');$('riskTitle').textContent='검토가 필요한 표현이 감지되었습니다.';
+      $('riskMeta').textContent=`${m.category||'risk signal'} · transcript #${m.segment_seq??'–'} · 사람 확인이 필요합니다.`
+    }
+    if(m.t==='risk.ack'&&state.riskAlert&&state.riskAlert.risk_event_id===m.risk_event_id){
+      state.riskAlert=null;$('riskBanner').classList.remove('show')
+    }
+    if(m.t==='risk.escalated'){
+      $('riskBanner').classList.add('show');$('riskMeta').textContent='SLA를 넘겨 검토 우선순위가 올라갔습니다.'
+    }
+    if(m.t==='note.status')loadNote(true);
+    if(m.t==='session.state'){$('sessionStatus').textContent=statusKo(m.state);$('sessionStatus').className=`status ${statusClass(m.state)}`}
+    if(m.t==='viewer.lagged')opsLog(`viewer lagged · dropped partials ${m.dropped_partials??'?'}`);
+    if(m.t==='viewer.degraded')opsLog('viewer degraded · replay로 복구');
+    if(m.t==='viewer.presence')opsLog(`viewer presence · ${m.count??'?'}`);
+  };
+  ws.onclose=()=>{if($('liveLabel'))$('liveLabel').textContent='전사 연결 종료'};
+}
 function renderSegment(m){state.segments.set(Number(m.seq),m.text);const box=$('transcript');if(box.children.length===1&&box.firstElementChild?.style?.color)box.innerHTML='';const d=document.createElement('div');const patient=String(m.speaker||'').toLowerCase().includes('patient');d.className='utterance '+(patient?'patient':'clinician');d.dataset.seq=m.seq;d.innerHTML=`<div class="meta">${esc(patient?'가상 환자':'의료진')} · #${esc(m.seq)}</div>${esc(m.text)}`;box.appendChild(d);box.scrollTop=box.scrollHeight}
 async function loadSegments(){if(!state.sessionId)return;try{const segs=await api('GET',`/v1/sessions/${state.sessionId}/segments?limit=500`);state.segments.clear();$('transcript').innerHTML='';for(const s of Array.isArray(segs)?segs:[]){renderSegment(s)}if(!state.segments.size)$('transcript').innerHTML='<div style="color:var(--muted);font-size:13px">아직 전사된 발화가 없습니다.</div>'}catch(e){toast(`전사 조회 실패 · ${e.message}`,true)}}
 class Recorder{
@@ -311,8 +344,10 @@ class Recorder{
     this.total=total;this.nextSeq=1;this.lastSent=0;this.ack=0;this.credit=0;this.epoch=0;
     this.ws=null;this.timer=null;this.seed=Math.floor(Math.random()*1e9);this.ending=false;this.done=false;
     this.everConnected=false;this.reconnects=0;this.ring=new Map();this.resend=[];this.pendingAck=new Map();
-    this.zombies=[];
+    this.zombies=[];this.outcome='running';
   }
+  get ackSeq(){return this.ack}
+  get lastSentSeq(){return this.lastSent}
   log(msg){opsLog(msg);this.gauge()}
   gauge(){
     const outstanding=Math.max(0,this.lastSent-this.ack);
@@ -337,6 +372,7 @@ class Recorder{
       if(m.t==='welcome'){
         this.epoch=m.epoch||0;this.credit=m.credit||0;this.advanceAck(m.ack_seq||0);
         this.queueMissing(m.missing||[]);this.everConnected=true;
+        if(resume)this.log(`RESUME OK · missing ${JSON.stringify(m.missing||[])}`);
         $('liveLabel').textContent=resume?'재연결 완료 · 기록 계속':'실시간 기록 중';
         this.log(`welcome · epoch=${this.epoch} · ack=${this.ack} · credit=${this.credit}`);
         this.tick();
@@ -346,6 +382,8 @@ class Recorder{
         this.queueMissing(m.missing||[]);this.log(`nack · missing=${JSON.stringify(m.missing||[])}`);this.tick();
       }else if(m.t==='credit'){
         this.credit=m.credit||0;this.tick();
+      }else if(m.t==='ping'){
+        ws.send(JSON.stringify({t:'pong',ts:m.ts}));
       }else if(m.t==='pause'){
         clearTimeout(this.timer);this.timer=setTimeout(()=>this.tick(),m.retry_ms||1000);
       }else if(m.t==='session.state'){
@@ -361,7 +399,7 @@ class Recorder{
       if(this.ws!==ws)return;
       this.ws=null;clearTimeout(this.timer);
       if(this.done)return;
-      const resumable=[1006,1012,4000,4503].includes(ev.code);
+      const resumable=RESUMABLE_CLOSE.has(ev.code);
       if(resumable){
         this.reconnects++;$('liveLabel').textContent='재접속 중…';this.log(`close ${ev.code} · resume 예정`);
         setTimeout(()=>this.connect().catch(e=>this.log(`reconnect 실패 · ${e.message}`)),350);
@@ -412,7 +450,7 @@ class Recorder{
     setTimeout(()=>this.connect().catch(e=>this.log(`resume 실패 · ${e.message}`)),ms);
   }
   end(){this.total=Math.min(this.total,Math.max(0,this.nextSeq-1));this.ending=false;this.tick()}
-  finish(reason){if(this.done)return;this.done=true;clearTimeout(this.timer);$('runRealtime').disabled=false;$('stopRealtime').disabled=true;this.log(`종료 · ${reason}`);state.rec=null}
+  finish(reason){if(this.done)return;this.done=true;this.outcome=reason;clearTimeout(this.timer);$('runRealtime').disabled=false;$('stopRealtime').disabled=true;this.log(`종료 · ${reason}`);if(state.rec===this)state.rec=null}
 }
 
 async function runPreviewRealtime(){
