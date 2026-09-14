@@ -1,0 +1,61 @@
+name: fix-purge-sync
+
+on:
+  push:
+    paths:
+      - .github/workflows/fix-purge-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove stale duplicate receipt tracker
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('console/index.html')
+          text = path.read_text(encoding='utf-8')
+          matches = list(re.finditer(r'async function trackReceipt\(', text))
+          if len(matches) != 2:
+              raise SystemExit(f'expected exactly 2 trackReceipt definitions, found {len(matches)}')
+          start = matches[1].start()
+          end = text.index('function bindDynamic', start)
+          text = text[:start] + text[end:]
+          if len(list(re.finditer(r'async function trackReceipt\(', text))) != 1:
+              raise SystemExit('duplicate trackReceipt removal failed')
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validate console JavaScript
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('console/index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script>(.*?)</script>', html, flags=re.S)
+          if len(scripts) != 1:
+              raise SystemExit(f'expected 1 inline script, found {len(scripts)}')
+          Path('/tmp/chartwire-console.js').write_text(scripts[0], encoding='utf-8')
+          PY
+          node --check /tmp/chartwire-console.js
+
+      - name: Commit repaired console
+        shell: bash
+        run: |
+          rm .github/workflows/fix-purge-sync.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add console/index.html .github/workflows/fix-purge-sync.yml
+          git commit -m "fix: keep verified purge receipt UI in sync"
+          git push origin HEAD:main
